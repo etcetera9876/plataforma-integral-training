@@ -1,0 +1,13 @@
+/* src/components/LoadingScreen.css */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Ocupa toda la pantalla */
+  background-color: #f4f4f4; /* Color de fondo */
+}
+
+.loading-image {
+  width: 150px; /* Ajusta el tamaño según sea necesario */
+  height: auto;
+}
