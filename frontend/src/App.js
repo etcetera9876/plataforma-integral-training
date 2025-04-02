@@ -1,5 +1,5 @@
-// src/App.js
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import LoadingScreen from './components/LoadingScreen';
 import Login from './components/Login';
 import WelcomePopup from './components/WelcomePopup';
@@ -9,8 +9,9 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const navigate = useNavigate();
+  
 
-  // Simula una pantalla de carga durante 2 segundos
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
@@ -19,25 +20,56 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    // Mostrar el popup solo para el perfil de reclutador
-    if (userData.perfil === 'reclutador') {
-      setShowPopup(true);
+    if (userData.role === 'recruiter') {
+      const hasSeenPopup = localStorage.getItem('hasSeenWelcomePopup');
+      if (!hasSeenPopup) {
+        setShowPopup(true);
+        localStorage.setItem('hasSeenWelcomePopup', 'true');
+      }
     }
   };
+
+  // Manejo de tiempo de inactividad
+  useEffect(() => {
+    if (!user) return;
+
+    const INACTIVITY_TIMEOUT = 2 * 60 * 1000; // 15 minutos en milisegundos
+
+    let timeout = setTimeout(() => {
+      setUser(null);
+      navigate("/");
+    }, INACTIVITY_TIMEOUT);
+
+    const resetTimer = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        setUser(null);
+        navigate("/");
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    window.addEventListener("mousemove", resetTimer);
+    window.addEventListener("keydown", resetTimer);
+
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener("mousemove", resetTimer);
+      window.removeEventListener("keydown", resetTimer);
+    };
+  }, [user, navigate]);
 
   if (loading) {
     return <LoadingScreen />;
   }
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
-
   return (
-    <div>
+    <>
+      <Routes>
+        <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+        <Route path="/dashboard" element={user ? <TrainingDashboard /> : <Navigate to="/" />} />
+      </Routes>
       {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}
-      <TrainingDashboard />
-    </div>
+    </>
   );
 }
 
