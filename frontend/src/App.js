@@ -23,9 +23,13 @@ function App() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      // Opcional: Validar que exista un token válido
+      if (parsedUser && parsedUser.token) {
+        setUser(parsedUser);
+      }
     }
-}, []);
+  }, []);
 
 
 const handleLogin = (userData) => {
@@ -61,10 +65,19 @@ const handleLogin = (userData) => {
   useEffect(() => {
     if (!user) return;
 
-    const INACTIVITY_TIMEOUT = 2 * 60 * 1000; // 15 minutos en milisegundos
+    const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutos en milisegundos
 
     let timeout = setTimeout(() => {
       setUser(null);
+      
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      if (storedUser && storedUser.id) {
+        localStorage.removeItem(`welcomePopupShown_${storedUser.id}`);
+      }
+
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      window.location.reload(); 
       navigate("/");
     }, INACTIVITY_TIMEOUT);
 
@@ -72,6 +85,7 @@ const handleLogin = (userData) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         setUser(null);
+        localStorage.clear();
         navigate("/");
       }, INACTIVITY_TIMEOUT);
     };
@@ -94,7 +108,7 @@ const handleLogin = (userData) => {
     <>
       <Routes>
         <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
-        <Route path="/dashboard" element={user ? <TrainingDashboard /> : <Navigate to="/" />} />
+        <Route path="/dashboard" element={user ? <TrainingDashboard setUser={setUser} user={user}/> : <Navigate to="/" />} />
       </Routes>
       {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}
     </>
