@@ -7,10 +7,11 @@ const userSchema = new mongoose.Schema({
     place: { type: String, required: true },
     role: { 
         type: String, 
-        enum: ['recruiter', 'trainer', 'supervisor', 'admin'], 
+        enum: ['recruiter', 'manager', 'trainer', 'supervisor', 'admin'], 
         default: 'recruiter' 
     },
-    startDate: { type: Date, required: true }
+    startDate: { type: Date, required: true },
+    hasSeenPopup: { type: Boolean, default: false } // Agregamos esta propiedad
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -4,6 +4,8 @@ import LoadingScreen from './components/LoadingScreen';
 import Login from './components/Login';
 import WelcomePopup from './components/WelcomePopup';
 import TrainingDashboard from './components/TrainingDashboard';
+import API_URL from './config';
+import axios from 'axios';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -18,16 +20,42 @@ function App() {
     }, 2000);
   }, []);
 
-  const handleLogin = (userData) => {
-    setUser(userData);
-    if (userData.role === 'recruiter') {
-      const hasSeenPopup = localStorage.getItem('hasSeenWelcomePopup');
-      if (!hasSeenPopup) {
-        setShowPopup(true);
-        localStorage.setItem('hasSeenWelcomePopup', 'true');
-      }
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+        setUser(JSON.parse(storedUser));
     }
-  };
+}, []);
+
+
+const handleLogin = (userData) => {
+  console.log("userData recibido:", userData);
+  setUser(userData);
+  localStorage.setItem("user", JSON.stringify(userData)); // Guarda la sesión localmente
+  
+  if (userData.role === 'recruiter' && !userData.hasSeenPopup) {
+    // Obtenemos el token desde userData o localStorage
+    const token = userData.token || localStorage.getItem("token");
+    const popupKey = `welcomePopupShown_${userData.id}`;
+    const hasSeenPopup = localStorage.getItem(popupKey);
+    if (!hasSeenPopup) {
+      setShowPopup(true);
+      localStorage.setItem(popupKey, 'true');
+
+      // Llamada al endpoint para actualizar el estado del popup
+      axios.post(`${API_URL}/api/auth/updatePopupStatus`, {}, {
+        headers: { Authorization: token }  // Enviamos solo el token sin "Bearer" si tu middleware lo espera así
+      })
+      .then(response => {
+        console.log("Estado del popup actualizado:", response.data);
+      })
+      .catch(error => {
+        console.error("Error al actualizar estado del popup:", error.response?.data || error.message);
+      });
+    }
+  }
+};
+  
 
   // Manejo de tiempo de inactividad
   useEffect(() => {

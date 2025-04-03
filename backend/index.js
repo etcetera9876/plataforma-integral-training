@@ -1,38 +1,26 @@
 // index.js
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
-const authRoutes = require('./routes/authRoutes');
+const conectarDB = require('./config/db');
 require('dotenv').config(); // Para cargar las variables de entorno
 
-const Usuario = require('./models/user'); // Importamos el modelo
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+
 
 const app = express();
 app.use(express.json()); // Middleware para interpretar JSON
 app.use(express.urlencoded({ extended: true })); // También ayuda a procesar formularios
-
-
-
-
-// Reemplaza la cadena de conexión con la tuya
-const dbURI = 'mongodb+srv://etcetera9876:sand32025@cluster0.si3ltk8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-
-mongoose.connect(dbURI)
-.then(() => console.log('🟢 Conectado a la base de datos'))
-.catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
-
-
-// Middlewares
 app.use(cors()); // Permite cualquier origen
+
+// Conectar a MongoDB Atlas usando el archivo de configuración
+conectarDB();
+
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', userRoutes);
 
-// Rutas de autenticación
-app.use('/api/auth', require('./routes/authRoutes'));
-
-// Rutas de usuarios protegidas (con validación de rol)
-app.use('/api/users', require('./routes/userRoutes'));
 
 // Ruta de prueba para verificar que el servidor funciona
 app.get('/', (req, res) => {

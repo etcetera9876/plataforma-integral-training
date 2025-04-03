@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 
 function useLocalStorage(key, initialValue) {
-  // Estado para almacenar el valor
+  // Obtiene el valor inicial del localStorage o usa el valor inicial proporcionado
   const [storedValue, setStoredValue] = useState(() => {
     try {
-      // Obtener el valor del localStorage por la clave
       const item = window.localStorage.getItem(key);
-      // Parsear el JSON guardado o, si no existe, retornar el valor inicial
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
       console.error('Error al obtener de localStorage', error);
@@ -14,10 +12,9 @@ function useLocalStorage(key, initialValue) {
     }
   });
 
-  // useEffect para actualizar el localStorage cuando el estado cambia
+  // Actualiza localStorage cuando storedValue cambia
   useEffect(() => {
     try {
-      // Guardar el estado en el localStorage
       window.localStorage.setItem(key, JSON.stringify(storedValue));
     } catch (error) {
       console.error('Error al guardar en localStorage', error);
@@ -26,3 +23,5 @@ function useLocalStorage(key, initialValue) {
 
   return [storedValue, setStoredValue];
 }
+
+export default useLocalStorage;

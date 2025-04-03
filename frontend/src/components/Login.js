@@ -30,7 +30,14 @@ const Login = ({ onLogin }) => {
 
       
       console.log("✅ Usuario autenticado:", response.data);
-      onLogin(response.data); // Guarda la sesión del usuario
+      
+      // Extraemos token y usuario de la respuesta
+      const { token, user } = response.data;
+      // Guarda el token en localStorage, si lo deseas
+      localStorage.setItem("token", token);
+      //Pasa el objeto usuario que además ahora incluye el token, si lo deseas
+      onLogin({ ...user, token });
+
     } catch (err) {
       // Manejo de errores específicos según el mensaje recibido del backend
       if (err.response) {

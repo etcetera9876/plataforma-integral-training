@@ -1,5 +1,19 @@
 const User = require('../models/user');
 
+
+// Función para actualizar el estado del popup en el usuario
+exports.updatePopupStatus = async (req, res) => {
+    try {
+        const userId = req.user.id; // Este valor lo provee el middleware authMiddleware
+        // Actualizamos el campo "hasSeenPopup" a true
+        await User.updateOne({ _id: userId }, { hasSeenPopup: true });
+        res.json({ message: "Estado del popup actualizado correctamente" });
+    } catch (error) {
+        res.status(500).json({ message: "Error al actualizar el estado del popup", error: error.message });
+    }
+};
+
+
 exports.getUsers = async (req, res) => {
     try {
         const users = await User.find().select('-password');
