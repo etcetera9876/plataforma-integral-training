@@ -37,7 +37,7 @@ const handleLogin = (userData) => {
   setUser(userData);
   localStorage.setItem("user", JSON.stringify(userData)); // Guarda la sesión localmente
   console.log("LocalStorage user:", localStorage.getItem("user"));
-  if (userData.role === 'recruiter' && !userData.hasSeenPopup) {
+  if (userData.role === 'Recruiter' && !userData.hasSeenPopup) {
     // Obtenemos el token desde userData o localStorage
     const token = userData.token || localStorage.getItem("token");
     const popupKey = `welcomePopupShown_${userData.id}`;

@@ -7,8 +7,8 @@ const userSchema = new mongoose.Schema({
     place: { type: String, required: true },
     role: { 
         type: String, 
-        enum: ['recruiter', 'manager', 'trainer', 'supervisor', 'admin'], 
-        default: 'recruiter' 
+        enum: ['Recruiter', 'Manager', 'Trainer', 'Supervisor', 'Admin'], 
+        default: 'Recruiter' 
     },
     startDate: { type: Date, required: true },
     hasSeenPopup: { type: Boolean, default: false } // Agregamos esta propiedad
