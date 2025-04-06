@@ -3,7 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import './TrainingDashboard.css';
-import RealTimeUpdates from './RealTimeUpdates';
+
 
 const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ const TrainingDashboard = ({ setUser, user }) => {
       <main className="main-content">
         <h1>Dashboard de Training</h1>
         <p>Bienvenido al área de administración. Aquí puedes gestionar cursos, simulaciones y más.</p>
-        <RealTimeUpdates />
+       
       </main>
     </div>
   );

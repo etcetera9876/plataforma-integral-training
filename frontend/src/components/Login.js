@@ -35,9 +35,11 @@ const Login = ({ onLogin }) => {
       const { token, user } = response.data;
       // Guarda el token en localStorage, si lo deseas
       localStorage.setItem("token", token);
-      //Pasa el objeto usuario que además ahora incluye el token, si lo deseas
-      onLogin({ ...user, token });
-
+      console.log("LocalStorage token:", localStorage.getItem("token"));
+    
+      setTimeout(() => {
+        onLogin({ ...user, token });
+      }, 300); // retraso para que la auto-traduccion no crashee el codigo.
     } catch (err) {
       // Manejo de errores específicos según el mensaje recibido del backend
       if (err.response) {

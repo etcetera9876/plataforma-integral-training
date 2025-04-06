@@ -3,8 +3,9 @@
   flex-direction: column;
   justify-content: space-between; /* Distribuye elementos correctamente */
   background-color: #ffffff;
+  box-shadow: 8px 0 30px rgba(0, 0, 0, 0.3); /* 👈 sombreado  */
   color: #000000;
-  width: 250px;
+  width: 300px;
   min-height: 100vh;
   border: 1px solid #000;
   box-sizing: border-box;
@@ -13,7 +14,7 @@
 }
 
 .sidebar.collapsed {
-  width: 70px; /* Ancho cuando está colapsado */
+  width: 50px; /*ancho del sidebar colapsado*/
 }
 
 .sidebar-header h2,
@@ -40,9 +41,32 @@
   display: flex;
   align-items: center;
   padding: 10px;
+
+  border-bottom: 1px solid black;
+}
+
+.header-info {
+  margin-top: 35px;
+  margin-left: 10px;
+ margin-bottom: 20px;
+}
+
+.header-info h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.role-place {
+  margin: 0;
+  margin-left: 10px;
+  font-size: 0.9rem;
+  color: #4d4a4a;
 }
 
 .toggle-button {
+  margin-top: 25px;
+  margin-left: -4px;
   font-size: 1.2rem;
   background: none;
   border: none;
@@ -56,8 +80,9 @@
   font-weight: bold;
 }
 
-/* Asegurar que el menú se mantenga arriba */
+
 .sidebar-menu {
+  margin-top: 50px;
   flex-grow: 1;  /* Empuja el contenido hacia arriba */
 }
 

@@ -36,7 +36,7 @@ const handleLogin = (userData) => {
   console.log("userData recibido:", userData);
   setUser(userData);
   localStorage.setItem("user", JSON.stringify(userData)); // Guarda la sesión localmente
-  
+  console.log("LocalStorage user:", localStorage.getItem("user"));
   if (userData.role === 'recruiter' && !userData.hasSeenPopup) {
     // Obtenemos el token desde userData o localStorage
     const token = userData.token || localStorage.getItem("token");
@@ -75,17 +75,22 @@ const handleLogin = (userData) => {
         localStorage.removeItem(`welcomePopupShown_${storedUser.id}`);
       }
 
+      localStorage.removeItem(`welcomePopupShown_${user.id}`);
       localStorage.removeItem('user');
       localStorage.removeItem('token');
-      window.location.reload(); 
-      navigate("/");
+      navigate("/");  // Solo navega, sin recargar
     }, INACTIVITY_TIMEOUT);
 
     const resetTimer = () => {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         setUser(null);
-        localStorage.clear();
+        const storedUser = JSON.parse(localStorage.getItem("user"));
+        if (storedUser && storedUser.id) {
+          localStorage.removeItem(`welcomePopupShown_${storedUser.id}`);
+        }
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
         navigate("/");
       }, INACTIVITY_TIMEOUT);
     };

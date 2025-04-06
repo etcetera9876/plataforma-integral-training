@@ -18,7 +18,7 @@ conectarDB();
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', userRoutes);
+app.use('/api/users', userRoutes);
 
 
 // Ruta de prueba para verificar que el servidor funciona
