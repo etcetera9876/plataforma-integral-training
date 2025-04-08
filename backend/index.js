@@ -5,12 +5,16 @@ require('dotenv').config(); // Para cargar las variables de entorno
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const branchRoutes = require("./routes/branchRoutes");
+const courseRoutes = require("./routes/courseRoutes");
 const conectarDB = require('./config/db');
 
 const app = express();
 app.use(express.json()); // Middleware para interpretar JSON
 app.use(express.urlencoded({ extended: true })); // También ayuda a procesar formularios
 app.use(cors()); // Permite cualquier origen
+app.use("/api/branches", branchRoutes);
+app.use("/api/courses", courseRoutes);
 
 // Conectar a MongoDB Atlas usando el archivo de configuración
 conectarDB();
