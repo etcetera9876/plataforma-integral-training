@@ -1,24 +1,26 @@
 // src/components/Sidebar.js
 import React, { useState, useEffect } from 'react';
 import { FaSignOutAlt, FaBars } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Sidebar.css';
 import API_URL from '../config';
+import { SIDEBAR_MODULES } from '../constants/sidebarConfig';
 
 const Sidebar = ({ onLogout, userName, userId }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [role, setRole] = useState('');
   const [place, setPlace] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!userId) return;
     const fetchUserDetails = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(
-          `${API_URL}/api/users/${userId}`,
-          { headers: { Authorization: token } }
-        );
+        const response = await axios.get(`${API_URL}/api/users/${userId}`, {
+          headers: { Authorization: token }
+        });
         setRole(response.data.role);
         setPlace(response.data.place);
       } catch (error) {
@@ -28,9 +30,16 @@ const Sidebar = ({ onLogout, userName, userId }) => {
     fetchUserDetails();
   }, [userId]);
 
-  const toggleSidebar = () => {
-    setCollapsed(prev => !prev);
+  const toggleSidebar = () => setCollapsed(prev => !prev);
+
+  const handleNavigate = (route) => {
+    navigate(route);
   };
+
+  const filteredModules = SIDEBAR_MODULES
+  .filter(mod => mod.roles.includes(role))
+  .sort((a, b) => a.order - b.order);
+
 
   return (
     <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -50,30 +59,12 @@ const Sidebar = ({ onLogout, userName, userId }) => {
       {/* MENU */}
       <nav className="sidebar-menu">
         <ul>
-          <li key="training">
-            <img
-              src={require('../assets/training.png')}
-              alt="Training"
-              className="menu-icon"
-            />
-            {!collapsed && <span>Training</span>}
-          </li>
-          <li key="candidates">
-            <img
-              src={require('../assets/hr-management.png')}
-              alt="Candidate Management"
-              className="menu-icon"
-            />
-            {!collapsed && <span>Candidate Management</span>}
-          </li>
-          <li key="resume">
-            <img
-              src={require('../assets/choice.png')}
-              alt="Resume Optimization"
-              className="menu-icon"
-            />
-            {!collapsed && <span>Resume Optimization</span>}
-          </li>
+          {filteredModules.map(mod => (
+            <li key={mod.key} onClick={() => handleNavigate(mod.route)}>
+              <img src={mod.icon} alt={mod.label} className="menu-icon" />
+              {!collapsed && <span>{mod.label}</span>}
+            </li>
+          ))}
         </ul>
       </nav>
 
