@@ -16,7 +16,7 @@ exports.updatePopupStatus = async (req, res) => {
 
 const register = async (req, res) => {
     try {
-        const { name, email, password , place, startDate} = req.body;
+        const { name, email, password , place, role, startDate} = req.body;
 
          // Verifica que se envíe "place" en la solicitud
          if (!place) {
@@ -30,6 +30,7 @@ const register = async (req, res) => {
             email, 
             password, /*hashedPassword*/  
             place,
+            role,
             startDate: startDate ? new Date(startDate) : new Date()});  // Si no envían fecha, usa la actual
         console.log("Usuario a guardar:", user); // <-- Esto mostrará el objeto antes de guardarlo
         await user.save();

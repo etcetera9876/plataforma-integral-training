@@ -1,12 +1,9 @@
-// src/components/TrainingDashboard.js
-import React from 'react';
+// frontend/src/components/TrainerDashboard.js
 import { useNavigate } from 'react-router-dom';
-import Sidebar from './Sidebar';
-import './TrainingDashboard.css';
+import Sidebar from '../Sidebar';
+import './AdminDashboard.css';
 
-
-
-const TrainingDashboard = ({ setUser, user }) => {
+const AdminDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -16,16 +13,16 @@ const TrainingDashboard = ({ setUser, user }) => {
     navigate("/");
   };
 
+
   return (
     <div className="dashboard-container">
       <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
       <main className="main-content">
-        <h1>Dashboard de Recruiter</h1>
-        <p>Bienvenido al área de administración. Aquí puedes gestionar cursos, simulaciones y más.</p>
-       
+        <h1>Admin Dashboard</h1>
+        <p>Bienvenido al panel de entrenamiento. Aquí puedes crear y programar cursos y evaluaciones.</p>
       </main>
     </div>
   );
 };
 
-export default TrainingDashboard;
+export default AdminDashboard;

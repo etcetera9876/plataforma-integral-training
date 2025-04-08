@@ -1,9 +1,15 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import LoadingScreen from './components/LoadingScreen';
 import Login from './components/Login';
 import WelcomePopup from './components/WelcomePopup';
 import TrainingDashboard from './components/TrainingDashboard';
+import TrainerDashboard from './components/Trainer/TrainerDashboard';
+import SupervisorDashboard from './components/Supervisor/SupervisorDashboard';
+import ManagerDashboard from './components/Manager/ManagerDashboard';
+import AdminDashboard from './components/Admin/AdminDashboard';
+
 import API_URL from './config';
 import axios from 'axios';
 
@@ -13,7 +19,7 @@ function App() {
   const [showPopup, setShowPopup] = useState(false);
   const navigate = useNavigate();
   
-
+  // Simula un retardo para la pantalla de carga
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
@@ -31,54 +37,49 @@ function App() {
     }
   }, []);
 
-
-const handleLogin = (userData) => {
-  console.log("userData recibido:", userData);
-  setUser(userData);
-  localStorage.setItem("user", JSON.stringify(userData)); // Guarda la sesión localmente
-  console.log("LocalStorage user:", localStorage.getItem("user"));
-  if (userData.role === 'Recruiter' && !userData.hasSeenPopup) {
-    // Obtenemos el token desde userData o localStorage
-    const token = userData.token || localStorage.getItem("token");
-    const popupKey = `welcomePopupShown_${userData.id}`;
-    const hasSeenPopup = localStorage.getItem(popupKey);
-    if (!hasSeenPopup) {
-      setShowPopup(true);
-      localStorage.setItem(popupKey, 'true');
-
-      // Llamada al endpoint para actualizar el estado del popup
-      axios.post(`${API_URL}/api/auth/updatePopupStatus`, {}, {
-        headers: { Authorization: token }  // Enviamos solo el token sin "Bearer" si tu middleware lo espera así
-      })
-      .then(response => {
-        console.log("Estado del popup actualizado:", response.data);
-      })
-      .catch(error => {
-        console.error("Error al actualizar estado del popup:", error.response?.data || error.message);
-      });
-    }
-  }
-};
-  
+  const handleLogin = (userData) => {
+    console.log("userData recibido:", userData);
+    // Usamos un pequeño retraso para permitir que React termine de renderizar
+    setTimeout(() => {
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      // Si el usuario es "Recruiter" y aún no ha visto el popup, lo mostramos y actualizamos el estado en backend
+      if (userData.role === 'Recruiter' && !userData.hasSeenPopup) {
+        const token = userData.token || localStorage.getItem("token");
+        const popupKey = `welcomePopupShown_${userData.id}`;
+        const hasSeenPopup = localStorage.getItem(popupKey);
+        if (!hasSeenPopup) {
+          setShowPopup(true);
+          localStorage.setItem(popupKey, 'true');
+          axios.post(`${API_URL}/api/auth/updatePopupStatus`, {}, {
+            headers: { Authorization: token }
+          })
+          .then(response => {
+            console.log("Estado del popup actualizado:", response.data);
+          })
+          .catch(error => {
+            console.error("Error al actualizar estado del popup:", error.response?.data || error.message);
+          });
+        }
+      }
+    }, 100); // 100 ms de retraso; puedes ajustar este tiempo si es necesario
+  };
 
   // Manejo de tiempo de inactividad
   useEffect(() => {
     if (!user) return;
 
-    const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutos en milisegundos
-
+    const INACTIVITY_TIMEOUT = 2 * 60 * 1000; // 15 minutos en milisegundos
     let timeout = setTimeout(() => {
       setUser(null);
-      
+      // Borra la bandera de popup del usuario
       const storedUser = JSON.parse(localStorage.getItem("user"));
       if (storedUser && storedUser.id) {
         localStorage.removeItem(`welcomePopupShown_${storedUser.id}`);
       }
-
-      localStorage.removeItem(`welcomePopupShown_${user.id}`);
       localStorage.removeItem('user');
       localStorage.removeItem('token');
-      navigate("/");  // Solo navega, sin recargar
+      navigate("/");
     }, INACTIVITY_TIMEOUT);
 
     const resetTimer = () => {
@@ -109,11 +110,37 @@ const handleLogin = (userData) => {
     return <LoadingScreen />;
   }
 
+  const getDashboardForRole = (role) => {
+    switch (role) {
+      case 'Trainer':
+        return <TrainerDashboard setUser={setUser} user={user} />;
+      case 'Recruiter':
+        return <TrainingDashboard setUser={setUser} user={user} />;
+      case 'Supervisor':
+        return <SupervisorDashboard setUser={setUser} user={user} />;
+      case 'Manager':
+        return <ManagerDashboard setUser={setUser} user={user} />;
+      case 'Admin':
+        return <AdminDashboard setUser={setUser} user={user} />;
+      // más roles aquí...
+      default:
+        return <Navigate to="/" />;
+    }
+  };
+  
+  <Route
+    path="/dashboard"
+    element={user ? getDashboardForRole(user.role) : <Navigate to="/" />}
+  />
+  
   return (
     <>
       <Routes>
-        <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
-        <Route path="/dashboard" element={user ? <TrainingDashboard setUser={setUser} user={user}/> : <Navigate to="/" />} />
+        <Route 
+          path="/" 
+          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} 
+        />
+       <Route path="/dashboard" element={user ? getDashboardForRole(user.role) : <Navigate to="/" />}/>
       </Routes>
       {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}
     </>

@@ -1,0 +1,87 @@
+/* frontend/src/components/TrainerDashboard.css */
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+  }
+  
+  .main-content {
+    flex: 1;
+    padding: 20px;
+    background-color: #f5f5f5;
+  }
+  
+  /* Sección para crear cursos y evaluaciones */
+  .creation-section {
+    background-color: #fff;
+    padding: 15px;
+    margin-bottom: 30px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+  
+  .creation-section h2 {
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  /* Formulario */
+  .creation-section form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .creation-section input[type="text"],
+  .creation-section input[type="datetime-local"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    flex: 1;
+  }
+  
+  .creation-section button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .creation-section button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Contenedor horizontal para módulos */
+  .horizontal-scroll {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  
+  /* Estilo para cada módulo */
+  .module-box {
+    border: 1px solid #000;
+    background-color: aqua;
+    padding: 10px;
+    text-align: center;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 150px;
+  }
+  
+  .module-box:hover {
+    background-color: yellow;
+  }
+  
+  .module-title {
+    font-weight: bold;
+    font-size: 1rem;
+    margin: 0;
+  }
+  
