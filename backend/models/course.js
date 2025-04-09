@@ -3,14 +3,16 @@ const mongoose = require('mongoose');
 const courseSchema = new mongoose.Schema({
   name: { type: String, required: true },
   assignedTo: {
-    type: [mongoose.Schema.Types.ObjectId], // Por defecto, un array de ObjectId
-    ref: 'User',
+    type: mongoose.Schema.Types.Mixed, // Permite tanto un array como un string
     validate: {
       validator: function (value) {
-        // Permitir "All recruiters" o un array de ObjectIds
-        return value === "All recruiters" || Array.isArray(value);
+        // Validar que sea "All recruiters" o un array de ObjectIds
+        return (
+          value === "All recruiters" ||
+          (Array.isArray(value) && value.every((id) => mongoose.Types.ObjectId.isValid(id)))
+        );
       },
-      message: 'assignedTo debe ser "All recruiters" o un array de ObjectIds',
+      message: 'assignedTo debe ser "All recruiters" o un array de ObjectIds válidos',
     },
   },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },

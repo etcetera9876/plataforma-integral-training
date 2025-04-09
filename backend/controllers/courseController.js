@@ -5,12 +5,9 @@ exports.createCourse = async (req, res) => {
   try {
     const { name, assignedTo, branchId, publicationDate, createdBy } = req.body;
 
-    // Verificar si assignedTo es "All recruiters" o un array de ObjectId
-    const finalAssignedTo = assignedTo === "All recruiters" ? "All recruiters" : assignedTo;
-
     const newCourse = new Course({
       name,
-      assignedTo: finalAssignedTo,
+      assignedTo, // Puede ser "All recruiters" o un array de ObjectIds
       branchId,
       publicationDate,
       createdBy,
