@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import CourseModal from "./CourseModal";
 import axios from "axios";
 import API_URL from "../../config";
@@ -14,23 +14,24 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [courses, setCourses] = useState([]);
 
-  useEffect(() => {
-    if (selectedBranch) {
-      fetchCourses();
-    }
-  }, [selectedBranch]);
-
-  const fetchCourses = async () => {
+  // ✅ useCallback evita que fetchCourses cambie de referencia
+  const fetchCourses = useCallback(async () => {
+    if (!selectedBranch) return;
     try {
       const token = user.token;
-      const res = await axios.get(`${API_URL}/api/courses/${selectedBranch}`, {
+      const response = await axios.get(`${API_URL}/api/courses/${selectedBranch}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCourses(res.data);
+      setCourses(response.data);
     } catch (error) {
       console.error("Error al obtener cursos:", error.response?.data || error.message);
     }
-  };
+  }, [selectedBranch, user.token]);
+
+  // ✅ Se corrige el warning incluyendo fetchCourses como dependencia
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const handleAddCourse = async (courseName) => {
     try {
@@ -41,11 +42,11 @@ const TrainerDashboard = ({ setUser, user }) => {
         branchId: selectedBranch,
       };
 
-      const res = await axios.post(`${API_URL}/api/courses`, payload, {
+      await axios.post(`${API_URL}/api/courses`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      await fetchCourses();
+      fetchCourses();
     } catch (err) {
       console.error("Error al crear curso:", err.response?.data || err.message);
     }
