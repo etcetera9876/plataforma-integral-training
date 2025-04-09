@@ -69,20 +69,27 @@ const CourseModal = ({
   };
   
   const handleSchedule = () => {
-    if (!courseName.trim() || !scheduledDate) return;
+    if (!courseName.trim() || !scheduledDate) {
+      alert("Por favor, ingresa un nombre de curso y selecciona una fecha válida.");
+      return;
+    }
+  
     const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers;
-    console.log("Enviando datos para programar:", {
+  
+    console.log("Enviando datos para programar publicación:", {
       name: courseName,
       assignedTo,
       branchId,
-      publicationDate: new Date(scheduledDate),
-    }); // Agrega un log para depuración
+      publicationDate: new Date(scheduledDate), // Configurando correctamente la fecha programada
+    });
+  
     onSubmit({
       name: courseName,
       assignedTo,
       branchId,
-      publicationDate: new Date(scheduledDate),
+      publicationDate: new Date(scheduledDate), // Incluye la fecha programada
     });
+  
     onClose(); // Cierra el modal
   };
 

@@ -14,7 +14,7 @@ exports.createCourse = async (req, res) => {
       name,
       assignedTo,
       branchId,
-      publicationDate,
+      publicationDate: publicationDate || null, // Manejar la fecha programada o nula
       createdBy,
     });
 
