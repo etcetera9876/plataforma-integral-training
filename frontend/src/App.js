@@ -62,14 +62,14 @@ function App() {
           });
         }
       }
-    }, 100); // 100 ms de retraso; puedes ajustar este tiempo si es necesario
+    }, 500); // 100 ms de retraso; puedes ajustar este tiempo si es necesario
   };
 
   // Manejo de tiempo de inactividad
   useEffect(() => {
     if (!user) return;
 
-    const INACTIVITY_TIMEOUT = 2 * 60 * 1000; // 15 minutos en milisegundos
+    const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 15 minutos en milisegundos
     let timeout = setTimeout(() => {
       setUser(null);
       // Borra la bandera de popup del usuario

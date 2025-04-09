@@ -1,35 +1,57 @@
-/* src/components/TrainingDashboard.css */
-.dashboard-container {
-    display: flex;
-    min-height: 100vh;
-  }
-  
-  .main-content {
-    flex: 1;
-    padding: 20px;
-    margin: 0;    
-    background-color: #f5f5f5;
-  }
+.training-dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f9f9fb;
+  font-family: 'Segoe UI', sans-serif;
+}
 
-  .module {
-    background-color: #e0ffff;  /* Fondo aqua claro (cyan) */
-    border: 1px solid #000;     /* Borde de 1px negro */
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-  }
-  
-  .module-icon {
-    width: 40px;
-    height: 40px;
-    margin-right: 10px;
-  }
+.training-main-content {
+  flex: 1;
+  padding: 40px;
+  background-color: #f5f5f5;
+  overflow-y: auto;
+}
 
-  .module-title {
-    font-weight: bold;
-    font-size: 1.2rem;
-    margin: 0;
-  }
-  
+.training-courses-section {
+  margin-top: 30px;
+}
+
+.training-courses-section h2 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.training-course-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.training-course-item {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.training-course-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.training-course-info {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.training-empty-message {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  margin-top: 20px;
+}

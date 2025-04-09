@@ -79,65 +79,68 @@ const handleSchedule = () => {
       <div className="modal" onClick={stopPropagation}>
         <h3>Add course for {branchName}:</h3>
 
-        <div className="modal-field">
-          <label>Assign to:</label>
-          <div>
-            <label>
-              <input
-                type="radio"
-                name="assignedMode"
-                value="all"
-                checked={assignedMode === "all"}
-                onChange={() => setAssignedMode("all")}
-              />
-              All recruiters
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="assignedMode"
-                value="select"
-                checked={assignedMode === "select"}
-                onChange={() => setAssignedMode("select")}
-              />
-              Select personal
-            </label>
-          </div>
-        </div>
 
-        {assignedMode === "select" && (
-  <div className="modal-field">
-    <p>Select recruiters:</p>
-    <ul>
-      {branchUsers.map((user) => (
-        <li key={user._id}>
-          <label>
-            <input
-              type="checkbox"
-              value={user._id}
-              checked={selectedUsers.includes(user._id)}
-              onChange={(e) => {
-                const isChecked = e.target.checked;
-                setSelectedUsers((prev) =>
-                  isChecked
-                    ? [...prev, user._id] // Agregar usuario seleccionado
-                    : prev.filter((id) => id !== user._id) // Quitar usuario deseleccionado
-                );
-              }}
-            />
-            {user.name}
-          </label>
-        </li>
-      ))}
-    </ul>
+        <section className="checklist-section">  
+        <div>
+  <label className="radio-row">
+    <span className="radio-label">All recruiters</span>
+    <input
+      type="radio"
+      name="assignedMode"
+      value="all"
+      checked={assignedMode === "all"}
+      onChange={() => setAssignedMode("all")}
+    />
+  </label>
+  <label className="radio-row">
+    <span className="radio-label">Select recruiters</span>
+    <input
+      type="radio"
+      name="assignedMode"
+      value="select"
+      checked={assignedMode === "select"}
+      onChange={() => setAssignedMode("select")}
+    />
+  </label>
+</div>
+</section>
+
+
+        <section className="checklist-section">
+  <div className="check-list">
+    {assignedMode === "select" && (
+      <div className="modal-field">
+        <ul>
+          {branchUsers.map((user) => (
+            <li key={user._id} className="course-item recruiter-row">
+              <span className="recruiter-name">{user.name}</span>
+              <input
+                type="checkbox"
+                value={user._id}
+                checked={selectedUsers.includes(user._id)}
+                onChange={(e) => {
+                  const isChecked = e.target.checked;
+                  setSelectedUsers((prev) =>
+                    isChecked
+                      ? [...prev, user._id] // Agregar usuario seleccionado
+                      : prev.filter((id) => id !== user._id) // Quitar usuario deseleccionado
+                  );
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </div>
-)}
+</section>
 
         <div className="modal-field">
           <label>Course name:</label>
           <input
             type="text"
             placeholder="Enter course name"
+            required
             value={courseName}
             onChange={(e) => setCourseName(e.target.value)}
           />
@@ -157,6 +160,7 @@ const handleSchedule = () => {
           </button>
         </div>
 
+        <div className="modal-actions">
         {isSchedule && (
           <div className="schedule-field">
             <label>Select date/time:</label>
@@ -165,9 +169,16 @@ const handleSchedule = () => {
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
             />
+            
+            <div className="modal-actions-button2">
             <button onClick={handleSchedule}>Confirm schedule</button>
+            </div>
+
           </div>
         )}
+
+          </div>
+        
       </div>
     </div>
   );

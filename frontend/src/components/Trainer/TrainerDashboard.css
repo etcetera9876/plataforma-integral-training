@@ -33,11 +33,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
 }
 
 .section-title {
-  font-size: 20px;
+  margin-bottom: 0px;
+  font-size: 25px;
   font-weight: 600;
 }
 
@@ -145,6 +145,7 @@
 
 .modal-actions {
   display: flex;
+  margin-top: 10px;
   justify-content: space-between;
 }
 
@@ -154,3 +155,51 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
+.modal-actions-button2 {
+  margin-top: 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.recruiter-name {
+  margin-left: 8px;
+  margin-right: 100px; /* Asegura que el texto esté alineado a la izquierda */
+ 
+}
+
+.recruiter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd; /* Línea divisoria */
+  width: 85%; /* Asegura que ocupe todo el ancho del contenedor */
+  box-sizing: border-box; /* Incluye padding y borde en el cálculo del ancho total */
+}
+
+
+.check-list {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  margin: 10px;
+  list-style: none;
+  margin-bottom: 20px;
+  margin-top: 10px;
+}
+
+
+.radio-row {
+  display: flex;
+  justify-content: space-between; /* Asegura que los elementos estén en extremos opuestos */
+  align-items: center; /* Centra verticalmente el texto y el botón */
+  padding: 5px 0; /* Espaciado entre filas */
+}
+
+.radio-label {
+  margin-right: 100px; /* Espaciado entre el texto y el botón */
+  font-size: 14px; /* Ajusta el tamaño del texto según sea necesario */
+  color: #333; /* Color del texto */
+}
+
