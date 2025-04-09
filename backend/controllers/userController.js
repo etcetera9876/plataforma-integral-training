@@ -1,4 +1,3 @@
-// backend/controllers/userController.js
 const User = require('../models/user');
 
 // Obtener detalles de un usuario por ID
@@ -26,7 +25,7 @@ async function updatePopupStatus(req, res) {
   }
 }
 
-// (Opcional) Listar todos los usuarios
+// Listar todos los usuarios
 async function getUsers(req, res) {
   try {
     const users = await User.find().select('-password');
@@ -36,13 +35,37 @@ async function getUsers(req, res) {
   }
 }
 
+// Actualizar rol del usuario
 async function updateUserRole(req, res) {
-  /* ... tu código existente ... */
+  // Lógica para actualizar el rol
 }
 
+// Listar usuarios por sucursal
+async function getUsersByBranch(req, res) { // Asegúrate de que esta función esté definida
+  try {
+    const { branchId } = req.params;
+    console.log("Branch ID recibido:", branchId);
+
+    if (!branchId) {
+      return res.status(400).json({ message: "Branch ID is required" });
+    }
+
+    const users = await User.find({ place: branchId });
+    console.log("Usuarios encontrados:", users);
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching users by branch:", error);
+    res.status(500).json({ message: "Could not fetch users for this branch" });
+  }
+}
+
+
+
+// Exportar todas las funciones
 module.exports = {
   getUserDetails,
   updatePopupStatus,
   getUsers,
-  updateUserRole
+  updateUserRole,
+  getUsersByBranch, // Exporta la función de forma explícita
 };

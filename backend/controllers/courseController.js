@@ -2,33 +2,28 @@
 const Course = require("../models/course");
 
 exports.createCourse = async (req, res) => {
-  console.log("🟢 createCourse llamado. Body recibido:", req.body); // DEBUG
-
   try {
-    const { name, branchId, createdBy, assignedTo, publicationDate } = req.body;
+    const { name, assignedTo, branchId, publicationDate, createdBy } = req.body;
 
-    if (!name || !branchId || !createdBy || !createdBy.id || !createdBy.name) {
-      console.warn("⚠️ Faltan campos requeridos:", req.body); // DEBUG
-      return res.status(400).json({ message: "Missing required fields" });
-    }
+    // Verificar si assignedTo es "All recruiters" o un array de ObjectId
+    const finalAssignedTo = assignedTo === "All recruiters" ? "All recruiters" : assignedTo;
 
-    const course = new Course({
+    const newCourse = new Course({
       name,
+      assignedTo: finalAssignedTo,
       branchId,
+      publicationDate,
       createdBy,
-      assignedTo: assignedTo || "All recruiters",
-      publicationDate: publicationDate || null,
     });
 
-    await course.save();
-    console.log("✅ Curso creado:", course); // DEBUG
-    res.status(201).json(course);
+    await newCourse.save();
+    console.log("Curso creado correctamente:", newCourse);
+    res.status(201).json(newCourse);
   } catch (error) {
-    console.error("🔴 Error creando curso:", error);
-    res.status(500).json({ message: "Error creating course", error });
+    console.error("Error creando curso:", error);
+    res.status(500).json({ message: "Error al crear el curso", error });
   }
 };
-
 
 exports.getCoursesByBranch = async (req, res) => {
   try {

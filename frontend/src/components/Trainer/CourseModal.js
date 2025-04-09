@@ -36,29 +36,31 @@ const CourseModal = ({
   };
 
   useEffect(() => {
-    if (assignedMode === "select" && branchId) {
-      // Llamada al backend para obtener los usuarios del branch
-      axios.get(`/api/users?branchId=${branchId}`)
+    if (assignedMode === "select" && branchName) { // Usa branchName como parámetro
+      console.log("Solicitando usuarios del branchName:", branchName); // Log para depuración
+      axios
+        .get(`/api/users/branch/${branchName}/users`)
         .then((response) => {
-          setBranchUsers(response.data.users); // Actualiza la lista de usuarios
+          console.log("Usuarios obtenidos:", response.data); // Log para verificar los datos recibidos
+          setBranchUsers(response.data); // Actualiza la lista de usuarios
         })
         .catch((error) => {
           console.error("Error al obtener usuarios del branch:", error);
         });
     }
-  }, [assignedMode, branchId]);
+  }, [assignedMode, branchName]);
 
-const handlePublishNow = () => {
-  if (!courseName.trim()) return;
-  const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers;
-  onSubmit({
-    name: courseName,
-    assignedTo,
-    branchId,
-    publicationDate: null,
-  });
-  onClose();
-};
+  const handlePublishNow = () => {
+    if (!courseName.trim()) return;
+    const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers; // Manejo especial para "All recruiters"
+    onSubmit({
+      name: courseName,
+      assignedTo,
+      branchId,
+      publicationDate: null,
+    });
+    onClose();
+  };
 
 const handleSchedule = () => {
   if (!courseName.trim() || !scheduledDate) return;
@@ -108,18 +110,18 @@ const handleSchedule = () => {
     <p>Select recruiters:</p>
     <ul>
       {branchUsers.map((user) => (
-        <li key={user.id}>
+        <li key={user._id}>
           <label>
             <input
               type="checkbox"
-              value={user.id}
-              checked={selectedUsers.includes(user.id)}
+              value={user._id}
+              checked={selectedUsers.includes(user._id)}
               onChange={(e) => {
                 const isChecked = e.target.checked;
                 setSelectedUsers((prev) =>
                   isChecked
-                    ? [...prev, user.id] // Agregar usuario seleccionado
-                    : prev.filter((id) => id !== user.id) // Quitar usuario deseleccionado
+                    ? [...prev, user._id] // Agregar usuario seleccionado
+                    : prev.filter((id) => id !== user._id) // Quitar usuario deseleccionado
                 );
               }}
             />

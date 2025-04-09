@@ -25,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
 
+
 // Ruta de prueba para verificar que el servidor funciona
 app.get('/', (req, res) => {
   res.send('Servidor funcionando');
@@ -62,6 +63,10 @@ changeStream.on('change', (change) => {
 });
 
 // Aquí se pueden agregar rutas para login, cursos, etc.
+app.use((req, res, next) => {
+  console.log(`Solicitud recibida: ${req.method} ${req.url}`);
+  next();
+});
 
 // Iniciar servidor
 const PORT = process.env.PORT || 5000;

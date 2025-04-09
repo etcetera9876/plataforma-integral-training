@@ -22,7 +22,10 @@ const TrainerDashboard = ({ setUser, user }) => {
       const response = await axios.get(`${API_URL}/api/courses/${selectedBranch}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCourses(response.data);
+      const sortedCourses = response.data.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      ); // Ordenar por fecha de creación descendente
+      setCourses(sortedCourses);
     } catch (error) {
       console.error("Error al obtener cursos:", error.response?.data || error.message);
     }
@@ -36,17 +39,18 @@ const TrainerDashboard = ({ setUser, user }) => {
   const handleAddCourse = async (payload) => {
     try {
       const token = user.token;
-      // payload = { name, assignedTo, branchId, publicationDate }
       const finalPayload = {
         ...payload,
+        assignedTo: payload.assignedTo === "All recruiters" ? "All recruiters" : payload.assignedTo,
         createdBy: { id: user.id, name: user.name },
       };
   
-      await axios.post(`${API_URL}/api/courses`, finalPayload, {
+      const response = await axios.post(`${API_URL}/api/courses`, finalPayload, {
         headers: { Authorization: `Bearer ${token}` },
       });
   
-      fetchCourses();
+      const newCourse = response.data;
+      setCourses((prevCourses) => [newCourse, ...prevCourses]); // Agregar el nuevo curso al inicio
     } catch (err) {
       console.error("Error al crear curso:", err.response?.data || err.message);
     }
