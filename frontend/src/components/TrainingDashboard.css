@@ -3,6 +3,8 @@
   min-height: 100vh;
   background-color: #f9f9fb;
   font-family: 'Segoe UI', sans-serif;
+  white-space: nowrap; /* Asegura que los elementos no salten a la siguiente línea */
+  
 }
 
 .training-main-content {
@@ -22,11 +24,14 @@
   margin-bottom: 20px;
 }
 
-.training-course-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-}
+  .training-course-list {
+    overflow-x: auto;
+    scroll-behavior: smooth; /* Hace el desplazamiento más suave */
+    white-space: nowrap; /* Asegura que los elementos no salten a la siguiente línea */
+    display: flex;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
 
 .training-course-item {
   background: white;
@@ -34,6 +39,9 @@
   border-radius: 10px;
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 250px;
+  border: 1px solid black;
+  
 }
 
 .training-course-title {
@@ -41,12 +49,18 @@
   font-weight: bold;
   margin-bottom: 10px;
   color: #333;
+  white-space: nowrap; /* Evita que el texto salte a una nueva línea */
+  overflow: hidden; /* Oculta el contenido que excede el contenedor */
+  text-overflow: ellipsis; /* Reemplaza el texto excedente con "..." */
 }
 
 .training-course-info {
   font-size: 14px;
   color: #666;
   margin-bottom: 8px;
+  white-space: nowrap; /* Evita que el texto salte a una nueva línea */
+  overflow: hidden; /* Oculta el contenido que excede el contenedor */
+  text-overflow: ellipsis; /* Reemplaza el texto excedente con "..." */
 }
 
 .training-empty-message {

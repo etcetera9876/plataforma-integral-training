@@ -105,6 +105,8 @@ const TrainerDashboard = ({ setUser, user }) => {
                   courses.map((course) => (
                     <li key={course._id} className="course-item" onClick={() => alert("Próximamente")}>
                       <span className="course-name">📘 {course.name}</span>
+                      <span className="course-info">Created Date: {new Date(course.createdAt).toLocaleDateString()}</span>
+                      <span className="course-info">Assign to: {course.assignedTo}</span>
                       <span className="creator">Creado por {course.createdBy.name}</span>
                     </li>
                   ))
@@ -129,13 +131,13 @@ const TrainerDashboard = ({ setUser, user }) => {
       </main>
 
       {showCourseModal && (
-  <CourseModal
-    branchName={currentBranchName}
-    onClose={() => setShowCourseModal(false)}
-    onSubmit={(payload) => handleAddCourse(payload)}
-    branchId={selectedBranch}
-  />
-)}
+        <CourseModal
+          branchName={currentBranchName}
+          onClose={() => setShowCourseModal(false)}
+          onSubmit={(payload) => handleAddCourse(payload)}
+          branchId={selectedBranch}
+        />
+      )}
     </div>
   );
 };

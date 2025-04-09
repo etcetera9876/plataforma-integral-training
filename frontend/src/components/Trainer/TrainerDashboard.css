@@ -1,14 +1,16 @@
 .dashboard-container {
-  display: flex;
-  height: 100vh;
-  background-color: #f9f9fb;
-  font-family: 'Segoe UI', sans-serif;
+  display: flex; /* Asegura que Sidebar y el contenido principal estén uno al lado del otro */
+  flex-direction: row; /* Sidebar a la izquierda, contenido a la derecha */
+  height: 100vh; /* Ocupa toda la altura de la pantalla */
+  margin: 0; /* Elimina márgenes innecesarios */
+  padding: 0; /* Elimina padding innecesario */
 }
 
 .main-content {
-  flex-grow: 1;
-  padding: 40px;
-  overflow-y: auto;
+  flex: 1; /* El contenido principal ocupa el espacio restante */
+  padding: 20px; /* Espaciado interno para el contenido */
+  overflow-y: auto; /* Añade scroll si el contenido es muy largo */
+  margin-left: auto ;
 }
 
 .title {

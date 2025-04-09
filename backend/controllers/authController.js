@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const Branch = require('../models/branch'); 
 
 
 exports.updatePopupStatus = async (req, res) => {
@@ -43,45 +44,55 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        console.log("Datos recibidos:", { email, password });
-        
-        const user = await User.findOne({ email });
-        if (!user) {
-            console.log("No se encontró el usuario");
-            return res.status(404).json({ message: 'Usuario no encontrado' });
+      const { email, password } = req.body;
+      console.log("Inicio de sesión:", { email, password });
+  
+      const user = await User.findOne({ email });
+      console.log("Usuario encontrado:", user);
+  
+      if (!user) {
+        return res.status(404).json({ message: 'Usuario no encontrado' });
+      }
+  
+      if (password !== user.password) {
+        console.log("Contraseña incorrecta:", { inputPassword: password, userPassword: user.password });
+        return res.status(400).json({ message: 'Contraseña incorrecta' });
+      }
+  
+      // Verificar si el usuario tiene un place global
+      let branch = null;
+      if (user.place === "Global") {
+        branch = { _id: "Global", name: "Global" }; // Simular un branch global
+      } else {
+        // Buscar el branch correspondiente
+        branch = await Branch.findOne({ name: user.place });
+        console.log("Branch encontrado:", branch);
+  
+        if (!branch) {
+          return res.status(404).json({ message: 'Sucursal no encontrada' });
         }
-
-        console.log("Contraseña en BD:", user.password);
-        console.log("Comparando (input vs BD):", password, "vs", user.password);
-        console.log("Tipos (input vs BD):", typeof password, typeof user.password);
-
-        // Si las contraseñas no coinciden, retorna error
-        if (password !== user.password) {
-            console.log("Contraseña incorrecta");
-            return res.status(400).json({ message: 'Contraseña incorrecta' });
-        }
-
-        if (!email.endsWith('@jcsfamily.com')) {
-            console.log("Correo no autorizado");
-            return res.status(403).json({ error: 'Correo no autorizado' });
-        }
-
-        const token = jwt.sign({ id: user._id, role: user.role }, 'secreto', { expiresIn: '1h' });
-        console.log("Token generado:", token);
-        res.json({
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                role: user.role,
-                hasSeenPopup: user.hasSeenPopup
-            }
-        });
+      }
+  
+      const token = jwt.sign(
+        { id: user._id, role: user.role, branchId: branch._id },
+        'secreto',
+        { expiresIn: '1h' }
+      );
+  
+      res.json({
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          role: user.role,
+          branchId: branch._id,
+          hasSeenPopup: user.hasSeenPopup,
+        },
+      });
     } catch (error) {
-        console.error("Error en login:", error.message);
-        res.status(500).json({ error: error.message });
+      console.error("Error en login:", error.message);
+      res.status(500).json({ error: error.message });
     }
-};
+  };
 
 module.exports = { register, login };
