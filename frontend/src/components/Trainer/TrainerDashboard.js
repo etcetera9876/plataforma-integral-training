@@ -33,24 +33,25 @@ const TrainerDashboard = ({ setUser, user }) => {
     fetchCourses();
   }, [fetchCourses]);
 
-  const handleAddCourse = async (courseName) => {
+  const handleAddCourse = async (payload) => {
     try {
       const token = user.token;
-      const payload = {
-        name: courseName,
+      // payload = { name, assignedTo, branchId, publicationDate }
+      const finalPayload = {
+        ...payload,
         createdBy: { id: user.id, name: user.name },
-        branchId: selectedBranch,
       };
-
-      await axios.post(`${API_URL}/api/courses`, payload, {
+  
+      await axios.post(`${API_URL}/api/courses`, finalPayload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
+  
       fetchCourses();
     } catch (err) {
       console.error("Error al crear curso:", err.response?.data || err.message);
     }
   };
+  
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -98,7 +99,7 @@ const TrainerDashboard = ({ setUser, user }) => {
               <ul className="course-list">
                 {courses.length > 0 ? (
                   courses.map((course) => (
-                    <li key={course._id} className="course-item">
+                    <li key={course._id} className="course-item" onClick={() => alert("Próximamente")}>
                       <span className="course-name">📘 {course.name}</span>
                       <span className="creator">Creado por {course.createdBy.name}</span>
                     </li>
@@ -124,12 +125,13 @@ const TrainerDashboard = ({ setUser, user }) => {
       </main>
 
       {showCourseModal && (
-        <CourseModal
-          branchName={currentBranchName}
-          onClose={() => setShowCourseModal(false)}
-          onSubmit={handleAddCourse}
-        />
-      )}
+  <CourseModal
+    branchName={currentBranchName}
+    onClose={() => setShowCourseModal(false)}
+    onSubmit={(payload) => handleAddCourse(payload)}
+    branchId={selectedBranch}
+  />
+)}
     </div>
   );
 };
