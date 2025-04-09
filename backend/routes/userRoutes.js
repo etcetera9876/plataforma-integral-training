@@ -3,9 +3,11 @@ const {
   getUserDetails,
   updatePopupStatus,
   getUsers,
+  getUserNames,
   updateUserRole,
   getUsersByBranch, // Importa correctamente la función
 } = require('../controllers/userController');
+
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 
@@ -26,5 +28,8 @@ router.get('/users', authMiddleware, roleMiddleware(['admin']), getUsers);
 
 // PUT /api/users/:id/role → actualiza el rol de un usuario (solo para admin)
 router.put('/users/:id/role', authMiddleware, roleMiddleware(['admin']), updateUserRole);
+
+// Ruta para obtener nombres de usuarios
+router.post('/names', getUserNames);
 
 module.exports = router;

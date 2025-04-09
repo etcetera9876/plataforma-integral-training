@@ -6,6 +6,10 @@ exports.createCourse = async (req, res) => {
   try {
     const { name, assignedTo, branchId, publicationDate, createdBy } = req.body;
 
+    if (!name || !assignedTo || !branchId || !createdBy) {
+      return res.status(400).json({ message: "Faltan datos requeridos" });
+    }
+
     const newCourse = new Course({
       name,
       assignedTo,
@@ -14,14 +18,14 @@ exports.createCourse = async (req, res) => {
       createdBy,
     });
 
-    await newCourse.save();
-    console.log("Curso creado correctamente:", newCourse);
-    res.status(201).json(newCourse);
+    const savedCourse = await newCourse.save();
+    res.status(201).json(savedCourse);
   } catch (error) {
-    console.error("Error creando curso:", error);
-    res.status(500).json({ message: "Error al crear el curso", error });
+    console.error("Error al crear el curso:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+
 
 exports.getCoursesByBranch = async (req, res) => {
   try {
@@ -64,3 +68,4 @@ exports.getCoursesForRecruiter = async (req, res) => {
     res.status(500).json({ message: "Error al obtener los cursos para el reclutador", error });
   }
 };
+

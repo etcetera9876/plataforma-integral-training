@@ -1,4 +1,5 @@
 const User = require('../models/user');
+const mongoose = require("mongoose");
 
 // Obtener detalles de un usuario por ID
 async function getUserDetails(req, res) {
@@ -59,11 +60,37 @@ async function getUsersByBranch(req, res) { // Asegúrate de que esta función e
   }
 }
 
+// Endpoint para obtener nombres de usuarios por ID
+const getUserNames = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    // Filtrar valores inválidos (no ObjectId)
+    const validUserIds = userIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+    if (validUserIds.length === 0) {
+      return res.status(400).json({ message: "No se proporcionaron IDs válidos" });
+    }
+
+    const users = await User.find({ _id: { $in: validUserIds } }).select("_id name");
+    const userNames = users.reduce((acc, user) => {
+      acc[user._id] = user.name;
+      return acc;
+    }, {});
+
+    res.json(userNames);
+  } catch (error) {
+    console.error("Error al obtener nombres de usuarios:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
 
 
 // Exportar todas las funciones
 module.exports = {
   getUserDetails,
+  getUserNames,
   updatePopupStatus,
   getUsers,
   updateUserRole,

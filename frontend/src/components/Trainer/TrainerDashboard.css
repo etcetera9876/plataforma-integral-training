@@ -44,16 +44,23 @@
 }
 
 .add-button {
+  background-color: #007bff;
+  color: white;
   font-size: 24px;
-  background: none;
   border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
-  color: #7c3aed;
-  transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .add-button:hover {
-  transform: scale(1.1);
+  background-color: #0056b3;
+ 
+  scale: 1.1;
 }
 
 .course-list {
@@ -205,3 +212,16 @@
   color: #333; /* Color del texto */
 }
 
+.course-details {
+  display: flex;
+  flex-direction: row;
+  margin-top: 8px;
+}
+
+.course-detail {
+  margin-left: 25px;
+  margin-right: 20px;
+  font-size: 13px;
+  color: #555;
+ 
+}

@@ -51,28 +51,40 @@ const CourseModal = ({
   }, [assignedMode, branchName]);
 
   const handlePublishNow = () => {
-    if (!courseName.trim()) return;
-    const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers; // Manejo especial para "All recruiters"
-    onSubmit({
+    if (!courseName.trim()) return; // Asegúrate de que haya un nombre
+    const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers; // Determina a quién se asigna
+    console.log("Enviando datos para publicar ahora:", {
       name: courseName,
       assignedTo,
       branchId,
       publicationDate: null,
+    }); // Agrega un log para depuración
+    onSubmit({
+      name: courseName,
+      assignedTo,
+      branchId,
+      publicationDate: null, // Publicado ahora
     });
-    onClose();
+    onClose(); // Cierra el modal
   };
-
-const handleSchedule = () => {
-  if (!courseName.trim() || !scheduledDate) return;
-  const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers;
-  onSubmit({
-    name: courseName,
-    assignedTo,
-    branchId,
-    publicationDate: new Date(scheduledDate),
-  });
-  onClose();
-};
+  
+  const handleSchedule = () => {
+    if (!courseName.trim() || !scheduledDate) return;
+    const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers;
+    console.log("Enviando datos para programar:", {
+      name: courseName,
+      assignedTo,
+      branchId,
+      publicationDate: new Date(scheduledDate),
+    }); // Agrega un log para depuración
+    onSubmit({
+      name: courseName,
+      assignedTo,
+      branchId,
+      publicationDate: new Date(scheduledDate),
+    });
+    onClose(); // Cierra el modal
+  };
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>

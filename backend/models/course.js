@@ -1,26 +1,15 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const courseSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  assignedTo: {
-    type: mongoose.Schema.Types.Mixed, // Permite tanto un array como un string
-    validate: {
-      validator: function (value) {
-        // Validar que sea "All recruiters" o un array de ObjectIds
-        return (
-          value === "All recruiters" ||
-          (Array.isArray(value) && value.every((id) => mongoose.Types.ObjectId.isValid(id)))
-        );
-      },
-      message: 'assignedTo debe ser "All recruiters" o un array de ObjectIds válidos',
-    },
-  },
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  assignedTo: { type: [String], required: true },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true },
   publicationDate: { type: Date, default: null },
   createdBy: {
-    id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     name: { type: String, required: true },
   },
-}, { timestamps: true });
+  createdAt: { type: Date, default: Date.now }, // Generar automáticamente la fecha de creación
+});
 
-module.exports = mongoose.model('Course', courseSchema);
+module.exports = mongoose.model("Course", courseSchema);
