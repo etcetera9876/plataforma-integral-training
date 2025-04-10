@@ -1,7 +1,7 @@
 const Course = require("../models/course");
 const mongoose = require("mongoose");
 
-
+// Crear un nuevo curso
 exports.createCourse = async (req, res) => {
   try {
     const { name, assignedTo, branchId, publicationDate, createdBy } = req.body;
@@ -26,7 +26,7 @@ exports.createCourse = async (req, res) => {
   }
 };
 
-
+// Obtener todos los cursos por sucursal
 exports.getCoursesByBranch = async (req, res) => {
   try {
     const { branchId } = req.params;
@@ -39,33 +39,51 @@ exports.getCoursesByBranch = async (req, res) => {
   }
 };
 
-// Obtener cursos para un recruiter
+
+
+// Obtener cursos para un reclutador (solo cursos publicados o sin fecha programada)
 exports.getCoursesForRecruiter = async (req, res) => {
   try {
     const { recruiterId, branchId } = req.query;
-    console.log("Parámetros recibidos:", { recruiterId, branchId });
 
-    if (!recruiterId || !branchId) {
-      return res.status(400).json({ message: "Se requieren recruiterId y branchId" });
+    if (!recruiterId || !branchId) {  
+      return res
+        .status(400)
+        .json({ message: "Se requieren recruiterId y branchId" });
     }
 
     // Convertir branchId a ObjectId
     const branchObjectId = new mongoose.Types.ObjectId(branchId);
 
-    // Buscar los cursos filtrados por branchId y recruiterId
+    // Fecha y hora actual en UTC
+    const currentDate = new Date();
+
+    // Buscar los cursos filtrados por branchId, recruiterId y fecha de publicación
     const courses = await Course.find({
       branchId: branchObjectId,
-      $or: [
-        { assignedTo: "All recruiters" },
-        { assignedTo: { $in: [recruiterId] } },
+      // Filtrar por fecha de publicación
+      $and: [
+        {
+          $or: [
+            { publicationDate: { $lte: currentDate } }, // Cursos ya publicados
+            { publicationDate: null }, // Cursos sin fecha programada
+          ],
+        },
+        {
+          $or: [
+            { assignedTo: "All recruiters" }, // Asignados a todos los reclutadores
+            { assignedTo: { $in: [recruiterId] } }, // Asignados a un reclutador específico
+          ],
+        },
       ],
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }); // Ordenar por fecha de creación (más reciente primero)
 
-    console.log("Cursos encontrados:", courses);
     res.status(200).json(courses);
   } catch (error) {
     console.error("Error al obtener los cursos para el reclutador:", error);
-    res.status(500).json({ message: "Error al obtener los cursos para el reclutador", error });
+    res.status(500).json({
+      message: "Error al obtener los cursos para el reclutador",
+      error,
+    });
   }
 };
-

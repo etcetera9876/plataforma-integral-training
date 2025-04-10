@@ -1,22 +1,80 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import io from 'socket.io-client';
 import Sidebar from './Sidebar';
 import './TrainingDashboard.css';
 
 const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]); // Estado para almacenar los cursos
+  const [socket, setSocket] = useState(null); // Estado para almacenar la instancia de socket
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+    // Desconecta el socket actual
+    if (socket) {
+      socket.disconnect();
+      setSocket(null); // Limpia el socket del estado
+    }
+
+    // Limpia el almacenamiento local y redirige al inicio de sesión
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
     setUser(null);
-    navigate("/");
+    navigate('/');
   };
+
+  // Configura la conexión de Socket.IO al iniciar sesión
+  useEffect(() => {
+    if (user) {
+      console.log("Iniciando conexión de Socket.IO para el usuario:", user);
+
+      // Crea una nueva conexión de socket
+      const newSocket = io("http://localhost:5000", {
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      // Almacena la conexión en el estado
+      setSocket(newSocket);
+
+      // Escucha el evento dbChange
+      newSocket.on("dbChange", (updatedCourses) => {
+        console.log("Evento dbChange recibido:", updatedCourses);
+
+        // Actualiza el estado de los cursos
+        setCourses((prevCourses) => {
+          // Crea un mapa de los cursos existentes
+          const existingCoursesMap = new Map(prevCourses.map((course) => [course._id, course]));
+
+          // Actualiza/agrega los nuevos cursos
+          updatedCourses.forEach((course) => {
+            existingCoursesMap.set(course._id, course);
+          });
+
+          // Ordena los cursos por publicationDate en orden descendente
+          const updated = Array.from(existingCoursesMap.values()).sort((a, b) => {
+            return new Date(b.publicationDate) - new Date(a.publicationDate); // Ordenar por fecha de publicación
+          });
+          
+          return updated;
+        });
+      });
+
+      // Limpia los eventos al desmontar el componente
+      return () => {
+        newSocket.off("dbChange");
+        newSocket.disconnect();
+      };
+    }
+  }, [user]); // Se ejecuta cada vez que cambia el usuario
 
   // Obtener los cursos creados desde el backend
   useEffect(() => {
+    if (!user) return;
+
     console.log("Usuario logueado:", user);
     console.log("branchId enviado:", user.branchId); // Ahora debería ser un ObjectId
   
@@ -33,7 +91,7 @@ const TrainingDashboard = ({ setUser, user }) => {
       .catch((error) => {
         console.error("Error al obtener los cursos:", error);
       });
-  }, [user.id, user.branchId]);
+  }, [user]);
 
   return (
     <div className="dashboard-container">

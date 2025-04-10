@@ -5,6 +5,15 @@ import Sidebar from "../Sidebar";
 import useBranches from "../../hooks/useBranches";
 import CourseModal from "./CourseModal"; // Asegúrate de importar CourseModal
 import "./TrainerDashboard.css";
+import io from "socket.io-client"; // Importación de Socket.IO
+
+// Configuración de Socket.IO
+const socket = io(API_URL, {
+  transports: ["websocket"],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
 const TrainerDashboard = ({ setUser, user }) => {
   const { branches, loading } = useBranches();
@@ -47,11 +56,10 @@ const TrainerDashboard = ({ setUser, user }) => {
 
   const fetchUserNames = useCallback(async (userIds) => {
     try {
-      // Filtra cualquier valor que no sea un ObjectId válido (como "All recruiters")
       const validUserIds = userIds.filter((id) => id !== "All recruiters");
-  
-      if (validUserIds.length === 0) return; // Si no hay IDs válidos, no hagas la solicitud
-  
+
+      if (validUserIds.length === 0) return;
+
       const response = await axios.post(
         `${API_URL}/api/users/names`,
         { userIds: validUserIds },
@@ -59,31 +67,29 @@ const TrainerDashboard = ({ setUser, user }) => {
           headers: { Authorization: `Bearer ${user.token}` },
         }
       );
-  
+
       setUserNames((prev) => ({ ...prev, ...response.data }));
     } catch (error) {
       console.error("Error al obtener nombres de usuarios:", error.response?.data || error.message);
     }
   }, [user.token]);
 
-
   const handleAddCourse = async (courseData) => {
     try {
-      const token = user.token; // Asegúrate de tener el token
+      const token = user.token;
       const response = await axios.post(
-        `${API_URL}/api/courses`, // Asegúrate de que esta ruta sea correcta en tu backend
+        `${API_URL}/api/courses`,
         {
           ...courseData,
           createdBy: {
-            id: user.id, // ID del usuario que está creando el curso
-            name: user.name, // Nombre del usuario que está creando el curso
+            id: user.id,
+            name: user.name,
           },
         },
         {
-          headers: { Authorization: `Bearer ${token}` }, // Incluye el token en la solicitud
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
-      // Actualiza la lista de cursos con el nuevo curso
       setCourses((prevCourses) => [response.data, ...prevCourses]);
       console.log("Curso agregado exitosamente:", response.data);
     } catch (error) {
@@ -91,6 +97,15 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   };
 
+  const handleLogout = () => {
+    // Desconectar Socket.IO
+    socket.disconnect();
+
+    // Limpia el estado del usuario y redirige al inicio de sesión
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    setUser(null);
+  };
 
   useEffect(() => {
     fetchCourses();
@@ -111,11 +126,10 @@ const TrainerDashboard = ({ setUser, user }) => {
   };
 
   const currentBranchName = branches.find((b) => b._id === selectedBranch)?.name || "";
-  
 
   return (
     <div className="dashboard-container">
-      <Sidebar onLogout={() => setUser(null)} userName={user.name} userId={user.id} />
+      <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
       <main className="main-content">
         <h1 className="title">Trainer Dashboard</h1>
         <p className="subtitle">Bienvenido, aquí puedes gestionar cursos y evaluaciones por sucursal.</p>
@@ -143,46 +157,45 @@ const TrainerDashboard = ({ setUser, user }) => {
                 <h2 className="section-title">{currentBranchName} Courses</h2>
                 <button
                   className="add-button"
-                  onClick={() => setShowCourseModal(true)} // Abrir el modal
+                  onClick={() => setShowCourseModal(true)}
                   title="Agregar curso"
                 >
                   ＋
                 </button>
               </div>
 
-
               <ul className="course-list">
-  {courses.length > 0 ? (
-    courses.map((course, index) => {
-      const { text: statusText, icon: statusIcon } = getCourseStatus(course.publicationDate);
+                {courses.length > 0 ? (
+                  courses.map((course, index) => {
+                    const { text: statusText, icon: statusIcon } = getCourseStatus(course.publicationDate);
 
-      return (
-        <li key={course._id || index} className="course-item">
-          <span className="course-name">📘 {course.name}</span>
-          <div className="course-details">
-            <span className="course-detail">
-              Created Date: {course.createdAt ? new Date(course.createdAt).toLocaleDateString() : "Fecha inválida"}
-            </span>
-            <span className="course-detail">
-              Assign to:{" "}
-              {course.assignedTo.includes("All recruiters")
-                ? "All recruiters" // Mostrar directamente "All recruiters" si es el caso
-                : course.assignedTo
-                    .map((id) => userNames[id] || "Loading...") // Mostrar los nombres de usuarios o "Loading..."
-                    .join(", ")}
-            </span>
-            <span className="course-detail">
-              Creado por: {course.createdBy?.name || "Desconocido"}{" "}
-              <span title={statusText}>{statusIcon}</span>
-            </span>
-          </div>
-        </li>
-      );
-    })
-  ) : (
-    <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
-  )}
-</ul>
+                    return (
+                      <li key={course._id || index} className="course-item">
+                        <span className="course-name">📘 {course.name}</span>
+                        <div className="course-details">
+                          <span className="course-detail">
+                            Created Date: {course.createdAt ? new Date(course.createdAt).toLocaleDateString() : "Fecha inválida"}
+                          </span>
+                          <span className="course-detail">
+                            Assign to:{" "}
+                            {course.assignedTo.includes("All recruiters")
+                              ? "All recruiters"
+                              : course.assignedTo
+                                  .map((id) => userNames[id] || "Loading...")
+                                  .join(", ")}
+                          </span>
+                          <span className="course-detail">
+                            Creado por: {course.createdBy?.name || "Desconocido"}{" "}
+                            <span title={statusText}>{statusIcon}</span>
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })
+                ) : (
+                  <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
+                )}
+              </ul>
             </section>
           </>
         )}
@@ -191,8 +204,8 @@ const TrainerDashboard = ({ setUser, user }) => {
       {showCourseModal && (
         <CourseModal
           branchName={currentBranchName}
-          onClose={() => setShowCourseModal(false)} // Cerrar el modal
-          onSubmit={handleAddCourse} // Manejar el nuevo curso
+          onClose={() => setShowCourseModal(false)}
+          onSubmit={handleAddCourse}
           branchId={selectedBranch}
         />
       )}
