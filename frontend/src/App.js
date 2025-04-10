@@ -49,23 +49,23 @@ function App() {
          // Redirige al módulo inicial basado en el rol
     switch (userData.role) {
       case 'Trainer':
-        navigate('/courses-assessments'); // Ruta inicial para el rol Trainer
+        navigate('/courses-assessments'); // Redirige directamente a la ruta inicial del Trainer
         break;
       case 'Recruiter':
-        navigate('/training-dashboard'); // Ruta inicial para el rol Recruiter
+        navigate('/training-dashboard'); // Redirige a la ruta inicial del Recruiter
         break;
       case 'Supervisor':
-        navigate('/supervisor-dashboard'); // Ruta inicial para el rol Supervisor
+        navigate('/supervisor-dashboard'); // Redirige a la ruta inicial del Supervisor
         break;
       case 'Manager':
-        navigate('/manager-dashboard'); // Ruta inicial para el rol Manager
+        navigate('/manager-dashboard'); // Redirige a la ruta inicial del Manager
         break;
       case 'Admin':
-        navigate('/admin-dashboard'); // Ruta inicial para el rol Admin
+        navigate('/admin-dashboard'); // Redirige a la ruta inicial del Admin
         break;
       default:
         navigate('/'); // Redirige al login si el rol no coincide
-    } 
+    }
 
       // Si el usuario es "Recruiter" y aún no ha visto el popup, lo mostramos y actualizamos el estado en backend
       if (userData.role === 'Recruiter' && !userData.hasSeenPopup) {
@@ -137,16 +137,15 @@ function App() {
   const getDashboardForRole = (role) => {
     switch (role) {
       case 'Trainer':
-        return <TrainerDashboard setUser={setUser} user={user} />;
+        return <Navigate to="/courses-assessments" />;
       case 'Recruiter':
-        return <TrainingDashboard setUser={setUser} user={user} />;
+        return <Navigate to="/training-dashboard" />;
       case 'Supervisor':
-        return <SupervisorDashboard setUser={setUser} user={user} />;
+        return <Navigate to="/supervisor-dashboard" />;
       case 'Manager':
-        return <ManagerDashboard setUser={setUser} user={user} />;
+        return <Navigate to="/manager-dashboard" />;
       case 'Admin':
-        return <AdminDashboard setUser={setUser} user={user} />;
-      // más roles aquí...
+        return <Navigate to="/admin-dashboard" />;
       default:
         return <Navigate to="/" />;
     }
@@ -166,7 +165,28 @@ function App() {
   />
   <Route 
     path="/dashboard" 
-    element={user ? getDashboardForRole(user.role) : <Navigate to="/" />} 
+    element={
+      user ? (
+        <Navigate
+          to={
+            // Redirige según el rol del usuario
+            user.role === 'Trainer'
+              ? '/courses-assessments'
+              : user.role === 'Recruiter'
+              ? '/training-dashboard'
+              : user.role === 'Supervisor'
+              ? '/supervisor-dashboard'
+              : user.role === 'Manager'
+              ? '/manager-dashboard'
+              : user.role === 'Admin'
+              ? '/admin-dashboard'
+              : '/'
+          }
+        />
+      ) : (
+        <Navigate to="/" />
+      )
+    }
   />
   <Route 
     path="/courses-assessments" 
