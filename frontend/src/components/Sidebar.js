@@ -1,7 +1,7 @@
 // src/components/Sidebar.js
 import React, { useState, useEffect } from 'react';
 import { FaSignOutAlt, FaBars } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './Sidebar.css';
 import API_URL from '../config';
@@ -11,7 +11,10 @@ const Sidebar = ({ onLogout, userName, userId }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [role, setRole] = useState('');
   const [place, setPlace] = useState('');
+  const [showPopup, setShowPopup] = useState(false); // Agregado el hook useState
   const navigate = useNavigate();
+  const location = useLocation(); // Para obtener la ruta actual
+ 
 
   useEffect(() => {
     if (!userId) return;
@@ -33,12 +36,17 @@ const Sidebar = ({ onLogout, userName, userId }) => {
   const toggleSidebar = () => setCollapsed(prev => !prev);
 
   const handleNavigate = (route) => {
-    navigate(route);
+    if (route === '/results') {
+      setShowPopup(true); // Mostrar popup para "Evaluation results"
+    } else {
+      navigate(route); // Navegar a la ruta especificada
+    }
   };
 
-  const filteredModules = SIDEBAR_MODULES
-  .filter(mod => mod.roles.includes(role))
-  .sort((a, b) => a.order - b.order);
+  // Filtrar módulos según el rol del usuario
+  const filteredModules = SIDEBAR_MODULES.filter((mod) =>
+    mod.roles.includes(role)
+  );
 
 
   return (
@@ -60,7 +68,8 @@ const Sidebar = ({ onLogout, userName, userId }) => {
       <nav className="sidebar-menu">
         <ul>
           {filteredModules.map(mod => (
-            <li key={mod.key} onClick={() => handleNavigate(mod.route)}>
+            <li key={mod.key}  className={location.pathname === mod.route ? 'active' : ''} //Resalta el menú activo
+             onClick={() => handleNavigate(mod.route)}>
               <img src={mod.icon} alt={mod.label} className="menu-icon" />
               {!collapsed && <span>{mod.label}</span>}
             </li>
@@ -73,6 +82,18 @@ const Sidebar = ({ onLogout, userName, userId }) => {
         <FaSignOutAlt className="menu-icon" />
         {!collapsed && <span>Cerrar Sesión</span>}
       </div>
+
+
+      {showPopup && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <h3>Próximamente</h3>
+            <p>Esta funcionalidad estará disponible en futuras actualizaciones.</p>
+            <button onClick={() => setShowPopup(false)} className='bottom-cerrar'>Cerrar</button>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 };

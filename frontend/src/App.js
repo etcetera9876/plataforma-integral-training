@@ -37,12 +37,36 @@ function App() {
     }
   }, []);
 
+  
+
   const handleLogin = (userData) => {
     console.log("userData recibido:", userData);
     // Usamos un pequeño retraso para permitir que React termine de renderizar
     setTimeout(() => {
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
+
+         // Redirige al módulo inicial basado en el rol
+    switch (userData.role) {
+      case 'Trainer':
+        navigate('/courses-assessments'); // Ruta inicial para el rol Trainer
+        break;
+      case 'Recruiter':
+        navigate('/training-dashboard'); // Ruta inicial para el rol Recruiter
+        break;
+      case 'Supervisor':
+        navigate('/supervisor-dashboard'); // Ruta inicial para el rol Supervisor
+        break;
+      case 'Manager':
+        navigate('/manager-dashboard'); // Ruta inicial para el rol Manager
+        break;
+      case 'Admin':
+        navigate('/admin-dashboard'); // Ruta inicial para el rol Admin
+        break;
+      default:
+        navigate('/'); // Redirige al login si el rol no coincide
+    } 
+
       // Si el usuario es "Recruiter" y aún no ha visto el popup, lo mostramos y actualizamos el estado en backend
       if (userData.role === 'Recruiter' && !userData.hasSeenPopup) {
         const token = userData.token || localStorage.getItem("token");
@@ -136,12 +160,36 @@ function App() {
   return (
     <>
       <Routes>
-        <Route 
-          path="/" 
-          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} 
-        />
-       <Route path="/dashboard" element={user ? getDashboardForRole(user.role) : <Navigate to="/" />}/>
-      </Routes>
+  <Route 
+    path="/" 
+    element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} 
+  />
+  <Route 
+    path="/dashboard" 
+    element={user ? getDashboardForRole(user.role) : <Navigate to="/" />} 
+  />
+  <Route 
+    path="/courses-assessments" 
+    element={user ? <TrainerDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+  />
+  <Route 
+    path="/training-dashboard" 
+    element={user ? <TrainingDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+  />
+  <Route 
+    path="/supervisor-dashboard" 
+    element={user ? <SupervisorDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+  />
+  <Route 
+    path="/manager-dashboard" 
+    element={user ? <ManagerDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+  />
+  <Route 
+    path="/admin-dashboard" 
+    element={user ? <AdminDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+  />
+</Routes>
+
       {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}
     </>
   );

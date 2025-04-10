@@ -6,6 +6,8 @@ import useBranches from "../../hooks/useBranches";
 import CourseModal from "./CourseModal"; // Asegúrate de importar CourseModal
 import "./TrainerDashboard.css";
 import io from "socket.io-client"; // Importación de Socket.IO
+import { useNavigate } from "react-router-dom";
+
 
 // Configuración de Socket.IO
 const socket = io(API_URL, {
@@ -16,11 +18,20 @@ const socket = io(API_URL, {
 });
 
 const TrainerDashboard = ({ setUser, user }) => {
+  const navigate = useNavigate();
   const { branches, loading } = useBranches();
   const [selectedBranch, setSelectedBranch] = useState("");
   const [courses, setCourses] = useState([]);
   const [userNames, setUserNames] = useState({});
   const [showCourseModal, setShowCourseModal] = useState(false); // Estado para manejar el modal
+
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/"); // Redirige al login si el usuario no está definido
+    }
+  }, [user, navigate]);
+
 
   const fetchCourses = useCallback(async () => {
     if (!selectedBranch) return;
@@ -39,6 +50,8 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [selectedBranch, user.token]);
 
+
+
   const getCourseStatus = (publicationDate) => {
     if (!publicationDate) {
       return { text: "Publicado ahora", icon: "✅" }; // Publicado ahora
@@ -53,6 +66,8 @@ const TrainerDashboard = ({ setUser, user }) => {
 
     return { text: "Publicado ahora", icon: "✅" }; // Publicado ahora
   };
+
+
 
   const fetchUserNames = useCallback(async (userIds) => {
     try {
@@ -73,6 +88,8 @@ const TrainerDashboard = ({ setUser, user }) => {
       console.error("Error al obtener nombres de usuarios:", error.response?.data || error.message);
     }
   }, [user.token]);
+
+
 
   const handleAddCourse = async (courseData) => {
     try {
@@ -101,15 +118,20 @@ const TrainerDashboard = ({ setUser, user }) => {
     // Desconectar Socket.IO
     socket.disconnect();
 
+
+
     // Limpia el estado del usuario y redirige al inicio de sesión
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     setUser(null);
   };
 
+
   useEffect(() => {
     fetchCourses();
   }, [fetchCourses]);
+
+
 
   useEffect(() => {
     const ids = courses
@@ -124,6 +146,7 @@ const TrainerDashboard = ({ setUser, user }) => {
   const handleBranchChange = (e) => {
     setSelectedBranch(e.target.value);
   };
+
 
   const currentBranchName = branches.find((b) => b._id === selectedBranch)?.name || "";
 
