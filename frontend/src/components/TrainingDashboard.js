@@ -10,6 +10,20 @@ const TrainingDashboard = ({ setUser, user }) => {
   const [courses, setCourses] = useState([]); // Estado para almacenar los cursos
   const [socket, setSocket] = useState(null); // Estado para almacenar la instancia de socket
 
+  // Modal para curso bloqueado
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [lockedCourseName, setLockedCourseName] = useState("");
+
+  const handleCourseClick = (course) => {
+    if (course.isLocked) {
+      setLockedCourseName(course.name);
+      setShowLockedModal(true);
+    } else {
+      // Aquí iría la lógica para acceder al curso normalmente
+      // Por ejemplo: navigate(`/curso/${course._id}`)
+    }
+  };
+
   const handleLogout = () => {
     // Desconecta el socket actual
     if (socket) {
@@ -92,7 +106,11 @@ const TrainingDashboard = ({ setUser, user }) => {
           {courses.length > 0 ? (
             <div className="training-course-list scrollable-container"> {/* Clase para scroll horizontal */}
               {courses.map((course) => (
-                <div key={course._id} className="training-course-item">
+                <div key={course._id} className="training-course-item" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => handleCourseClick(course)}>
+                  {/* Icono de candado si el curso está bloqueado */}
+                  {course.isLocked && (
+                    <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 22, color: '#ff9800' }} title="Curso bloqueado">🔒</span>
+                  )}
                   <h3 className="training-course-title">{course.name}</h3>
                   <p className="training-course-info">
                     Creado el: {new Date(course.createdAt).toLocaleDateString()}
@@ -105,6 +123,23 @@ const TrainingDashboard = ({ setUser, user }) => {
             <p className="training-empty-message">No tienes cursos creados aún.</p>
           )}
         </section>
+
+        {/* Modal de curso bloqueado */}
+        {showLockedModal && (
+          <div className="modal-overlay" onClick={() => setShowLockedModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h3 style={{ textAlign: 'center', marginBottom: 16 }}>Curso bloqueado</h3>
+              <p style={{ textAlign: 'center', marginBottom: 24 }}>
+                El curso <b>"{lockedCourseName}"</b> está bloqueado por el trainer.<br />No puedes acceder hasta que sea desbloqueado.
+              </p>
+              <div className="modal-actions" style={{ justifyContent: 'center' }}>
+                <button className="confirm-button" onClick={() => setShowLockedModal(false)}>
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

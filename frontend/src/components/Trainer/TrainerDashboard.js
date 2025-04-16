@@ -75,15 +75,28 @@ const TrainerDashboard = ({ setUser, user }) => {
   
   const handleToggleLock = async (courseId, isLocked) => {
     try {
-      const response = await fetch(`/api/courses/${courseId}/toggle-lock`, {
+      // Usa la URL absoluta para asegurar que apunte al backend correcto
+      const response = await fetch(`http://localhost:5000/api/courses/${courseId}/toggle-lock`, {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
-      alert(data.message);
-      fetchCourses(); // Actualizar la lista de cursos
+      // Verifica que la respuesta sea JSON y status 200
+      const contentType = response.headers.get("content-type");
+      if (!response.ok) {
+        let errorMsg = "Error al cambiar el estado de bloqueo";
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          errorMsg = data.message || errorMsg;
+        }
+        throw new Error(errorMsg);
+      }
+      if (contentType && contentType.includes("application/json")) {
+        await response.json();
+      }
+      fetchCourses();
     } catch (error) {
       console.error("Error al cambiar el estado de bloqueo:", error);
-      alert("Hubo un error al cambiar el estado de bloqueo");
+      alert(error.message || "Hubo un error al cambiar el estado de bloqueo");
     }
   };
 

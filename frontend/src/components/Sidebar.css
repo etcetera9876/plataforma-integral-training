@@ -139,7 +139,7 @@
   color: white;
   font-size: 15px;
   font-weight: bold;
-  border: 1px solid black;
+  border: none;
   border-radius: 7px;
   background-color: rgb(11, 167, 240);
 }

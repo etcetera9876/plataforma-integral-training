@@ -141,7 +141,7 @@ exports.toggleLockCourse = async (req, res) => {
     course.isLocked = !course.isLocked; // Cambiar el estado de bloqueo
     await course.save();
 
-    res.status(200).json({ message: `Curso ${course.isLocked ? "bloqueado" : "desbloqueado"}` });
+    res.status(200).json({ message: `Curso ${course.isLocked ? "bloqueado" : "desbloqueado"}`, isLocked: course.isLocked });
   } catch (error) {
     console.error("Error al cambiar el estado de bloqueo:", error);
     res.status(500).json({ message: "Error interno del servidor" });
