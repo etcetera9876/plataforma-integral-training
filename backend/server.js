@@ -5,6 +5,7 @@ const socketIo = require('socket.io');
 require('dotenv').config();
 const conectarDB = require('./config/db');
 const Course = require('./models/course');
+const { setSocketInstance, emitDbChange } = require('./socket');
 
 // Inicializar la aplicación Express
 const app = express();
@@ -27,7 +28,6 @@ app.use("/api/users", userRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/courses", courseRoutes);
 
-
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.send('Servidor funcionando');
@@ -42,6 +42,12 @@ const io = socketIo(server, {
     credentials: true,
   },
 });
+setSocketInstance(io);
+
+// Emite dbChange cada 30 segundos para reflejar cursos programados/expirados en tiempo real
+setInterval(() => {
+  emitDbChange();
+}, 30000);
 
 // Manejo de conexiones de Socket.IO
 io.on('connection', (socket) => {
@@ -51,30 +57,6 @@ io.on('connection', (socket) => {
     console.log(`Cliente desconectado: ${socket.id}`);
   });
 });
-
-// Manejador de cursos publicados ya emitidos
-const scheduledCourses = new Set(); // Para rastrear cursos ya emitidos
-
-// Función para emitir eventos `dbChange`
-const emitPublishedAndExpiredCourses = async () => {
-  const currentDate = new Date();
-
-  try {
-    // Cursos para publicar (publicados y no expirados)
-    const coursesToPublish = await Course.find({
-      publicationDate: { $lte: currentDate }, // Publicar si la fecha ya pasó
-      $or: [{ expirationDate: null }, { expirationDate: { $gte: currentDate } }], // No expirados
-    }).sort({ createdAt: -1 }); // Ordenar por fecha de creación descendente
-
-    // Emitir solo los cursos válidos
-    io.emit("dbChange", coursesToPublish); // Actualiza el dashboard en tiempo real
-  } catch (error) {
-    console.error("Error al manejar cursos publicados y expirados:", error);
-  }
-};
-
-// Ejecutar cada segundo para manejar publicaciones y expiraciones
-setInterval(emitPublishedAndExpiredCourses, 1000);
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;

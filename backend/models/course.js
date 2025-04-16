@@ -10,6 +10,14 @@ const courseSchema = new mongoose.Schema({
   publicationDate: { type: Date, default: null },
   expirationDate: { type: Date, default: null },
   isLocked: { type: Boolean, default: false },
+  description: { type: String, default: "" },
+  resources: [
+    {
+      type: { type: String, enum: ["image", "video", "link", "document"], required: false },
+      url: { type: String },
+      name: { type: String },
+    }
+  ],
   createdBy: {
     id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     name: { type: String, required: true },

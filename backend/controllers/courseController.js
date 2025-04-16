@@ -1,5 +1,6 @@
 const Course = require("../models/course");
 const mongoose = require("mongoose");
+const { emitDbChange } = require('../socket'); // ✅ Esto es lo correcto
 
 // Crear un nuevo curso
 exports.createCourse = async (req, res) => {
@@ -38,6 +39,7 @@ exports.createCourse = async (req, res) => {
     });
 
     await course.save();
+    await emitDbChange();
     res.status(201).json({ message: "Curso creado correctamente", course });
   } catch (error) {
     console.error("Error al crear el curso:", error);
@@ -63,6 +65,9 @@ exports.getCoursesForRecruiter = async (req, res) => {
   try {
     const { recruiterId, branchId } = req.query;
 
+    console.log("[DEBUG][getCoursesForRecruiter] recruiterId:", recruiterId);
+    console.log("[DEBUG][getCoursesForRecruiter] branchId:", branchId);
+
     if (!recruiterId || !branchId) {  
       return res
         .status(400)
@@ -75,11 +80,6 @@ exports.getCoursesForRecruiter = async (req, res) => {
       : recruiterId;
 
     const currentDate = new Date();
-
-    // LOG para depuración
-    console.log("[DEBUG] recruiterId (string):", recruiterId);
-    console.log("[DEBUG] recruiterObjectId (ObjectId):", recruiterObjectId);
-    console.log("[DEBUG] branchObjectId:", branchObjectId);
 
     const courses = await Course.find({
       branchId: branchObjectId,
@@ -99,8 +99,7 @@ exports.getCoursesForRecruiter = async (req, res) => {
       ],
     }).sort({ createdAt: -1 });
 
-    // LOG para depuración
-    console.log("[DEBUG] Cursos encontrados:", courses.map(c => ({_id: c._id, name: c.name, assignedTo: c.assignedTo})));
+    console.log("[DEBUG][getCoursesForRecruiter] Cursos encontrados:", courses.map(c => ({_id: c._id, name: c.name, assignedTo: c.assignedTo, branchId: c.branchId})));
 
     res.status(200).json(courses);
   } catch (error) {
@@ -115,13 +114,33 @@ exports.getCoursesForRecruiter = async (req, res) => {
 exports.updateCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const updates = req.body;
+    let updates = req.body;
+
+    // Procesar y transformar assignedTo igual que en createCourse
+    if (updates.assignedTo) {
+      if (updates.assignedTo === "All recruiters") {
+        updates.assignedTo = ["All recruiters"];
+      } else if (Array.isArray(updates.assignedTo)) {
+        updates.assignedTo = updates.assignedTo.map((id) => {
+          if (id === "All recruiters") return "All recruiters";
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        });
+      } else {
+        return res.status(400).json({ message: "Formato inválido para assignedTo" });
+      }
+    }
+
+    // Log para depuración: ver cómo queda assignedTo antes de guardar
+    console.log("[DEBUG][updateCourse] assignedTo a guardar:", updates.assignedTo);
 
     const updatedCourse = await Course.findByIdAndUpdate(courseId, updates, { new: true });
     if (!updatedCourse) {
       return res.status(404).json({ message: "Curso no encontrado" });
     }
 
+    // Log para depuración: ver cómo quedó guardado en la BD
+    console.log("[DEBUG][updateCourse] assignedTo guardado en BD:", updatedCourse.assignedTo);
+    await emitDbChange();
     res.status(200).json(updatedCourse);
   } catch (error) {
     console.error("Error al actualizar el curso:", error);
@@ -141,6 +160,8 @@ exports.toggleLockCourse = async (req, res) => {
     course.isLocked = !course.isLocked; // Cambiar el estado de bloqueo
     await course.save();
 
+    await emitDbChange();
+
     res.status(200).json({ message: `Curso ${course.isLocked ? "bloqueado" : "desbloqueado"}`, isLocked: course.isLocked });
   } catch (error) {
     console.error("Error al cambiar el estado de bloqueo:", error);
@@ -159,6 +180,7 @@ exports.deleteCourse = async (req, res) => {
     }
 
     res.status(200).json({ message: "Curso eliminado correctamente" });
+    await emitDbChange();
   } catch (error) {
     console.error("Error al eliminar el curso:", error);
     res.status(500).json({ message: "Error interno del servidor" });

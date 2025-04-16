@@ -7,6 +7,7 @@ const {
   getCoursesForRecruiter,
   deleteCourse,
   toggleLockCourse, // <-- Agregamos el controlador
+  updateCourse, // <-- Agregamos el controlador para actualizar curso
 } = require("../controllers/courseController");
 
 // Rutas para los cursos
@@ -15,5 +16,6 @@ router.post("/", createCourse); // Crear un curso
 router.get("/:branchId", getCoursesByBranch); // Obtener cursos por sucursal
 router.delete("/:courseId", deleteCourse); // Eliminar un curso por ID
 router.patch("/:courseId/toggle-lock", toggleLockCourse); // Ruta para bloquear/desbloquear curso
+router.put("/:courseId", updateCourse); // Ruta para actualizar curso
 
 module.exports = router;

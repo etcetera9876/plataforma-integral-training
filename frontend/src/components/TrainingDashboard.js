@@ -47,16 +47,33 @@ const TrainingDashboard = ({ setUser, user }) => {
       reconnectionDelay: 1000,
     });
   
-    newSocket.on("dbChange", (updatedCourses) => {
-      const currentDate = new Date();
-      // Filtrar solo los cursos válidos y asignados al usuario actual
-      const validCourses = updatedCourses.filter((course) => {
-        const isAssignedToAll = course.assignedTo.includes("All recruiters");
-        const isAssignedToUser = course.assignedTo.some((id) => String(id) === String(user.id));
-        return (!course.expirationDate || new Date(course.expirationDate) > currentDate) && (isAssignedToAll || isAssignedToUser);
-      });
-      const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setCourses(sortedCourses);
+    newSocket.on("dbChange", () => {
+      // Cuando llegue un cambio, vuelve a pedir los cursos al endpoint correcto
+      if (!user) return;
+      axios
+        .get('/api/courses', {
+          params: {
+            recruiterId: user.id,
+            branchId: user.branchId,
+          },
+        })
+        .then((response) => {
+          const currentDate = new Date();
+          const validCourses = response.data.filter((course) => {
+            const assignedToArr = Array.isArray(course.assignedTo)
+              ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
+              : [];
+            const isAssignedToAll = assignedToArr.includes("All recruiters");
+            const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
+            const notExpired = !course.expirationDate || new Date(course.expirationDate) > currentDate;
+            return notExpired && (isAssignedToAll || isAssignedToUser);
+          });
+          const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setCourses(sortedCourses);
+        })
+        .catch((error) => {
+          console.error("[SOCKET] Error al obtener los cursos:", error);
+        });
     });
 
     setSocket(newSocket);
@@ -67,25 +84,32 @@ const TrainingDashboard = ({ setUser, user }) => {
   // Obtener los cursos creados desde el backend
   useEffect(() => {
     if (!user) return;
-  
+    // Usa SIEMPRE el endpoint correcto para reclutador
     axios
-      .get(`/api/courses`, {
+      .get('/api/courses', {
         params: {
           recruiterId: user.id,
-          branchId: user.branchId, // Usa el ObjectId del branch
+          branchId: user.branchId,
         },
       })
       .then((response) => {
-
+        console.log("Cursos recibidos del backend:", response.data);
         const currentDate = new Date();
         const validCourses = response.data.filter((course) => {
-          const isAssignedToAll = course.assignedTo.includes("All recruiters");
-          const isAssignedToUser = course.assignedTo.some((id) => id === user.id);
-          return (!course.expirationDate || new Date(course.expirationDate) > currentDate) && (isAssignedToAll || isAssignedToUser);
+          const assignedToArr = Array.isArray(course.assignedTo)
+            ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
+            : [];
+          const isAssignedToAll = assignedToArr.includes("All recruiters");
+          const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
+          const notExpired = !course.expirationDate || new Date(course.expirationDate) > currentDate;
+          if (!(notExpired && (isAssignedToAll || isAssignedToUser))) {
+            console.log("Curso filtrado:", course.name, {notExpired, isAssignedToAll, isAssignedToUser, assignedToArr, expirationDate: course.expirationDate});
+          }
+          return notExpired && (isAssignedToAll || isAssignedToUser);
         });
-
+        console.log("Cursos que pasan el filtro:", validCourses);
         const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setCourses(sortedCourses); // Actualiza el estado con los cursos obtenidos
+        setCourses(sortedCourses);
       })
       .catch((error) => {
         console.error("Error al obtener los cursos:", error);

@@ -8,7 +8,7 @@ import "./TrainerDashboard.css";
 import io from "socket.io-client"; // Importación de Socket.IO
 import { useNavigate } from "react-router-dom";
 import { ConfirmModal, SuccessModal } from "./ConfirmModal"; // Importa el modal de confirmación
-// import ConfirmModal from "./SuccessModal"; // Removed duplicate import
+import CourseEditModal from "./CourseEditModal"; // Importa el nuevo modal de edición
 
 
 // Configuración de Socket.IO
@@ -284,49 +284,51 @@ const TrainerDashboard = ({ setUser, user }) => {
                 </button>
               </div>
 
-                        <ul className="course-list">
-            {courses.length > 0 ? (
-              courses.map((course, index) => {
-                const { text: statusText, icon: statusIcon } = getCourseStatus(course.publicationDate);
-
-                return (
-                  <li key={course._id || index} className="course-item">
-                    <span className="course-name">📘 {course.name}</span>
-                    <div className="course-actions">
-                      {/* Botón para actualizar */}
-                      <button
-                        className="update-button"
-                        onClick={() => handleUpdate(course)}
-                        title="Actualizar curso"
+              <ul className="course-list">
+                {courses.length > 0 ? (
+                  courses.map((course, index) => {
+                    const isNew = !course.description && (!course.resources || course.resources.length === 0);
+                    return (
+                      <li
+                        key={course._id || index}
+                        className={`course-item${isNew ? " new-course-alert" : ""}`}
+                        style={isNew ? {
+                          boxShadow: '0 0 0 4px rgba(255,0,0,0.15)',
+                          borderRadius: '12px',
+                          transition: 'box-shadow 0.3s',
+                        } : {}}
                       >
-                        Update
-                      </button>
-
-                      {/* Botón para eliminar */}
-                      <button
-                        className="delete-button"
-                        onClick={() => handleDeleteClick(course._id)}
-                        title="Eliminar curso"
-                      >
-                        Delete
-                      </button>
-
-                      {/* Botón para bloquear/desbloquear */}
-                      <button
-                        className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
-                        onClick={() => handleToggleLock(course._id, course.isLocked)}
-                        title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
-                      >
-                        {course.isLocked ? "Unlock" : "Lock"}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })
-            ) : (
-              <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
-            )}
-          </ul>
+                        <span className="course-name">📘 {course.name}</span>
+                        <div className="course-actions">
+                          <button
+                            className="update-button"
+                            onClick={() => handleUpdate(course)}
+                            title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                          >
+                            {isNew ? "New" : "Update"}
+                          </button>
+                          <button
+                            className="delete-button"
+                            onClick={() => handleDeleteClick(course._id)}
+                            title="Eliminar curso"
+                          >
+                            Delete
+                          </button>
+                          <button
+                            className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
+                            onClick={() => handleToggleLock(course._id, course.isLocked)}
+                            title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                          >
+                            {course.isLocked ? "Unlock" : "Lock"}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })
+                ) : (
+                  <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
+                )}
+              </ul>
             </section>
           </>
         )}
@@ -355,6 +357,16 @@ const TrainerDashboard = ({ setUser, user }) => {
           onClose={() => setShowCourseModal(false)}
           onSubmit={handleAddCourse}
           branchId={selectedBranch}
+        />
+      )}
+
+      {isModalOpen && (
+        <CourseEditModal
+          course={selectedCourse}
+          branchName={currentBranchName}
+          onClose={() => setIsModalOpen(false)}
+          onSave={fetchCourses}
+          userNames={userNames}
         />
       )}
       
