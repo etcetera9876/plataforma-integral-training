@@ -12,6 +12,7 @@ const CourseModal = ({
   const [assignedMode, setAssignedMode] = useState("all");
   const [branchUsers, setBranchUsers] = useState([]); // Lista de usuarios del branch
   const [selectedUsers, setSelectedUsers] = useState([]); // Usuarios seleccionados
+  const [expirationDate, setExpirationDate] = useState(""); 
   
   const [isSchedule, setIsSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
@@ -50,48 +51,47 @@ const CourseModal = ({
     }
   }, [assignedMode, branchName]);
 
+  //para el boton de publicar ahora
   const handlePublishNow = () => {
-    if (!courseName.trim()) return; // Asegúrate de que haya un nombre
-    const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers; // Determina a quién se asigna
-    console.log("Enviando datos para publicar ahora:", {
-      name: courseName,
-      assignedTo,
-      branchId,
-      publicationDate: null,
-    }); // Agrega un log para depuración
-    onSubmit({
-      name: courseName,
-      assignedTo,
-      branchId,
-      publicationDate: null, // Publicado ahora
-    });
-    onClose(); // Cierra el modal
-  };
-  
-  const handleSchedule = () => {
-    if (!courseName.trim() || !scheduledDate) {
-      alert("Por favor, ingresa un nombre de curso y selecciona una fecha válida.");
+    if (!courseName.trim()) {
+      alert("Por favor, ingresa un nombre de curso.");
       return;
     }
   
     const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers;
   
-    console.log("Enviando datos para programar publicación:", {
+    onSubmit({
       name: courseName,
       assignedTo,
       branchId,
-      publicationDate: new Date(scheduledDate), // Configurando correctamente la fecha programada
+      publicationDate: new Date(), // Publicado ahora
+      expirationDate: null, // Sin fecha de expiración
     });
+  
+    onClose(); // Cierra el modal
+  };
+  
+
+  //para el boton de programar
+  const handleSchedule = () => {
+    if (!courseName.trim() || !scheduledDate) {
+      alert("Por favor, ingresa un nombre de curso y selecciona una fecha de publicación.");
+      return;
+    }
+  
+    const assignedTo = assignedMode === "all" ? "All recruiters" : selectedUsers;
   
     onSubmit({
       name: courseName,
       assignedTo,
       branchId,
-      publicationDate: new Date(scheduledDate), // Incluye la fecha programada
+      publicationDate: new Date(scheduledDate), // Fecha programada
+      expirationDate: expirationDate ? new Date(expirationDate) : null, // Fecha de expiración opcional
     });
   
     onClose(); // Cierra el modal
   };
+  
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
@@ -188,6 +188,16 @@ const CourseModal = ({
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
             />
+
+              <div className="modal-field">
+                    <label>Expiration date:</label>
+                    <input
+                      type="datetime-local"
+                      value={expirationDate}
+                      onChange={(e) => setExpirationDate(e.target.value)}
+                    />
+                  </div>
+            
             
             <div className="modal-actions-button2">
             <button onClick={handleSchedule}>Confirm schedule</button>

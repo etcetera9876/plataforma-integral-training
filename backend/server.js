@@ -55,30 +55,25 @@ io.on('connection', (socket) => {
 const scheduledCourses = new Set(); // Para rastrear cursos ya emitidos
 
 // Función para emitir eventos `dbChange`
-const emitPublishedCourses = async () => {
-  const currentDate = new Date(); // Fecha actual UTC
+const emitPublishedAndExpiredCourses = async () => {
+  const currentDate = new Date();
 
   try {
+    // Cursos para publicar (publicados y no expirados)
     const coursesToPublish = await Course.find({
-      publicationDate: { $lte: currentDate },
-    }).sort({ publicationDate: -1 }); // Ordenar por fecha de publicación, más reciente primero
+      publicationDate: { $lte: currentDate }, // Publicar si la fecha ya pasó
+      $or: [{ expirationDate: null }, { expirationDate: { $gte: currentDate } }], // No expirados
+    }).sort({ createdAt: -1 }); // Ordenar por fecha de creación descendente
 
-    const newCourses = coursesToPublish.filter(
-      (course) => !scheduledCourses.has(course._id.toString())
-    );
-
-    if (newCourses.length > 0) {
-      console.log('Emitiendo evento dbChange con cursos:', newCourses);
-      io.emit('dbChange', coursesToPublish);
-      newCourses.forEach((course) => scheduledCourses.add(course._id.toString()));
-    }
+    // Emitir solo los cursos válidos
+    io.emit("dbChange", coursesToPublish); // Actualiza el dashboard en tiempo real
   } catch (error) {
-    console.error('Error al emitir cursos publicados:', error);
+    console.error("Error al manejar cursos publicados y expirados:", error);
   }
 };
 
-// Verificar cursos publicados cada segundo
-setInterval(emitPublishedCourses, 1000);
+// Ejecutar cada segundo para manejar publicaciones y expiraciones
+setInterval(emitPublishedAndExpiredCourses, 1000);
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;

@@ -5,6 +5,7 @@ const courseSchema = new mongoose.Schema({
   assignedTo: { type: [String], required: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true },
   publicationDate: { type: Date, default: null },
+  expirationDate: { type: Date, default: null }, // 
   createdBy: {
     id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     name: { type: String, required: true },

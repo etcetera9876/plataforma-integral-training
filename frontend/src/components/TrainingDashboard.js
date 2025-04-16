@@ -26,57 +26,33 @@ const TrainingDashboard = ({ setUser, user }) => {
 
   // Configura la conexión de Socket.IO al iniciar sesión
   useEffect(() => {
-    if (user) {
-      console.log("Iniciando conexión de Socket.IO para el usuario:", user);
-
-      // Crea una nueva conexión de socket
-      const newSocket = io("http://localhost:5000", {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
+    const newSocket = io("http://localhost:5000", {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+  
+    newSocket.on("dbChange", (updatedCourses) => {
+      const currentDate = new Date();
+  
+      // Filtrar solo los cursos válidos (publicados y no expirados)
+      const validCourses = updatedCourses.filter((course) => {
+        return !course.expirationDate || new Date(course.expirationDate) > currentDate;
       });
 
-      // Almacena la conexión en el estado
-      setSocket(newSocket);
+      // Ordenar los cursos por fecha de creación descendente
+    const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    setCourses(sortedCourses); // Actualiza los cursos válidos
+    });
+  
+    return () => newSocket.disconnect();
+  }, []);
 
-      // Escucha el evento dbChange
-      newSocket.on("dbChange", (updatedCourses) => {
-        console.log("Evento dbChange recibido:", updatedCourses);
-
-        // Actualiza el estado de los cursos
-        setCourses((prevCourses) => {
-          // Crea un mapa de los cursos existentes
-          const existingCoursesMap = new Map(prevCourses.map((course) => [course._id, course]));
-
-          // Actualiza/agrega los nuevos cursos
-          updatedCourses.forEach((course) => {
-            existingCoursesMap.set(course._id, course);
-          });
-
-          // Ordena los cursos por publicationDate en orden descendente
-          const updated = Array.from(existingCoursesMap.values()).sort((a, b) => {
-            return new Date(b.publicationDate) - new Date(a.publicationDate); // Ordenar por fecha de publicación
-          });
-          
-          return updated;
-        });
-      });
-
-      // Limpia los eventos al desmontar el componente
-      return () => {
-        newSocket.off("dbChange");
-        newSocket.disconnect();
-      };
-    }
-  }, [user]); // Se ejecuta cada vez que cambia el usuario
 
   // Obtener los cursos creados desde el backend
   useEffect(() => {
     if (!user) return;
-
-    console.log("Usuario logueado:", user);
-    console.log("branchId enviado:", user.branchId); // Ahora debería ser un ObjectId
   
     axios
       .get(`/api/courses`, {
@@ -86,12 +62,21 @@ const TrainingDashboard = ({ setUser, user }) => {
         },
       })
       .then((response) => {
-        setCourses(response.data); // Actualiza el estado con los cursos obtenidos
+
+        const currentDate = new Date();
+        const validCourses = response.data.filter((course) => {
+          return !course.expirationDate || new Date(course.expirationDate) > currentDate;
+        });
+
+        const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setCourses(sortedCourses); // Actualiza el estado con los cursos obtenidos
       })
       .catch((error) => {
         console.error("Error al obtener los cursos:", error);
       });
   }, [user]);
+
+
 
   return (
     <div className="dashboard-container">

@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 // Crear un nuevo curso
 exports.createCourse = async (req, res) => {
   try {
-    const { name, assignedTo, branchId, publicationDate, createdBy } = req.body;
+    const { name, assignedTo, branchId, publicationDate, expirationDate, createdBy } = req.body;
 
     if (!name || !assignedTo || !branchId || !createdBy) {
       return res.status(400).json({ message: "Faltan datos requeridos" });
@@ -14,7 +14,8 @@ exports.createCourse = async (req, res) => {
       name,
       assignedTo,
       branchId,
-      publicationDate: publicationDate || null, // Manejar la fecha programada o nula
+      publicationDate: publicationDate || null,
+      expirationDate: expirationDate || null, // Guardar la fecha límite
       createdBy,
     });
 
