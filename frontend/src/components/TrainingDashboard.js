@@ -35,19 +35,19 @@ const TrainingDashboard = ({ setUser, user }) => {
   
     newSocket.on("dbChange", (updatedCourses) => {
       const currentDate = new Date();
-  
-      // Filtrar solo los cursos válidos (publicados y no expirados)
+      // Filtrar solo los cursos válidos y asignados al usuario actual
       const validCourses = updatedCourses.filter((course) => {
-        return !course.expirationDate || new Date(course.expirationDate) > currentDate;
+        const isAssignedToAll = course.assignedTo.includes("All recruiters");
+        const isAssignedToUser = course.assignedTo.some((id) => String(id) === String(user.id));
+        return (!course.expirationDate || new Date(course.expirationDate) > currentDate) && (isAssignedToAll || isAssignedToUser);
       });
-
-      // Ordenar los cursos por fecha de creación descendente
-    const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    setCourses(sortedCourses); // Actualiza los cursos válidos
+      const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setCourses(sortedCourses);
     });
-  
+
+    setSocket(newSocket);
     return () => newSocket.disconnect();
-  }, []);
+  }, [user]);
 
 
   // Obtener los cursos creados desde el backend
@@ -65,7 +65,9 @@ const TrainingDashboard = ({ setUser, user }) => {
 
         const currentDate = new Date();
         const validCourses = response.data.filter((course) => {
-          return !course.expirationDate || new Date(course.expirationDate) > currentDate;
+          const isAssignedToAll = course.assignedTo.includes("All recruiters");
+          const isAssignedToUser = course.assignedTo.some((id) => id === user.id);
+          return (!course.expirationDate || new Date(course.expirationDate) > currentDate) && (isAssignedToAll || isAssignedToUser);
         });
 
         const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

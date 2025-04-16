@@ -225,3 +225,109 @@
   color: #555;
  
 }
+
+.course-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Botones de acción para cursos */
+.update-button,
+.delete-button,
+.lock-button {
+  padding: 6px 12px;
+  border: 1px solid black;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.update-button {
+  background-color: white; /* Verde para actualizar */
+  color: black;
+}
+
+.update-button:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.delete-button {
+  background-color: white; /* Rojo para eliminar */
+  color: black;
+}
+
+.delete-button:hover {
+  background-color: #d32f2f;
+  transform: scale(1.05);
+}
+
+.lock-button {
+  background-color: white; /* Azul para bloquear/desbloquear */
+  color: black;
+}
+
+.lock-button:hover {
+  background-color: #1976d2;
+  transform: scale(1.05);
+}
+
+.lock-button.locked {
+  background-color: #ff9800; /* Naranja para cursos bloqueados */
+}
+
+.lock-button.locked:hover {
+  background-color: #fb8c00;
+  transform: scale(1.05);
+}
+
+.cancel-button{
+  background-color: white; 
+  color: black;
+}
+
+.confirm-button{
+  background-color: #d32f2f; 
+  color: white;
+}
+
+.confirm-button:hover{
+  background-color: #d32f2f; 
+  color: white;
+  transform: scale(1.05);
+}
+
+
+.schedule-field{
+  margin-bottom: 15px;
+}
+
+.schedule-field1{
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.schedule-buttons {
+  border: 2px solid red !important;
+  background-color: red ;
+  margin-top: 5px ;
+  color: white ;
+  padding: 10px 20px ;
+  border-radius: 5px ; /* Opcional: bordes redondeados */
+  cursor: pointer ;
+  font-size: 12px ;
+}
+
+.schedule-buttons:hover {
+  background-color: red; /* Cambia el color de fondo al pasar el mouse */
+  transform: scale(1.05);
+}
+
+.schedule-buttons:disabled {
+  border-color: #ccc;
+  background-color: #f0f0f0;
+  color: #aaa;
+  cursor: not-allowed;
+  transform: scale(1);
+}

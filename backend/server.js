@@ -27,6 +27,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/courses", courseRoutes);
 
+
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.send('Servidor funcionando');
