@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
+const cron = require('node-cron');
 require('dotenv').config();
 const conectarDB = require('./config/db');
 const Course = require('./models/course');
@@ -44,10 +45,10 @@ const io = socketIo(server, {
 });
 setSocketInstance(io);
 
-// Emite dbChange cada 30 segundos para reflejar cursos programados/expirados en tiempo real
-setInterval(() => {
-  emitDbChange();
-}, 30000);
+// Programa un job con node-cron para revisar cada minuto si hay cursos programados o expirados
+cron.schedule('* * * * *', async () => {
+  await emitDbChange();
+});
 
 // Manejo de conexiones de Socket.IO
 io.on('connection', (socket) => {
