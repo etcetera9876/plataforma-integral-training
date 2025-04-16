@@ -9,12 +9,28 @@ const resourceTypes = [
   { value: "document", label: "Documento" },
 ];
 
+// Utilidad para convertir UTC a local para datetime-local
+function toLocalDatetimeString(dateStr) {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  const localISO = new Date(date - tzOffset).toISOString().slice(0, 16);
+  return localISO;
+}
+
+// Utilidad para convertir local a UTC para guardar
+function toUTCDateString(localStr) {
+  if (!localStr) return null;
+  const localDate = new Date(localStr);
+  return new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000);
+}
+
 const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => {
   const [name, setName] = useState(course?.name || "");
   const [description, setDescription] = useState(course?.description || "");
   const [resources, setResources] = useState(course?.resources || []);
-  const [publicationDate, setPublicationDate] = useState(course?.publicationDate ? new Date(course.publicationDate).toISOString().slice(0, 16) : "");
-  const [expirationDate, setExpirationDate] = useState(course?.expirationDate ? new Date(course.expirationDate).toISOString().slice(0, 16) : "");
+  const [publicationDate, setPublicationDate] = useState(course?.publicationDate ? toLocalDatetimeString(course.publicationDate) : "");
+  const [expirationDate, setExpirationDate] = useState(course?.expirationDate ? toLocalDatetimeString(course.expirationDate) : "");
   const [newResource, setNewResource] = useState({ type: "link", url: "", name: "" });
   const [saving, setSaving] = useState(false);
   const [assignedMode, setAssignedMode] = useState(
@@ -36,18 +52,9 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
     }
   }, [assignedMode, branchName]);
 
-  // Lógica para mostrar correctamente la fecha de publicación
   useEffect(() => {
-    // Si la fecha de publicación es muy cercana a la fecha de creación, se considera "Publicado ahora"
-    if (course?.publicationDate && course?.createdAt) {
-      const pub = new Date(course.publicationDate);
-      const created = new Date(course.createdAt);
-      const diff = Math.abs(pub.getTime() - created.getTime());
-      // Si la diferencia es menor a 2 minutos, se considera "Publicado ahora"
-      if (diff < 2 * 60 * 1000) {
-        setPublicationDate("");
-      }
-    }
+    setPublicationDate(course?.publicationDate ? toLocalDatetimeString(course.publicationDate) : "");
+    setExpirationDate(course?.expirationDate ? toLocalDatetimeString(course.expirationDate) : "");
   }, [course]);
 
   const handleResourceChange = (e) => {
@@ -80,8 +87,8 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
           name,
           description,
           resources,
-          publicationDate: publicationDate ? new Date(publicationDate) : null,
-          expirationDate: expirationDate ? new Date(expirationDate) : null,
+          publicationDate: publicationDate ? toUTCDateString(publicationDate) : null,
+          expirationDate: expirationDate ? toUTCDateString(expirationDate) : null,
           assignedTo,
         }),
       });
