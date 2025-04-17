@@ -9,6 +9,7 @@ import io from "socket.io-client"; // Importación de Socket.IO
 import { useNavigate } from "react-router-dom";
 import { ConfirmModal, SuccessModal } from "./ConfirmModal"; // Importa el modal de confirmación
 import CourseEditModal from "./CourseEditModal"; // Importa el nuevo modal de edición
+import { getCourseStatus } from '../../utils/courseStatus'; // Importa la función centralizada
 
 
 // Configuración de Socket.IO
@@ -32,6 +33,7 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [courseToDelete, setCourseToDelete] = useState(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [now, setNow] = useState(new Date()); // Para forzar re-render periódico
   
 
   const handleUpdate = (course) => {
@@ -145,23 +147,6 @@ const TrainerDashboard = ({ setUser, user }) => {
 
 
 
-  const getCourseStatus = (publicationDate) => {
-    if (!publicationDate) {
-      return { text: "Publicado ahora", icon: "✅" }; // Publicado ahora
-    }
-
-    const now = new Date();
-    const publication = new Date(publicationDate);
-
-    if (publication > now) {
-      return { text: "Programado", icon: "🕒" }; // Programado
-    }
-
-    return { text: "Publicado ahora", icon: "✅" }; // Publicado ahora
-  };
-
-
-
   const fetchUserNames = useCallback(async (userIds) => {
     try {
       const validUserIds = userIds.filter((id) => id && id !== "All recruiters"); // Filtrar IDs válidos
@@ -240,6 +225,57 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [courses, fetchUserNames]);
 
+  useEffect(() => {
+    if (!courses || courses.length === 0) return;
+    const nowDate = new Date();
+    let nextChange = null;
+    let minDelta = Infinity;
+    courses.forEach(course => {
+      const pub = course.publicationDate ? new Date(course.publicationDate) : null;
+      const exp = course.expirationDate ? new Date(course.expirationDate) : null;
+      // Cambio de 'Programado' a 'Publicado'
+      if (pub && pub > nowDate) {
+        const delta = pub - nowDate;
+        if (delta > 0 && delta < minDelta) {
+          minDelta = delta;
+          nextChange = pub;
+        }
+      }
+      // Cambio de 'Publicado' a 'Expira pronto' (3 días antes de expirar)
+      if (exp && pub && pub <= nowDate) {
+        const soon = new Date(exp.getTime() - 3 * 24 * 60 * 60 * 1000);
+        const deltaSoon = soon - nowDate;
+        if (deltaSoon > 0 && deltaSoon < minDelta) {
+          minDelta = deltaSoon;
+          nextChange = soon;
+        }
+      }
+      // Cambio de 'Expira pronto' a 'Expirado'
+      if (exp) {
+        const deltaExp = exp - nowDate;
+        if (deltaExp > 0 && deltaExp < minDelta) {
+          minDelta = deltaExp;
+          nextChange = exp;
+        }
+        // Si acaba de expirar (hasta 1 min después), refresca inmediatamente
+        if (deltaExp <= 0 && deltaExp > -60000 && Math.abs(deltaExp) < Math.abs(minDelta)) {
+          minDelta = deltaExp;
+          nextChange = exp;
+        }
+      }
+    });
+    if (!nextChange) return;
+    const msToNext = nextChange - nowDate;
+    if (msToNext <= 0) {
+      setNow(new Date());
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setNow(new Date());
+    }, msToNext + 100); // +100ms para asegurar que la fecha ya pasó
+    return () => clearTimeout(timeout);
+  }, [courses]);
+
   const handleBranchChange = (e) => {
     setSelectedBranch(e.target.value);
   };
@@ -287,11 +323,11 @@ const TrainerDashboard = ({ setUser, user }) => {
               <ul className="course-list">
                 {courses.length > 0 ? (
                   courses.map((course, index) => {
-                    // Considera el curso como "nuevo" si NO tiene descripción, recursos NI fecha de publicación
                     const isNew =
                       !course.description &&
                       (!course.resources || course.resources.length === 0) &&
                       (!course.publicationDate);
+                    const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt);
                     return (
                       <li
                         key={course._id || index}
@@ -303,29 +339,36 @@ const TrainerDashboard = ({ setUser, user }) => {
                           transition: 'box-shadow 0.3s',
                         } : {}}
                       >
-                        <span className="course-name">📘 {course.name}</span>
-                        <div className="course-actions">
-                          <button
-                            className="update-button"
-                            onClick={() => handleUpdate(course)}
-                            title={isNew ? "Agregar información al curso" : "Actualizar curso"}
-                          >
-                            {isNew ? "New" : "Update"}
-                          </button>
-                          <button
-                            className="delete-button"
-                            onClick={() => handleDeleteClick(course._id)}
-                            title="Eliminar curso"
-                          >
-                            Delete
-                          </button>
-                          <button
-                            className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
-                            onClick={() => handleToggleLock(course._id, course.isLocked)}
-                            title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
-                          >
-                            {course.isLocked ? "Unlock" : "Lock"}
-                          </button>
+                        <div className="course-main-row">
+                          <span className="course-name">
+                            📘 {course.name}
+                          </span>
+                          <span className="course-status" title={status.tooltip}>
+                            {status.icon} {status.text}
+                          </span>
+                          <div className="course-actions">
+                            <button
+                              className="update-button"
+                              onClick={() => handleUpdate(course)}
+                              title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                            >
+                              {isNew ? "New" : "Update"}
+                            </button>
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDeleteClick(course._id)}
+                              title="Eliminar curso"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
+                              onClick={() => handleToggleLock(course._id, course.isLocked)}
+                              title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                            >
+                              {course.isLocked ? "Unlock" : "Lock"}
+                            </button>
+                          </div>
                         </div>
                       </li>
                     );
