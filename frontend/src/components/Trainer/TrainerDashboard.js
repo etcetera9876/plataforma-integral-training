@@ -294,6 +294,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                         className={`course-item${isNew ? " new-course-alert" : ""}`}
                         style={isNew ? {
                           boxShadow: '0 0 0 4px rgba(255,0,0,0.15)',
+                          marginBottom: '13px',
                           borderRadius: '12px',
                           transition: 'box-shadow 0.3s',
                         } : {}}

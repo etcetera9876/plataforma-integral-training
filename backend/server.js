@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 const cron = require('node-cron');
+const path = require('path');
 require('dotenv').config();
 const conectarDB = require('./config/db');
 const Course = require('./models/course');
@@ -15,6 +16,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Conectar a MongoDB Atlas
 conectarDB();
@@ -52,15 +54,9 @@ cron.schedule('* * * * *', async () => {
 
 // Manejo de conexiones de Socket.IO
 io.on('connection', (socket) => {
-  console.log(`Nuevo cliente conectado: ${socket.id}`);
-
-  socket.on('disconnect', () => {
-    console.log(`Cliente desconectado: ${socket.id}`);
-  });
+  socket.on('disconnect', () => {});
 });
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
+server.listen(PORT, () => {});

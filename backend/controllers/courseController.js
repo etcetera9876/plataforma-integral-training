@@ -1,6 +1,8 @@
 const Course = require("../models/course");
 const mongoose = require("mongoose");
 const { emitDbChange } = require('../socket'); // ✅ Esto es lo correcto
+const path = require('path');
+const fs = require('fs');
 
 // Crear un nuevo curso
 exports.createCourse = async (req, res) => {
@@ -65,9 +67,6 @@ exports.getCoursesForRecruiter = async (req, res) => {
   try {
     const { recruiterId, branchId } = req.query;
 
-    console.log("[DEBUG][getCoursesForRecruiter] recruiterId:", recruiterId);
-    console.log("[DEBUG][getCoursesForRecruiter] branchId:", branchId);
-
     if (!recruiterId || !branchId) {  
       return res
         .status(400)
@@ -99,8 +98,6 @@ exports.getCoursesForRecruiter = async (req, res) => {
       ],
     }).sort({ createdAt: -1 });
 
-    console.log("[DEBUG][getCoursesForRecruiter] Cursos encontrados:", courses.map(c => ({_id: c._id, name: c.name, assignedTo: c.assignedTo, branchId: c.branchId})));
-
     res.status(200).json(courses);
   } catch (error) {
     console.error("Error al obtener los cursos para el reclutador:", error);
@@ -130,16 +127,11 @@ exports.updateCourse = async (req, res) => {
       }
     }
 
-    // Log para depuración: ver cómo queda assignedTo antes de guardar
-    console.log("[DEBUG][updateCourse] assignedTo a guardar:", updates.assignedTo);
-
     const updatedCourse = await Course.findByIdAndUpdate(courseId, updates, { new: true });
     if (!updatedCourse) {
       return res.status(404).json({ message: "Curso no encontrado" });
     }
 
-    // Log para depuración: ver cómo quedó guardado en la BD
-    console.log("[DEBUG][updateCourse] assignedTo guardado en BD:", updatedCourse.assignedTo);
     await emitDbChange();
     res.status(200).json(updatedCourse);
   } catch (error) {
@@ -170,7 +162,6 @@ exports.toggleLockCourse = async (req, res) => {
 };
 
 exports.deleteCourse = async (req, res) => {
-  console.log("ID recibido para eliminar:", req.params.courseId); // Log para depuración
   try {
     const { courseId } = req.params;
 
@@ -184,5 +175,20 @@ exports.deleteCourse = async (req, res) => {
   } catch (error) {
     console.error("Error al eliminar el curso:", error);
     res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+// Subida de archivos para recursos de cursos
+exports.uploadResource = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No se subió ningún archivo' });
+    }
+    // Construir la URL pública del archivo
+    const url = `/uploads/${req.file.filename}`;
+    res.status(200).json({ url });
+  } catch (error) {
+    console.error('Error al subir archivo:', error);
+    res.status(500).json({ message: 'Error interno al subir archivo' });
   }
 };

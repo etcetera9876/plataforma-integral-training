@@ -256,4 +256,44 @@
   cursor: not-allowed;
   transform: scale(1);
 }
+
+.resource-drop-area {
+  border: 2px dashed #bbb;
+  border-radius: 8px;
+  padding: 24px 40px 40px 40px;
+  margin-bottom: 8px;
+  text-align: center;
+  background: #fafafa;
+  min-height: 160px;
+  max-height: 260px;
+  outline: none;
+  cursor: pointer;
+  z-index: 10;
+  font-size: 18px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 320px;
+  max-width: 620px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 16px;
+  transition: max-width 0.2s;
+}
+
+.resource-drop-area.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bbb;
+  font-size: 18px;
+  width: 100%;
+  height: 100%;
+}
 /* Fin de limpieza: se eliminaron .creator, .course-details, .course-detail, .modal-input, .evaluation-buttons, .eval-button, .modal-actions-button2 y cualquier regla no usada en los dashboards y modales principales. */
