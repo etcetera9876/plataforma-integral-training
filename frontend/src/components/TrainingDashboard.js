@@ -58,15 +58,23 @@ const TrainingDashboard = ({ setUser, user }) => {
           },
         })
         .then((response) => {
-          const currentDate = new Date();
+          const now = new Date();
           const validCourses = response.data.filter((course) => {
             const assignedToArr = Array.isArray(course.assignedTo)
               ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
               : [];
             const isAssignedToAll = assignedToArr.includes("All recruiters");
             const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
-            const notExpired = !course.expirationDate || new Date(course.expirationDate) > currentDate;
-            return notExpired && (isAssignedToAll || isAssignedToUser);
+            const notExpired = !course.expirationDate || new Date(course.expirationDate) > now;
+            // Comparación robusta de fecha de publicación
+            let isPublished = false;
+            if (!course.publicationDate) {
+              isPublished = true;
+            } else {
+              const pubDate = new Date(course.publicationDate);
+              isPublished = pubDate <= now;
+            }
+            return notExpired && isPublished && (isAssignedToAll || isAssignedToUser);
           });
           const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           setCourses(sortedCourses);
@@ -94,18 +102,26 @@ const TrainingDashboard = ({ setUser, user }) => {
       })
       .then((response) => {
         console.log("Cursos recibidos del backend:", response.data);
-        const currentDate = new Date();
+        const now = new Date();
         const validCourses = response.data.filter((course) => {
           const assignedToArr = Array.isArray(course.assignedTo)
             ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
             : [];
           const isAssignedToAll = assignedToArr.includes("All recruiters");
           const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
-          const notExpired = !course.expirationDate || new Date(course.expirationDate) > currentDate;
-          if (!(notExpired && (isAssignedToAll || isAssignedToUser))) {
-            console.log("Curso filtrado:", course.name, {notExpired, isAssignedToAll, isAssignedToUser, assignedToArr, expirationDate: course.expirationDate});
+          const notExpired = !course.expirationDate || new Date(course.expirationDate) > now;
+          // Comparación robusta de fecha de publicación
+          let isPublished = false;
+          if (!course.publicationDate) {
+            isPublished = true;
+          } else {
+            const pubDate = new Date(course.publicationDate);
+            isPublished = pubDate <= now;
           }
-          return notExpired && (isAssignedToAll || isAssignedToUser);
+          if (!(notExpired && isPublished && (isAssignedToAll || isAssignedToUser))) {
+            console.log("Curso filtrado:", course.name, {notExpired, isPublished, isAssignedToAll, isAssignedToUser, assignedToArr, expirationDate: course.expirationDate, publicationDate: course.publicationDate});
+          }
+          return notExpired && isPublished && (isAssignedToAll || isAssignedToUser);
         });
         console.log("Cursos que pasan el filtro:", validCourses);
         const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

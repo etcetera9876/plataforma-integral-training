@@ -13,7 +13,7 @@ const courseSchema = new mongoose.Schema({
   description: { type: String, default: "" },
   resources: [
     {
-      type: { type: String, enum: ["image", "video", "link", "document"], required: false },
+      type: { type: String, enum: ["image", "video", "link", "document", "pdf", "word", "excel", "ppt"], required: false },
       url: { type: String },
       name: { type: String },
     }

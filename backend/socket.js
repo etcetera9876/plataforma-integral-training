@@ -5,12 +5,7 @@ function setSocketInstance(io) {
 }
 async function emitDbChange() {
   if (!ioInstance) return;
-  const Course = require('./models/course');
-  const currentDate = new Date();
-  const coursesToPublish = await Course.find({
-    publicationDate: { $lte: currentDate },
-    $or: [{ expirationDate: null }, { expirationDate: { $gte: currentDate } }],
-  }).sort({ createdAt: -1 });
-  ioInstance.emit("dbChange", coursesToPublish);
+  // Solo emite la señal, sin enviar cursos
+  ioInstance.emit("dbChange");
 }
 module.exports = { setSocketInstance, emitDbChange };

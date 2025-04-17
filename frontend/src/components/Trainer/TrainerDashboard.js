@@ -287,7 +287,11 @@ const TrainerDashboard = ({ setUser, user }) => {
               <ul className="course-list">
                 {courses.length > 0 ? (
                   courses.map((course, index) => {
-                    const isNew = !course.description && (!course.resources || course.resources.length === 0);
+                    // Considera el curso como "nuevo" si NO tiene descripción, recursos NI fecha de publicación
+                    const isNew =
+                      !course.description &&
+                      (!course.resources || course.resources.length === 0) &&
+                      (!course.publicationDate);
                     return (
                       <li
                         key={course._id || index}

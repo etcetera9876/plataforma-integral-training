@@ -2,6 +2,15 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./TrainerDashboard.css";
 
+// Utilidad para convertir UTC a local para datetime-local
+function toLocalDatetimeString(dateStr) {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  const localISO = new Date(date - tzOffset).toISOString().slice(0, 16);
+  return localISO;
+}
+
 const CourseModal = ({
   branchName = "",
   onClose,
@@ -16,11 +25,11 @@ const CourseModal = ({
   const [selectedUsers, setSelectedUsers] = useState(
     Array.isArray(course?.assignedTo) ? course.assignedTo : []); // Nuevo: usuarios seleccionados si el curso ya tiene asignados
   const [expirationDate, setExpirationDate] = useState(
-      course?.expirationDate || ""); // Nuevo: carga la fecha de expiración si existe
+    course?.expirationDate ? toLocalDatetimeString(course.expirationDate) : ""); // Nuevo: carga la fecha de expiración si existe
   
   const [isSchedule, setIsSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(
-    course?.publicationDate || ""); // Nuevo: carga la fecha de publicación si existe
+    course?.publicationDate ? toLocalDatetimeString(course.publicationDate) : ""); // Nuevo: carga la fecha de publicación si existe
 
   
 
@@ -99,7 +108,7 @@ const CourseModal = ({
       name: courseName,
       assignedTo,
       branchId,
-      publicationDate: new Date(), // Publicado ahora
+      publicationDate: null, // No se asigna fecha de publicación
       expirationDate: null, // Sin fecha de expiración
     });
 
@@ -125,8 +134,8 @@ const CourseModal = ({
       name: courseName,
       assignedTo,
       branchId,
-      publicationDate: new Date(scheduledDate), // Fecha programada
-      expirationDate: expirationDate ? new Date(expirationDate) : null, // Fecha de expiración opcional
+      publicationDate: scheduledDate ? new Date(scheduledDate).toISOString() : null, // Solo convertir a ISO
+      expirationDate: expirationDate ? new Date(expirationDate).toISOString() : null, // Solo convertir a ISO
     });
 
     onClose(); // Cierra el modal

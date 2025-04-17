@@ -83,6 +83,21 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
     setExpirationDate(course?.expirationDate ? toLocalDatetimeString(course.expirationDate) : "");
   }, [course]);
 
+  // Cuando el usuario activa el checkbox de programación, si no hay fecha, restaurar la original
+  useEffect(() => {
+    if (showSchedule && !publicationDate && course?.publicationDate) {
+      setPublicationDate(toLocalDatetimeString(course.publicationDate));
+    }
+    if (showSchedule && !expirationDate && course?.expirationDate) {
+      setExpirationDate(toLocalDatetimeString(course.expirationDate));
+    }
+    // Si se desactiva, limpiar fechas
+    if (!showSchedule) {
+      setPublicationDate("");
+      setExpirationDate("");
+    }
+  }, [showSchedule, course]);
+
   const handleResourceChange = (e) => {
     setNewResource({ ...newResource, [e.target.name]: e.target.value });
   };
@@ -261,7 +276,6 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
                   type="datetime-local"
                   value={publicationDate || ""}
                   onChange={e => setPublicationDate(e.target.value)}
-                  placeholder={course?.publicationDate ? undefined : "Publicado ahora"}
                   style={{ width: '100%' }}
                 />
               </div>

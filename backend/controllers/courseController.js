@@ -32,8 +32,8 @@ exports.createCourse = async (req, res) => {
       name,
       assignedTo: assignedToTransformed,
       branchId: new mongoose.Types.ObjectId(branchId),
-      publicationDate,
-      expirationDate,
+      publicationDate: publicationDate ? new Date(publicationDate) : null,
+      expirationDate: expirationDate ? new Date(expirationDate) : null,
       createdBy: {
         id: new mongoose.Types.ObjectId(createdBy.id),
         name: createdBy.name,
@@ -79,6 +79,7 @@ exports.getCoursesForRecruiter = async (req, res) => {
       : recruiterId;
 
     const currentDate = new Date();
+    console.log('[DEBUG] currentDate (UTC):', currentDate.toISOString());
 
     const courses = await Course.find({
       branchId: branchObjectId,
@@ -97,6 +98,11 @@ exports.getCoursesForRecruiter = async (req, res) => {
         },
       ],
     }).sort({ createdAt: -1 });
+
+    // Log para depuración de fechas de publicación
+    courses.forEach(c => {
+      console.log(`[DEBUG] Curso: ${c.name}, publicationDate: ${c.publicationDate ? c.publicationDate.toISOString() : 'null'}`);
+    });
 
     res.status(200).json(courses);
   } catch (error) {
@@ -125,6 +131,19 @@ exports.updateCourse = async (req, res) => {
       } else {
         return res.status(400).json({ message: "Formato inválido para assignedTo" });
       }
+    }
+
+    // Sumar 4 horas a publicationDate y expirationDate si existen en updates
+    if (updates.publicationDate) {
+      let pubDate = new Date(updates.publicationDate);
+      // Si la fecha viene como string sin zona horaria, se interpreta como local
+      pubDate.setHours(pubDate.getHours() + 4);
+      updates.publicationDate = pubDate;
+    }
+    if (updates.expirationDate) {
+      let expDate = new Date(updates.expirationDate);
+      expDate.setHours(expDate.getHours() + 4);
+      updates.expirationDate = expDate;
     }
 
     const updatedCourse = await Course.findByIdAndUpdate(courseId, updates, { new: true });
