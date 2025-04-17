@@ -250,14 +250,17 @@ const TrainerDashboard = ({ setUser, user }) => {
           nextChange = soon;
         }
       }
-      // Cambio de 'Expira pronto' a 'Expirado'
-      if (exp) {
+      // Forzar refresco exactamente en la fecha de expiración
+      if (exp && exp > nowDate) {
         const deltaExp = exp - nowDate;
         if (deltaExp > 0 && deltaExp < minDelta) {
           minDelta = deltaExp;
           nextChange = exp;
         }
-        // Si acaba de expirar (hasta 1 min después), refresca inmediatamente
+      }
+      // Si acaba de expirar (hasta 1 min después), refresca inmediatamente
+      if (exp) {
+        const deltaExp = exp - nowDate;
         if (deltaExp <= 0 && deltaExp > -60000 && Math.abs(deltaExp) < Math.abs(minDelta)) {
           minDelta = deltaExp;
           nextChange = exp;
