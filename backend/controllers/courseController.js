@@ -114,6 +114,24 @@ exports.getCoursesForRecruiter = async (req, res) => {
   }
 };
 
+// Obtener un curso por su ID
+exports.getCourseById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID de curso inválido" });
+    }
+    const course = await Course.findById(id);
+    if (!course) {
+      return res.status(404).json({ message: "Curso no encontrado" });
+    }
+    res.status(200).json(course);
+  } catch (error) {
+    console.error("Error al obtener el curso por ID:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
 exports.updateCourse = async (req, res) => {
   try {
     const { courseId } = req.params;

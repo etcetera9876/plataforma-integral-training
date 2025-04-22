@@ -11,6 +11,7 @@ const {
   toggleLockCourse, // <-- Agregamos el controlador
   updateCourse, // <-- Agregamos el controlador para actualizar curso
   uploadResource, // <-- Agregamos el controlador para subir recursos
+  getCourseById, // <-- Agregamos el controlador para obtener curso por ID
 } = require("../controllers/courseController");
 
 // Configuración de multer para guardar archivos en /uploads
@@ -29,6 +30,7 @@ const upload = multer({ storage });
 router.get("/", getCoursesForRecruiter); // Obtener cursos para reclutador (publicados)
 router.post("/", createCourse); // Crear un curso
 router.get("/:branchId", getCoursesByBranch); // Obtener cursos por sucursal
+router.get("/byid/:id", getCourseById); // Obtener curso por ID (sin conflicto con branchId)
 router.delete("/:courseId", deleteCourse); // Eliminar un curso por ID
 router.patch("/:courseId/toggle-lock", toggleLockCourse); // Ruta para bloquear/desbloquear curso
 router.put("/:courseId", updateCourse); // Ruta para actualizar curso

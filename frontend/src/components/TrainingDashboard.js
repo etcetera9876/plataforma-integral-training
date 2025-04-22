@@ -21,8 +21,7 @@ const TrainingDashboard = ({ setUser, user }) => {
       setLockedCourseName(course.name);
       setShowLockedModal(true);
     } else {
-      // Aquí iría la lógica para acceder al curso normalmente
-      // Por ejemplo: navigate(`/curso/${course._id}`)
+      navigate(`/course/${course._id}`);
     }
   };
 

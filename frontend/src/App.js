@@ -9,6 +9,7 @@ import TrainerDashboard from './components/Trainer/TrainerDashboard';
 import SupervisorDashboard from './components/Supervisor/SupervisorDashboard';
 import ManagerDashboard from './components/Manager/ManagerDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import CourseDetail from './components/CourseDetail';
 
 import API_URL from './config';
 import axios from 'axios';
@@ -207,6 +208,10 @@ function App() {
   <Route 
     path="/admin-dashboard" 
     element={user ? <AdminDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+  />
+  <Route 
+    path="/course/:id" 
+    element={user ? <CourseDetail /> : <Navigate to="/" />} 
   />
 </Routes>
 
