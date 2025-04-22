@@ -42,6 +42,7 @@ const CourseDetail = () => {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [linkPreview, setLinkPreview] = useState({});
 
   useEffect(() => {
     axios.get(`/api/courses/byid/${id}`)
@@ -51,6 +52,23 @@ const CourseDetail = () => {
       })
       .catch(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!course || !course.resources) return;
+    course.resources.forEach((res, idx) => {
+      const isLink = res.type === 'link' || (res.url && res.url.startsWith('http'));
+      if (isLink && res.url && !linkPreview[res.url]) {
+        axios.post(`${API_URL}/api/courses/link-preview`, { url: res.url })
+          .then(response => {
+            setLinkPreview(prev => ({ ...prev, [res.url]: response.data }));
+          })
+          .catch(() => {
+            setLinkPreview(prev => ({ ...prev, [res.url]: null }));
+          });
+      }
+    });
+    // eslint-disable-next-line
+  }, [course]);
 
   if (loading) return <div className="course-detail-loading">Cargando...</div>;
   if (!course) return <div className="course-detail-error">No se encontró el curso.</div>;
@@ -86,32 +104,35 @@ const CourseDetail = () => {
                 const name = res.name || res.filename || res.url || (typeof res === 'string' ? res : 'Recurso inválido');
                 const ext = isLink ? 'link' : (name.split('.').pop().toLowerCase());
                 return url ? (
-                  <li key={idx} className="resource-item resource-item-vertical">
-                    {/* Vista previa arriba del archivo */}
-                    {(() => {
-                      if (ext.match(/jpg|jpeg|png|gif/)) {
-                        return <img src={url} alt={name} className="resource-preview-image" />;
-                      }
-                      if (ext === 'pdf') {
-                        return (
-                          <iframe
-                            src={url}
-                            title={name}
-                            className="resource-preview-pdf"
-                            frameBorder="0"
-                            width="100%"
-                            height="320"
-                          />
-                        );
-                      }
-                      if (ext.match(/mp4|mov|avi/)) {
-                        return <video src={url} controls className="resource-preview-video" />;
-                      }
-                      if (ext.match(/mp3|wav/)) {
-                        return <audio src={url} controls className="resource-preview-audio" />;
-                      }
-                      return null;
-                    })()}
+                  <li key={idx} className="resource-item resource-item-vertical resource-item-card">
+                    <div className="resource-preview-area">
+                      {isLink && linkPreview[res.url] && linkPreview[res.url].images && linkPreview[res.url].images.length > 0 ? (
+                        <img src={linkPreview[res.url].images[0]} alt="Vista previa del enlace" className="resource-preview-image" />
+                      ) : !isLink && ext.match(/jpg|jpeg|png|gif/) ? (
+                        <img src={url} alt={name} className="resource-preview-image" />
+                      ) : !isLink && ext === 'pdf' ? (
+                        <iframe
+                          src={url}
+                          title={name}
+                          className="resource-preview-pdf"
+                          frameBorder="0"
+                          width="100%"
+                          height="120"
+                        />
+                      ) : !isLink && ext.match(/mp4|mov|avi/) ? (
+                        <video src={url} controls className="resource-preview-video" />
+                      ) : !isLink && ext.match(/mp3|wav/) ? (
+                        <audio src={url} controls className="resource-preview-audio" />
+                      ) : (
+                        <div style={{height:'80px', width:'100%'}}></div>
+                      )}
+                    </div>
+                    {isLink && linkPreview[res.url] && linkPreview[res.url].title && (
+                      <div className="resource-link-preview-title">{linkPreview[res.url].title}</div>
+                    )}
+                    {isLink && linkPreview[res.url] && linkPreview[res.url].description && (
+                      <div className="resource-link-preview-desc">{linkPreview[res.url].description}</div>
+                    )}
                     <div className="resource-link-row">
                       {isLink ? (
                         <span className="resource-icon">🔗</span>

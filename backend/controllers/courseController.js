@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const { emitDbChange } = require('../socket'); // ✅ Esto es lo correcto
 const path = require('path');
 const fs = require('fs');
+const { getLinkPreview } = require('link-preview-js');
 
 // Crear un nuevo curso
 exports.createCourse = async (req, res) => {
@@ -227,5 +228,20 @@ exports.uploadResource = async (req, res) => {
   } catch (error) {
     console.error('Error al subir archivo:', error);
     res.status(500).json({ message: 'Error interno al subir archivo' });
+  }
+};
+
+// Endpoint para obtener metadatos de un enlace (link preview)
+// POST /api/link-preview { url: 'https://...' }
+exports.linkPreview = async (req, res) => {
+  const { url } = req.body;
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'URL inválida' });
+  }
+  try {
+    const data = await getLinkPreview(url);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo obtener la vista previa del enlace', details: error.message });
   }
 };

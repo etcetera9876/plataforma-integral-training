@@ -12,6 +12,7 @@ const {
   updateCourse, // <-- Agregamos el controlador para actualizar curso
   uploadResource, // <-- Agregamos el controlador para subir recursos
   getCourseById, // <-- Agregamos el controlador para obtener curso por ID
+  linkPreview, // <-- Agregamos el controlador para vista previa de enlaces
 } = require("../controllers/courseController");
 
 // Configuración de multer para guardar archivos en /uploads
@@ -35,5 +36,6 @@ router.delete("/:courseId", deleteCourse); // Eliminar un curso por ID
 router.patch("/:courseId/toggle-lock", toggleLockCourse); // Ruta para bloquear/desbloquear curso
 router.put("/:courseId", updateCourse); // Ruta para actualizar curso
 router.post('/upload', upload.single('file'), uploadResource); // Endpoint para subir archivos de recursos
+router.post('/link-preview', linkPreview); // Endpoint para obtener metadatos de un enlace
 
 module.exports = router;
