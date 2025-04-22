@@ -36,3 +36,20 @@
     transform: rotate(360deg);
   }
 }
+
+.confirm-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.3);
+  box-shadow: none;
+  transform: none;
+}
+
+.confirm-button:disabled:hover,
+.confirm-button:disabled:active {
+  background: #ccc !important;
+  color: #888 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}

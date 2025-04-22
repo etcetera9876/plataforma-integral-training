@@ -71,24 +71,6 @@ const CourseModal = ({
   }, [assignedMode, branchName]);
 
 
-  // Manejar cambios en los inputs
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name === "courseName") setCourseName(value);
-    if (name === "scheduledDate") setScheduledDate(value);
-    if (name === "expirationDate") setExpirationDate(value);
-  };
-
-    // Manejar selección de usuarios
-  const handleCheckboxChange = (userId) => {
-      setSelectedUsers((prev) =>
-        prev.includes(userId)
-          ? prev.filter((id) => id !== userId) // Quitar usuario
-          : [...prev, userId] // Agregar usuario
-      );
-    };
-
-
   //para el boton de publicar ahora
   const handlePublishNow = () => {
     if (!courseName.trim()) {

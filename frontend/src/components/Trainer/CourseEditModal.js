@@ -3,12 +3,12 @@ import "./TrainerDashboard.css";
 import axios from "axios";
 import { FaFilePdf, FaFileWord, FaFileExcel, FaFilePowerpoint, FaFileImage, FaFileVideo, FaLink, FaFileAlt } from 'react-icons/fa';
 
-const resourceTypes = [
-  { value: "image", label: "Imagen" },
-  { value: "video", label: "Video" },
-  { value: "link", label: "Enlace" },
-  { value: "document", label: "Documento" },
-];
+// const resourceTypes = [
+//   { value: "image", label: "Imagen" },
+//   { value: "video", label: "Video" },
+//   { value: "link", label: "Enlace" },
+//   { value: "document", label: "Documento" },
+// ];
 
 // Utilidad para convertir UTC a local para datetime-local
 function toLocalDatetimeString(dateStr) {
@@ -69,6 +69,9 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
   const [showLinkInput, setShowLinkInput] = useState(false);
   const fileInputRef = useRef();
 
+  // Determina si el botón Save debe estar habilitado
+  const canSave = description.trim().length > 0 || resources.length > 0;
+
   useEffect(() => {
     if (assignedMode === "select" && branchName) {
       axios
@@ -96,7 +99,7 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
       setPublicationDate("");
       setExpirationDate("");
     }
-  }, [showSchedule, course]);
+  }, [showSchedule, course, publicationDate, expirationDate]);
 
   const handleResourceChange = (e) => {
     setNewResource({ ...newResource, [e.target.name]: e.target.value });
@@ -341,7 +344,7 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
         </div>
         <div className="modal-actions" style={{ justifyContent: "flex-end" }}>
           <button className="cancel-button" onClick={onClose} disabled={saving}>Cancelar</button>
-          <button className="confirm-button" onClick={handleSave} disabled={saving}>Save</button>
+          <button className="confirm-button" onClick={handleSave} disabled={saving || !canSave}>Save</button>
         </div>
       </div>
     </div>

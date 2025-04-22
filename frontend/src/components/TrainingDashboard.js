@@ -7,8 +7,10 @@ import './TrainingDashboard.css';
 
 const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState([]); // Estado para almacenar los cursos
+  const [allCourses, setAllCourses] = useState([]); // Guardar todos los cursos del backend
+  const [courses, setCourses] = useState([]); // Cursos filtrados
   const [socket, setSocket] = useState(null); // Estado para almacenar la instancia de socket
+  const [now, setNow] = useState(new Date()); // Estado para actualización automática
 
   // Modal para curso bloqueado
   const [showLockedModal, setShowLockedModal] = useState(false);
@@ -38,7 +40,7 @@ const TrainingDashboard = ({ setUser, user }) => {
     navigate('/');
   };
 
-  // Configura la conexión de Socket.IO al iniciar sesión
+  // Socket: solo actualiza los cursos del backend, no el filtrado
   useEffect(() => {
     const newSocket = io("http://localhost:5000", {
       transports: ["websocket"],
@@ -48,7 +50,6 @@ const TrainingDashboard = ({ setUser, user }) => {
     });
   
     newSocket.on("dbChange", () => {
-      // Cuando llegue un cambio, vuelve a pedir los cursos al endpoint correcto
       if (!user) return;
       axios
         .get('/api/courses', {
@@ -58,26 +59,7 @@ const TrainingDashboard = ({ setUser, user }) => {
           },
         })
         .then((response) => {
-          const now = new Date();
-          const validCourses = response.data.filter((course) => {
-            const assignedToArr = Array.isArray(course.assignedTo)
-              ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
-              : [];
-            const isAssignedToAll = assignedToArr.includes("All recruiters");
-            const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
-            const notExpired = !course.expirationDate || new Date(course.expirationDate) > now;
-            // Comparación robusta de fecha de publicación
-            let isPublished = false;
-            if (!course.publicationDate) {
-              isPublished = true;
-            } else {
-              const pubDate = new Date(course.publicationDate);
-              isPublished = pubDate <= now;
-            }
-            return notExpired && isPublished && (isAssignedToAll || isAssignedToUser);
-          });
-          const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-          setCourses(sortedCourses);
+          setAllCourses(response.data);
         })
         .catch((error) => {
           console.error("[SOCKET] Error al obtener los cursos:", error);
@@ -88,11 +70,17 @@ const TrainingDashboard = ({ setUser, user }) => {
     return () => newSocket.disconnect();
   }, [user]);
 
+  // Actualización automática de 'now' cada segundo
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000); // 1 segundo
+    return () => clearInterval(interval);
+  }, []);
 
-  // Obtener los cursos creados desde el backend
+  // Obtener los cursos creados desde el backend SOLO cuando cambia el usuario o llega un evento de socket
   useEffect(() => {
     if (!user) return;
-    // Usa SIEMPRE el endpoint correcto para reclutador
     axios
       .get('/api/courses', {
         params: {
@@ -101,38 +89,35 @@ const TrainingDashboard = ({ setUser, user }) => {
         },
       })
       .then((response) => {
-        console.log("Cursos recibidos del backend:", response.data);
-        const now = new Date();
-        const validCourses = response.data.filter((course) => {
-          const assignedToArr = Array.isArray(course.assignedTo)
-            ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
-            : [];
-          const isAssignedToAll = assignedToArr.includes("All recruiters");
-          const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
-          const notExpired = !course.expirationDate || new Date(course.expirationDate) > now;
-          // Comparación robusta de fecha de publicación
-          let isPublished = false;
-          if (!course.publicationDate) {
-            isPublished = true;
-          } else {
-            const pubDate = new Date(course.publicationDate);
-            isPublished = pubDate <= now;
-          }
-          if (!(notExpired && isPublished && (isAssignedToAll || isAssignedToUser))) {
-            console.log("Curso filtrado:", course.name, {notExpired, isPublished, isAssignedToAll, isAssignedToUser, assignedToArr, expirationDate: course.expirationDate, publicationDate: course.publicationDate});
-          }
-          return notExpired && isPublished && (isAssignedToAll || isAssignedToUser);
-        });
-        console.log("Cursos que pasan el filtro:", validCourses);
-        const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setCourses(sortedCourses);
+        setAllCourses(response.data);
       })
       .catch((error) => {
         console.error("Error al obtener los cursos:", error);
       });
   }, [user]);
 
-
+  // Filtrar cursos en el frontend cada vez que cambian allCourses, user o now
+  useEffect(() => {
+    if (!user) return;
+    const validCourses = allCourses.filter((course) => {
+      const assignedToArr = Array.isArray(course.assignedTo)
+        ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
+        : [];
+      const isAssignedToAll = assignedToArr.includes("All recruiters");
+      const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
+      const notExpired = !course.expirationDate || new Date(course.expirationDate) > now;
+      let isPublished = false;
+      if (!course.publicationDate) {
+        isPublished = true;
+      } else {
+        const pubDate = new Date(course.publicationDate);
+        isPublished = pubDate <= now;
+      }
+      return notExpired && isPublished && (isAssignedToAll || isAssignedToUser);
+    });
+    const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    setCourses(sortedCourses);
+  }, [allCourses, user, now]);
 
   return (
     <div className="dashboard-container">

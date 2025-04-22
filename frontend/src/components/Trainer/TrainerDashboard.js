@@ -103,23 +103,6 @@ const TrainerDashboard = ({ setUser, user }) => {
   };
 
 
-  const handleSubmitUpdate = async (updatedCourse) => {
-    try {
-      const response = await fetch(`/api/courses/${selectedCourse._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedCourse),
-      });
-      const data = await response.json();
-      alert("Curso actualizado correctamente");
-      setShowCourseModal(false);
-      fetchCourses(); // Actualizar la lista de cursos
-    } catch (error) {
-      console.error("Error al actualizar el curso:", error);
-      alert("Hubo un error al actualizar el curso");
-    }
-  };
-
 
   useEffect(() => {
     if (!user) {
@@ -277,7 +260,7 @@ const TrainerDashboard = ({ setUser, user }) => {
       setNow(new Date());
     }, msToNext + 100); // +100ms para asegurar que la fecha ya pasó
     return () => clearTimeout(timeout);
-  }, [courses]);
+  }, [courses, now]);
 
   const handleBranchChange = (e) => {
     setSelectedBranch(e.target.value);
@@ -286,106 +269,111 @@ const TrainerDashboard = ({ setUser, user }) => {
 
   const currentBranchName = branches.find((b) => b._id === selectedBranch)?.name || "";
 
+  // Determina si hay algún modal abierto
+  const isAnyModalOpen = showCourseModal || isModalOpen || isConfirmModalOpen || isSuccessModalOpen;
+
   return (
-    <div className="dashboard-container">
-      <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
-      <main className="main-content">
-        <h1 className="title">Trainer Dashboard</h1>
-        <p className="subtitle">Bienvenido, aquí puedes gestionar cursos y evaluaciones por sucursal.</p>
+    <>
+      <div className={`dashboard-container${isAnyModalOpen ? ' blurred' : ''}`}>
+        <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
+        <main className="main-content">
+          <h1 className="title">Trainer Dashboard</h1>
+          <p className="subtitle">Bienvenido, aquí puedes gestionar cursos y evaluaciones por sucursal.</p>
 
-        <section className="branch-selector">
-          <label htmlFor="branch-select">Select the branch:</label>
-          {loading ? (
-            <p>Loading branches...</p>
-          ) : (
-            <select id="branch-select" value={selectedBranch} onChange={handleBranchChange}>
-              <option value="">-- Selecciona una sucursal --</option>
-              {branches.map((branch) => (
-                <option key={branch._id} value={branch._id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </section>
+          <section className="branch-selector">
+            <label htmlFor="branch-select">Select the branch:</label>
+            {loading ? (
+              <p>Loading branches...</p>
+            ) : (
+              <select id="branch-select" value={selectedBranch} onChange={handleBranchChange}>
+                <option value="">-- Selecciona una sucursal --</option>
+                {branches.map((branch) => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </section>
 
-        {selectedBranch && (
-          <>
-            <section className="courses-section">
-              <div className="section-header">
-                <h2 className="section-title">{currentBranchName} Courses</h2>
-                <button
-                  className="add-button"
-                  onClick={() => setShowCourseModal(true)}
-                  title="Agregar curso"
-                >
-                  ＋
-                </button>
-              </div>
+          {selectedBranch && (
+            <>
+              <section className="courses-section">
+                <div className="section-header">
+                  <h2 className="section-title">{currentBranchName} Courses</h2>
+                  <button
+                    className="add-button"
+                    onClick={() => setShowCourseModal(true)}
+                    title="Agregar curso"
+                  >
+                    ＋
+                  </button>
+                </div>
 
-              <ul className="course-list">
-                {courses.length > 0 ? (
-                  courses.map((course, index) => {
-                    const isNew =
-                      !course.description &&
-                      (!course.resources || course.resources.length === 0) &&
-                      (!course.publicationDate);
-                    const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt);
-                    return (
-                      <li
-                        key={course._id || index}
-                        className={`course-item${isNew ? " new-course-alert" : ""}`}
-                        style={isNew ? {
-                          boxShadow: '0 0 0 4px rgba(255,0,0,0.15)',
-                          marginBottom: '13px',
-                          borderRadius: '12px',
-                          transition: 'box-shadow 0.3s',
-                        } : {}}
-                      >
-                        <div className="course-main-row">
-                          <span className="course-name">
-                            📘 {course.name}
-                          </span>
-                          <span className="course-status" title={status.tooltip}>
-                            {status.icon} {status.text}
-                          </span>
-                          <div className="course-actions">
-                            <button
-                              className="update-button"
-                              onClick={() => handleUpdate(course)}
-                              title={isNew ? "Agregar información al curso" : "Actualizar curso"}
-                            >
-                              {isNew ? "New" : "Update"}
-                            </button>
-                            <button
-                              className="delete-button"
-                              onClick={() => handleDeleteClick(course._id)}
-                              title="Eliminar curso"
-                            >
-                              Delete
-                            </button>
-                            <button
-                              className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
-                              onClick={() => handleToggleLock(course._id, course.isLocked)}
-                              title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
-                            >
-                              {course.isLocked ? "Unlock" : "Lock"}
-                            </button>
+                <ul className="course-list">
+                  {courses.length > 0 ? (
+                    courses.map((course, index) => {
+                      const isNew =
+                        !course.description &&
+                        (!course.resources || course.resources.length === 0);
+                      const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
+                      return (
+                        <li
+                          key={course._id || index}
+                          className={`course-item${isNew ? " new-course-alert" : ""}`}
+                        >
+                          <div className="course-main-row">
+                            <span className="course-name">
+                              📘 {course.name}
+                            </span>
+                            <span className="course-status" title={status.tooltip}>
+                              {status.icon} {status.text}
+                            </span>
+                            <div className="course-actions">
+                              <button
+                                className="update-button"
+                                onClick={() => handleUpdate(course)}
+                                title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                              >
+                                {isNew ? "New" : "Update"}
+                              </button>
+                              <button
+                                className="delete-button"
+                                onClick={() => handleDeleteClick(course._id)}
+                                title="Eliminar curso"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
+                                onClick={() => handleToggleLock(course._id, course.isLocked)}
+                                title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                              >
+                                {course.isLocked ? "Unlock" : "Lock"}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    );
-                  })
-                ) : (
-                  <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
-                )}
-              </ul>
-            </section>
-          </>
-        )}
-      </main>
+                          {isNew && (
+                            <div className="incomplete-course-row">
+                              <span className="incomplete-course-text">
+                                Curso incompleto: agrega descripción o recursos.
+                              </span>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })
+                  ) : (
+                    <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
+                  )}
+                </ul>
+              </section>
+            </>
+          )}
+        </main>
+      </div>
 
-      {/* Modal de éxito */}
+      {/* Modales fuera del dashboard-container para evitar el blur */}
       {isSuccessModalOpen && (
         <SuccessModal
           message={successMessage}
@@ -393,8 +381,7 @@ const TrainerDashboard = ({ setUser, user }) => {
         />
       )}
 
-       {/* Modal de confirmación */}
-       {isConfirmModalOpen && (
+      {isConfirmModalOpen && (
         <ConfirmModal
           message="¿Estás seguro de que deseas eliminar este curso?"
           onConfirm={handleConfirmDelete}
@@ -420,8 +407,7 @@ const TrainerDashboard = ({ setUser, user }) => {
           userNames={userNames}
         />
       )}
-      
-    </div>
+    </>
   );
 };
 

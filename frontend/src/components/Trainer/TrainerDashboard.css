@@ -287,6 +287,11 @@
   color: white;
   transform: scale(1.05);
 }
+.confirm-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .schedule-field{
   margin-bottom: 15px;
 }
@@ -355,4 +360,45 @@
   width: 100%;
   height: 100%;
 }
+
+/* Alerta de curso incompleto */
+.new-course-alert {
+  box-shadow: 0 0 0 4px rgba(255, 0, 0, 0.25), 0 0 16px 4px rgba(255,0,0,0.10);
+  border-radius: 12px;
+  position: relative;
+  background: linear-gradient(90deg, #fff 80%, #ffeaea 100%);
+  transition: box-shadow 0.3s;
+}
+
+.incomplete-course-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.incomplete-course-icon {
+  font-size: 22px;
+  color: #e53935;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.incomplete-course-text {
+  color: #e53935;
+  font-size: 14px;
+  margin-top: 2px;
+  margin-bottom: 0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Efecto de desenfoque para fondo cuando un modal esté abierto */
+.blurred {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Fin de limpieza: se eliminaron .creator, .course-details, .course-detail, .modal-input, .evaluation-buttons, .eval-button, .modal-actions-button2 y cualquier regla no usada en los dashboards y modales principales. */
