@@ -22,7 +22,8 @@ exports.getAssessments = async (req, res) => {
 
 exports.createAssessment = async (req, res) => {
   try {
-    const { name, description, branch, components } = req.body;
+    console.log("REQ.BODY ASSESSMENT:", req.body); // <-- LOG PARA DEPURAR
+    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: 'El campo "name" es obligatorio.' });
@@ -34,14 +35,32 @@ exports.createAssessment = async (req, res) => {
       return res.status(400).json({ message: 'El campo "components" debe ser un array con al menos un elemento.' });
     }
 
-    const assessment = new Assessment({ name, description, branch, components });
+    // LOG extra para ver tipos
+    console.log("TIPOS:", {
+      branch: typeof branch,
+      block: typeof block,
+      components,
+      assignedTo,
+    });
+
+    const assessment = new Assessment({
+      name,
+      description,
+      branch,
+      components,
+      block,
+      publicationDate,
+      expirationDate,
+      assignedTo,
+      createdBy: req.body.createdBy,
+    });
     await assessment.save();
     res.status(201).json({ message: 'Evaluación creada con éxito', assessment });
   } catch (error) {
+    console.error("ERROR AL CREAR ASSESSMENT:", error); // <-- LOG PARA DEPURAR
     res.status(500).json({ message: 'Error al crear la evaluación', error: error.message });
   }
 };
-
 
 exports.getAssessmentById = async (req, res) => {
   try {
@@ -59,10 +78,10 @@ exports.getAssessmentById = async (req, res) => {
 exports.updateAssessment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, branch, components } = req.body;
+    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo } = req.body;
     const updated = await Assessment.findByIdAndUpdate(
       id,
-      { name, description, branch, components },
+      { name, description, branch, components, block, publicationDate, expirationDate, assignedTo },
       { new: true }
     );
     if (!updated) {

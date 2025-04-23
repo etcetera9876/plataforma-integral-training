@@ -13,6 +13,7 @@ import { getCourseStatus } from '../../utils/courseStatus'; // Importa la funci�
 import AssessmentModal from "./AssessmentModal"; // Importa el modal de evaluación
 import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregida
 import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
+import AssessmentEditModal from "./AssessmentEditModal"; // Importa el modal de edición de evaluación
 
 
 
@@ -430,61 +431,78 @@ const TrainerDashboard = ({ setUser, user }) => {
                 </div>
                 <ul className="course-list">
                   {assessments.length > 0 ? (
-                    assessments.filter(a => a && a.name).map((assessment, index) => (
-                      <li key={assessment._id || index} className="course-item">
-                        <div className="course-main-row">
-                          <span className="course-name">📝 {assessment.name}</span>
-                          <span className="course-status">
-                            {assessment.isLocked ? '🔒 Bloqueado' : '🟢 Activo'}
-                          </span>
-                          <div className="course-actions">
-                            <button
-                              className="update-button"
-                              onClick={() => { if (assessment && assessment._id) { setSelectedAssessment(assessment); setIsAssessmentEditModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
-                              title="Editar evaluación"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="delete-button"
-                              onClick={() => { if (assessment && assessment._id) { setAssessmentToDelete(assessment._id); setIsAssessmentConfirmModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
-                              title="Eliminar evaluación"
-                            >
-                              Eliminar
-                            </button>
-                            <button
-                              className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
-                              onClick={async () => {
-                                if (!assessment || !assessment._id) {
-                                  setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
-                                  return;
-                                }
-                                try {
-                                  const token = user.token || localStorage.getItem("token");
-                                  const response = await axios.patch(
-                                    `${API_URL}/api/assessments/${assessment._id}/toggle-lock`,
-                                    {},
-                                    { headers: { Authorization: `Bearer ${token}` } }
-                                  );
-                                  const updatedAssessment = response.data.assessment || response.data;
-                                  if (updatedAssessment && updatedAssessment._id) {
-                                    setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
-                                    setSnackbar({ open: true, message: updatedAssessment.isLocked ? "Evaluación bloqueada" : "Evaluación desbloqueada", type: "success" });
-                                  } else {
-                                    setSnackbar({ open: true, message: "Error: la evaluación bloqueada no tiene ID", type: "error" });
+                    assessments.filter(a => a && a.name).map((assessment, index) => {
+                      // Considera incompleto si no tiene descripción, bloque o no tiene preguntas (components vacío)
+                      const isNewAssessment =
+                        !assessment.description ||
+                        !assessment.components ||
+                        assessment.components.length === 0;
+                      return (
+                        <li
+                          key={assessment._id || index}
+                          className={`course-item${isNewAssessment ? " new-course-alert" : ""}`}
+                        >
+                          <div className="course-main-row">
+                            <span className="course-name">📝 {assessment.name}</span>
+                            <span className="course-status">
+                              {assessment.isLocked ? '🔒 Bloqueado' : '🟢 Activo'}
+                            </span>
+                            <div className="course-actions">
+                              <button
+                                className="update-button"
+                                onClick={() => { if (assessment && assessment._id) { setSelectedAssessment(assessment); setIsAssessmentEditModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
+                                title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
+                              >
+                                {isNewAssessment ? "New" : "Editar"}
+                              </button>
+                              <button
+                                className="delete-button"
+                                onClick={() => { if (assessment && assessment._id) { setAssessmentToDelete(assessment._id); setIsAssessmentConfirmModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
+                                title="Eliminar evaluación"
+                              >
+                                Eliminar
+                              </button>
+                              <button
+                                className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
+                                onClick={async () => {
+                                  if (!assessment || !assessment._id) {
+                                    setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
+                                    return;
                                   }
-                                } catch (error) {
-                                  setSnackbar({ open: true, message: "Error al bloquear/desbloquear evaluación", type: "error" });
-                                }
-                              }}
-                              title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
-                            >
-                              {assessment.isLocked ? "Unlock" : "Lock"}
-                            </button>
+                                  try {
+                                    const token = user.token || localStorage.getItem("token");
+                                    const response = await axios.patch(
+                                      `${API_URL}/api/assessments/${assessment._id}/toggle-lock`,
+                                      {},
+                                      { headers: { Authorization: `Bearer ${token}` } }
+                                    );
+                                    const updatedAssessment = response.data.assessment || response.data;
+                                    if (updatedAssessment && updatedAssessment._id) {
+                                      setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
+                                      setSnackbar({ open: true, message: updatedAssessment.isLocked ? "Evaluación bloqueada" : "Evaluación desbloqueada", type: "success" });
+                                    } else {
+                                      setSnackbar({ open: true, message: "Error: la evaluación bloqueada no tiene ID", type: "error" });
+                                    }
+                                  } catch (error) {
+                                    setSnackbar({ open: true, message: "Error al bloquear/desbloquear evaluación", type: "error" });
+                                  }
+                                }}
+                                title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
+                              >
+                                {assessment.isLocked ? "Unlock" : "Lock"}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    ))
+                          {isNewAssessment && (
+                            <div className="incomplete-course-row">
+                              <span className="incomplete-course-text">
+                                Evaluación incompleta: agrega preguntas.
+                              </span>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })
                   ) : (
                     <li className="empty-message">No hay evaluaciones registradas en esta sucursal.</li>
                   )}
@@ -496,7 +514,7 @@ const TrainerDashboard = ({ setUser, user }) => {
       </div>
 
       {/* Modales fuera del dashboard-container para evitar el blur */}
-      {isSuccessModalOpen && (
+      {isSuccessModalOpen && false && (
         <SuccessModal
           message={successMessage}
           onClose={() => setIsSuccessModalOpen(false)}
@@ -599,7 +617,7 @@ const TrainerDashboard = ({ setUser, user }) => {
         />
       )}
       {isAssessmentEditModalOpen && (
-        <AssessmentModal
+        <AssessmentEditModal
           branchName={currentBranchName}
           onClose={() => setIsAssessmentEditModalOpen(false)}
           onSubmit={async (data) => {
@@ -648,12 +666,6 @@ const TrainerDashboard = ({ setUser, user }) => {
             }
           }}
           onCancel={() => setIsAssessmentConfirmModalOpen(false)}
-        />
-      )}
-      {isAssessmentSuccessModalOpen && (
-        <SuccessModal
-          message={assessmentSuccessMessage}
-          onClose={() => setIsAssessmentSuccessModalOpen(false)}
         />
       )}
       <AlertMessage

@@ -3,7 +3,6 @@ import axios from "axios";
 import AlertMessage from "./AlertMessage";
 import "./TrainerDashboard.css";
 
-// Utilidad para convertir UTC a local para datetime-local
 function toLocalDatetimeString(dateStr) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
@@ -12,7 +11,7 @@ function toLocalDatetimeString(dateStr) {
   return localISO;
 }
 
-const AssessmentModal = ({
+const AssessmentEditModal = ({
   branchName,
   onClose,
   onSubmit,
@@ -24,17 +23,20 @@ const AssessmentModal = ({
   const [description, setDescription] = useState(initialData.description || "");
   const [saving, setSaving] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", type: "info" });
-
-  // Para components (puedes dejarlo igual si solo usas uno)
   const [selectedComponent, setSelectedComponent] = useState(
     initialData.components && initialData.components.length > 0
       ? initialData.components[0]
       : ""
   );
-
-  // Asignación de usuarios
+  const [scheduledDate, setScheduledDate] = useState(
+    initialData.publicationDate ? toLocalDatetimeString(initialData.publicationDate) : ""
+  );
+  const [expirationDate, setExpirationDate] = useState(
+    initialData.expirationDate ? toLocalDatetimeString(initialData.expirationDate) : ""
+  );
+  const [showSchedule, setShowSchedule] = useState(!!(initialData.publicationDate || initialData.expirationDate));
   const [assignedMode, setAssignedMode] = useState(
-    initialData.assignedTo && initialData.assignedTo[0] === "All recruiters" ? "all" : "all"
+    initialData.assignedTo && initialData.assignedTo[0] === "All recruiters" ? "all" : "select"
   );
   const [branchUsers, setBranchUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState(
@@ -52,46 +54,33 @@ const AssessmentModal = ({
     }
   }, [assignedMode, branchName]);
 
-  // Validación para habilitar Publish now
-  const canPublishNow =
+  useEffect(() => {
+    if (showSchedule && !scheduledDate && initialData.publicationDate) {
+      setScheduledDate(toLocalDatetimeString(initialData.publicationDate));
+    }
+    if (showSchedule && !expirationDate && initialData.expirationDate) {
+      setExpirationDate(toLocalDatetimeString(initialData.expirationDate));
+    }
+    if (!showSchedule) {
+      setScheduledDate("");
+      setExpirationDate("");
+    }
+  }, [showSchedule, initialData, scheduledDate, expirationDate]);
+
+  const canSave =
     name.trim().length > 0 &&
     description.trim().length > 0 &&
     selectedComponent &&
     (assignedMode === "all" || (assignedMode === "select" && selectedUsers.length > 0));
 
-  // Sección programado para creación (como en CourseModal)
-  const [isSchedule, setIsSchedule] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [expirationDate, setExpirationDate] = useState("");
-
-  const handlePublishNow = (e) => {
-    e.preventDefault();
-    if (!canPublishNow) {
-      setSnackbar({ open: true, message: "Completa todos los campos obligatorios para publicar.", type: "error" });
-      return;
-    }
-    handleSubmit(e, { publishNow: true });
-  };
-
-  const handleSchedule = (e) => {
-    e.preventDefault();
-    if (!canPublishNow || !scheduledDate) {
-      setSnackbar({ open: true, message: "Completa todos los campos y selecciona una fecha de publicación.", type: "error" });
-      return;
-    }
-    handleSubmit(e, { schedule: true });
-  };
-
-  // Cerrar si clic en overlay
   const handleOverlayClick = () => {
     onClose();
   };
-  // Evitar cerrar si clic dentro del modal
   const stopPropagation = (e) => {
     e.stopPropagation();
   };
 
-  const handleSubmit = async (e, options = {}) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
@@ -101,19 +90,15 @@ const AssessmentModal = ({
         description,
         branch: branchId,
         components: [selectedComponent],
+        publicationDate: showSchedule && scheduledDate ? new Date(scheduledDate).toISOString() : null,
+        expirationDate: showSchedule && expirationDate ? new Date(expirationDate).toISOString() : null,
         assignedTo,
-        publicationDate: options.publishNow
-          ? null
-          : isSchedule && scheduledDate
-          ? new Date(scheduledDate).toISOString()
-          : null,
-        expirationDate: isSchedule && expirationDate ? new Date(expirationDate).toISOString() : null,
       };
       await onSubmit(payload);
-      setSnackbar({ open: true, message: "Evaluación guardada con éxito", type: "success" });
+      setSnackbar({ open: true, message: "Evaluación editada con éxito", type: "success" });
       onClose();
     } catch (error) {
-      setSnackbar({ open: true, message: "Error al guardar la evaluación", type: "error" });
+      setSnackbar({ open: true, message: "Error al editar la evaluación", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -122,7 +107,7 @@ const AssessmentModal = ({
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={stopPropagation}>
-        <h3>Nueva evaluación</h3>
+        <h3>Editar evaluación</h3>
         <form onSubmit={handleSubmit}>
           <div className="modal-field">
             <label>Nombre de la evaluación</label>
@@ -143,7 +128,6 @@ const AssessmentModal = ({
               style={{ width: "100%" }}
             />
           </div>
-         
           <div className="modal-field">
             <label>Selecciona el bloque</label>
             <select
@@ -159,6 +143,34 @@ const AssessmentModal = ({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="modal-field" style={{ maxWidth: 480, margin: '0 auto', width: '100%', marginTop: 25, marginBottom: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 17, marginBottom: 6, marginTop: 16, gap: 12, width: '100%' }}>
+              <span style={{ marginBottom: 12 }}>Programado</span>
+              <input type="checkbox" checked={showSchedule} onChange={e => setShowSchedule(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
+            </div>
+            {showSchedule && (
+              <div style={{ marginTop: 8, width: '100%' }}>
+                <div style={{ marginBottom: 8 }}>
+                  <label>Fecha de publicación:</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledDate || ""}
+                    onChange={e => setScheduledDate(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label>Fecha de expiración:</label>
+                  <input
+                    type="datetime-local"
+                    value={expirationDate || ""}
+                    onChange={e => setExpirationDate(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <section className="checklist-section">
             <div>
@@ -212,52 +224,14 @@ const AssessmentModal = ({
               )}
             </div>
           </section>
-          <div className="modal-actions">
-            {!isSchedule && (
-              <>
-                <button
-                  className="schedule-buttons"
-                  type="button"
-                  onClick={handlePublishNow}
-                  disabled={saving}
-                >
-                  Publish now
-                </button>
-                <button
-                  className="schedule-buttons"
-                  type="button"
-                  onClick={() => setIsSchedule(true)}
-                  disabled={isSchedule}
-                >
-                  Schedule publication
-                </button>
-              </>
-            )}
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button className="cancel-button" type="button" onClick={onClose} disabled={saving}>
+              Cancelar
+            </button>
+            <button className="confirm-button" type="submit" disabled={saving || !canSave}>
+              Save
+            </button>
           </div>
-          {isSchedule && (
-            <div className="schedule-field" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <label>Fecha de publicación:</label>
-              <input
-                type="datetime-local"
-                value={scheduledDate}
-                onChange={e => setScheduledDate(e.target.value)}
-              />
-              <label>Fecha de expiración:</label>
-              <input
-                type="datetime-local"
-                value={expirationDate}
-                onChange={e => setExpirationDate(e.target.value)}
-              />
-              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button className="cancel-button" type="button" onClick={() => setIsSchedule(false)} disabled={saving}>
-                  Cancelar
-                </button>
-                <button className="confirm-button" type="button" onClick={handleSchedule} disabled={saving}>
-                  Save
-                </button>
-              </div>
-            </div>
-          )}
         </form>
         <AlertMessage
           open={snackbar.open}
@@ -270,4 +244,4 @@ const AssessmentModal = ({
   );
 };
 
-export default AssessmentModal;
+export default AssessmentEditModal;

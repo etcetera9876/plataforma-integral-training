@@ -18,7 +18,9 @@ const AssessmentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true }, // <-- Agregado para filtrar por sucursal
+  assignedTo: [{ type: mongoose.Schema.Types.Mixed }], // Permite ObjectId o string
   components: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Block', required: true }],
+  block: { type: mongoose.Schema.Types.ObjectId, ref: 'Block' }, // Nuevo campo para guardar el bloque principal del test
   publicationDate: Date,
   expirationDate: Date,
   isLocked: { type: Boolean, default: false },
