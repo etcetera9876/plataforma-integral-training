@@ -30,6 +30,12 @@ const AssessmentSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
+  evaluationType: {
+    type: String,
+    enum: ['multiple-choice', 'single-choice', 'true-false', 'open', 'case'],
+    default: 'multiple-choice',
+  },
+  questions: [QuestionSchema],
 });
 
 module.exports = mongoose.model('Assessment', AssessmentSchema);

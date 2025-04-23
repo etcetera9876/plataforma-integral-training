@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AlertMessage from "./AlertMessage";
+import AssessmentQuestions from "./AssessmentQuestions";
 import "./TrainerDashboard.css";
 
 // Utilidad para convertir UTC a local para datetime-local
@@ -52,12 +53,20 @@ const AssessmentModal = ({
     }
   }, [assignedMode, branchName]);
 
+  // Tipos de evaluación
+  const [evaluationType, setEvaluationType] = useState(initialData.evaluationType || "multiple-choice");
+  // Preguntas
+  const [questions, setQuestions] = useState(initialData.questions || []);
+
+  // Mostrar sección de preguntas y tipo de evaluación solo en edición
+  const showQuestionsSection = false; // Nunca mostrar en creación
+
   // Validación para habilitar Publish now
   const canPublishNow =
     name.trim().length > 0 &&
     description.trim().length > 0 &&
     selectedComponent &&
-    (assignedMode === "all" || (assignedMode === "select" && selectedUsers.length > 0));
+    (assignedMode === "all" || (assignedMode === "select" && selectedUsers.length > 0)); // Ya no valida preguntas
 
   // Sección programado para creación (como en CourseModal)
   const [isSchedule, setIsSchedule] = useState(false);
@@ -102,6 +111,8 @@ const AssessmentModal = ({
         branch: branchId,
         components: [selectedComponent],
         assignedTo,
+        evaluationType,
+        questions,
         publicationDate: options.publishNow
           ? null
           : isSchedule && scheduledDate
@@ -121,144 +132,177 @@ const AssessmentModal = ({
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal" onClick={stopPropagation}>
-        <h3>Nueva evaluación</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="modal-field">
-            <label>Nombre de la evaluación</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Descripción</label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={3}
-              style={{ width: "100%" }}
-            />
-          </div>
-         
-          <div className="modal-field">
-            <label>Selecciona el bloque</label>
-            <select
-              value={selectedComponent}
-              onChange={e => setSelectedComponent(e.target.value)}
-              style={{ width: "100%", marginBottom: 10 }}
-              required
-            >
-              <option value="">Selecciona un bloque</option>
-              {components.map(block => (
-                <option key={block._id} value={block._id}>
-                  {block.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <section className="checklist-section">
-            <div>
-              <label className="radio-row">
-                <span className="radio-label">All recruiters</span>
+      <div className="modal assessment-modal-wide" onClick={stopPropagation} style={{ minWidth: 900, maxWidth: 1100, borderRadius: 18, boxShadow: '0 8px 32px rgba(60,60,60,0.18)' }}>
+        <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, margin: '18px 0 24px 0', letterSpacing: 0.5 }}>Nueva evaluación</h3>
+        <div className="assessment-modal-content" style={{ display: 'flex', gap: 32, alignItems: 'flex-start', padding: 8 }}>
+          {/* Columna izquierda: datos generales */}
+          <div className="assessment-modal-left" style={{ flex: 1, minWidth: 340, maxWidth: 420, background: '#fff', borderRadius: 14, boxShadow: '0 2px 8px #e0e0e0', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="modal-field">
+                <label style={{ fontWeight: 600, marginBottom: 4 }}>Nombre de la evaluación</label>
                 <input
-                  type="radio"
-                  name="assignedMode"
-                  value="all"
-                  checked={assignedMode === "all"}
-                  onChange={() => setAssignedMode("all")}
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                  style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 16 }}
                 />
-              </label>
-              <label className="radio-row">
-                <span className="radio-label">Select recruiters</span>
-                <input
-                  type="radio"
-                  name="assignedMode"
-                  value="select"
-                  checked={assignedMode === "select"}
-                  onChange={() => setAssignedMode("select")}
+              </div>
+              <div className="modal-field">
+                <label style={{ fontWeight: 600, marginBottom: 4 }}>Descripción</label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  rows={3}
+                  style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
                 />
-              </label>
-            </div>
-          </section>
-          <section className="checklist-section">
-            <div className="check-list">
-              {assignedMode === "select" && (
-                <div className="modal-field">
-                  <ul>
-                    {branchUsers.map((user) => (
-                      <li key={user._id} className="course-item recruiter-row">
-                        <span className="recruiter-name">{user.name}</span>
-                        <input
-                          type="checkbox"
-                          value={user._id}
-                          checked={selectedUsers.includes(user._id)}
-                          onChange={(e) => {
-                            const isChecked = e.target.checked;
-                            setSelectedUsers((prev) =>
-                              isChecked
-                                ? [...prev, user._id]
-                                : prev.filter((id) => id !== user._id)
-                            );
-                          }}
-                        />
-                      </li>
-                    ))}
-                  </ul>
+              </div>
+              <div className="modal-field">
+                <label style={{ fontWeight: 600, marginBottom: 4 }}>Selecciona el bloque</label>
+                <select
+                  value={selectedComponent}
+                  onChange={e => setSelectedComponent(e.target.value)}
+                  style={{ width: "100%", marginBottom: 10, borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
+                  required
+                >
+                  <option value="">Selecciona un bloque</option>
+                  {components.map(block => (
+                    <option key={block._id} value={block._id}>
+                      {block.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <section className="checklist-section" style={{ marginBottom: 0 }}>
+                <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 6 }}>
+                  <label className="radio-row" style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="radio-label">All recruiters</span>
+                    <input
+                      type="radio"
+                      name="assignedMode"
+                      value="all"
+                      checked={assignedMode === "all"}
+                      onChange={() => setAssignedMode("all")}
+                    />
+                  </label>
+                  <label className="radio-row" style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="radio-label">Select recruiters</span>
+                    <input
+                      type="radio"
+                      name="assignedMode"
+                      value="select"
+                      checked={assignedMode === "select"}
+                      onChange={() => setAssignedMode("select")}
+                    />
+                  </label>
+                </div>
+              </section>
+              <section className="checklist-section">
+                <div className="check-list">
+                  {assignedMode === "select" && (
+                    <div className="modal-field" style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
+                      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                        {branchUsers.map((user) => (
+                          <li key={user._id} className="course-item recruiter-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                            <span className="recruiter-name" style={{ fontSize: 15 }}>{user.name}</span>
+                            <input
+                              type="checkbox"
+                              value={user._id}
+                              checked={selectedUsers.includes(user._id)}
+                              onChange={(e) => {
+                                const isChecked = e.target.checked;
+                                setSelectedUsers((prev) =>
+                                  isChecked
+                                    ? [...prev, user._id]
+                                    : prev.filter((id) => id !== user._id)
+                                );
+                              }}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </section>
+              <div className="modal-actions" style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                {!isSchedule && (
+                  <>
+                    <button
+                      className="schedule-buttons"
+                      type="button"
+                      onClick={handlePublishNow}
+                      disabled={saving}
+                      style={{ background: '#e53935', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '8px 18px', fontSize: 16, border: 'none', boxShadow: '0 1px 4px #e0e0e0', transition: 'background 0.2s' }}
+                    >
+                      Publish now
+                    </button>
+                    <button
+                      className="schedule-buttons"
+                      type="button"
+                      onClick={() => setIsSchedule(true)}
+                      disabled={isSchedule}
+                      style={{ background: '#e53935', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '8px 18px', fontSize: 16, border: 'none', boxShadow: '0 1px 4px #e0e0e0', transition: 'background 0.2s' }}
+                    >
+                      Schedule publication
+                    </button>
+                  </>
+                )}
+              </div>
+              {isSchedule && (
+                <div className="schedule-field" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8, background: '#f5f5f5', borderRadius: 8, padding: 12 }}>
+                  <label style={{ fontWeight: 500 }}>Fecha de publicación:</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledDate}
+                    onChange={e => setScheduledDate(e.target.value)}
+                    style={{ borderRadius: 6, border: '1.2px solid #d0d0d0', padding: 6, fontSize: 15 }}
+                  />
+                  <label style={{ fontWeight: 500 }}>Fecha de expiración:</label>
+                  <input
+                    type="datetime-local"
+                    value={expirationDate}
+                    onChange={e => setExpirationDate(e.target.value)}
+                    style={{ borderRadius: 6, border: '1.2px solid #d0d0d0', padding: 6, fontSize: 15 }}
+                  />
+                  <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                    <button className="cancel-button" type="button" onClick={() => setIsSchedule(false)} disabled={saving} style={{ borderRadius: 8, padding: '7px 16px', fontWeight: 600, fontSize: 15 }}>
+                      Cancelar
+                    </button>
+                    <button className="confirm-button" type="button" onClick={handleSchedule} disabled={saving} style={{ borderRadius: 8, padding: '7px 16px', fontWeight: 600, fontSize: 15 }}>
+                      Save
+                    </button>
+                  </div>
                 </div>
               )}
-            </div>
-          </section>
-          <div className="modal-actions">
-            {!isSchedule && (
-              <>
-                <button
-                  className="schedule-buttons"
-                  type="button"
-                  onClick={handlePublishNow}
-                  disabled={saving}
-                >
-                  Publish now
-                </button>
-                <button
-                  className="schedule-buttons"
-                  type="button"
-                  onClick={() => setIsSchedule(true)}
-                  disabled={isSchedule}
-                >
-                  Schedule publication
-                </button>
-              </>
-            )}
+            </form>
           </div>
-          {isSchedule && (
-            <div className="schedule-field" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <label>Fecha de publicación:</label>
-              <input
-                type="datetime-local"
-                value={scheduledDate}
-                onChange={e => setScheduledDate(e.target.value)}
-              />
-              <label>Fecha de expiración:</label>
-              <input
-                type="datetime-local"
-                value={expirationDate}
-                onChange={e => setExpirationDate(e.target.value)}
-              />
-              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button className="cancel-button" type="button" onClick={() => setIsSchedule(false)} disabled={saving}>
-                  Cancelar
-                </button>
-                <button className="confirm-button" type="button" onClick={handleSchedule} disabled={saving}>
-                  Save
-                </button>
+          {/* Columna derecha: preguntas (no mostrar en creación) */}
+          {showQuestionsSection && (
+            <div className="assessment-modal-right" style={{ flex: 1.2, minWidth: 340, maxWidth: 600, borderLeft: '2px solid #e0e0e0', paddingLeft: 32, overflowY: 'auto', maxHeight: 600, background: '#f8f9fa', borderRadius: 16, boxShadow: '0 2px 8px #e0e0e0', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 16, textAlign: 'center', letterSpacing: 0.2 }}>Preguntas</div>
+              <div className="modal-field">
+                <label style={{ fontWeight: 600, marginBottom: 4 }}>Tipo de evaluación</label>
+                <select
+                  value={evaluationType}
+                  onChange={e => setEvaluationType(e.target.value)}
+                  style={{ width: "100%", marginBottom: 10, borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
+                >
+                  <option value="multiple-choice">Opción múltiple</option>
+                  <option value="single-choice">Opción única</option>
+                  <option value="true-false">Verdadero/Falso</option>
+                  <option value="open">Respuesta abierta</option>
+                  <option value="case">Caso simulado</option>
+                </select>
               </div>
+              <AssessmentQuestions
+                questions={questions}
+                setQuestions={setQuestions}
+                evaluationType={evaluationType}
+              />
             </div>
           )}
-        </form>
+        </div>
         <AlertMessage
           open={snackbar.open}
           message={snackbar.message}
