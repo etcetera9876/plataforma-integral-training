@@ -10,6 +10,10 @@ import { useNavigate } from "react-router-dom";
 import { ConfirmModal, SuccessModal } from "./ConfirmModal"; // Importa el modal de confirmación
 import CourseEditModal from "./CourseEditModal"; // Importa el nuevo modal de edición
 import { getCourseStatus } from '../../utils/courseStatus'; // Importa la función centralizada
+import AssessmentModal from "./AssessmentModal"; // Importa el modal de evaluación
+import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregida
+import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
+
 
 
 // Configuración de Socket.IO
@@ -34,13 +38,40 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [now, setNow] = useState(new Date()); // Para forzar re-render periódico
-  
+
+  // Estado y lógica para evaluaciones
+  const [assessments, setAssessments] = useState([]);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState(null);
+  const [isAssessmentEditModalOpen, setIsAssessmentEditModalOpen] = useState(false);
+  const [assessmentToDelete, setAssessmentToDelete] = useState(null);
+  const [isAssessmentConfirmModalOpen, setIsAssessmentConfirmModalOpen] = useState(false);
+  const [assessmentSuccessMessage, setAssessmentSuccessMessage] = useState("");
+  const [isAssessmentSuccessModalOpen, setIsAssessmentSuccessModalOpen] = useState(false);
+
+  // Estado global de bloques de evaluación para la sucursal
+  const [blocks, setBlocks] = useState([]);
+  const [showComponentsConfigModal, setShowComponentsConfigModal] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", type: "info" });
+
+  // Cargar bloques desde el backend cada vez que cambia la sucursal
+  useEffect(() => {
+    if (!selectedBranch) {
+      setBlocks([]);
+      return;
+    }
+    const token = user?.token || localStorage.getItem("token");
+    axios.get(`${API_URL}/api/assessments/blocks/${selectedBranch}`, {
+      headers: { Authorization: token }
+    })
+      .then(res => setBlocks(res.data))
+      .catch(() => setBlocks([]));
+  }, [selectedBranch, user]);
 
   const handleUpdate = (course) => {
     setSelectedCourse(course);
     setIsModalOpen(true);
   };
-
 
   const handleDeleteClick = (courseId) => {
     setCourseToDelete(courseId); // Guarda el ID del curso a eliminar
@@ -73,8 +104,6 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   };
 
-
-  
   const handleToggleLock = async (courseId, isLocked) => {
     try {
       // Usa la URL absoluta para asegurar que apunte al backend correcto
@@ -102,14 +131,11 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   };
 
-
-
   useEffect(() => {
     if (!user) {
       navigate("/"); // Redirige al login si el usuario no está definido
     }
   }, [user, navigate]);
-
 
   const fetchCourses = useCallback(async () => {
     if (!selectedBranch) return;
@@ -128,7 +154,19 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [selectedBranch, user.token]);
 
-
+  const fetchAssessments = useCallback(async () => {
+    if (!selectedBranch) return;
+    try {
+      const token = user.token;
+      const response = await axios.get(`${API_URL}/api/assessments`, {
+        params: { branchId: selectedBranch },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAssessments(response.data);
+    } catch (error) {
+      console.error("Error al obtener evaluaciones:", error.response?.data || error.message);
+    }
+  }, [selectedBranch, user.token]);
 
   const fetchUserNames = useCallback(async (userIds) => {
     try {
@@ -149,8 +187,6 @@ const TrainerDashboard = ({ setUser, user }) => {
       console.error("Error al obtener nombres de usuarios:", error.response?.data || error.message);
     }
   }, [user.token]);
-
-
 
   const handleAddCourse = async (courseData) => {
     try {
@@ -174,8 +210,10 @@ const TrainerDashboard = ({ setUser, user }) => {
 
       // Actualizar el estado con el nuevo curso
       setCourses((prevCourses) => [newCourse, ...prevCourses]);
+      setSnackbar({ open: true, message: "Curso creado con éxito", type: "success" });
     } catch (error) {
       console.error("Error al agregar el curso:", error.response?.data || error.message);
+      setSnackbar({ open: true, message: "Error al crear el curso", type: "error" });
     }
   };
 
@@ -183,20 +221,19 @@ const TrainerDashboard = ({ setUser, user }) => {
     // Desconectar Socket.IO
     socket.disconnect();
 
-
-
     // Limpia el estado del usuario y redirige al inicio de sesión
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     setUser(null);
   };
 
-
   useEffect(() => {
     fetchCourses();
   }, [fetchCourses]);
 
-
+  useEffect(() => {
+    fetchAssessments();
+  }, [fetchAssessments]);
 
   useEffect(() => {
     const ids = courses
@@ -266,7 +303,6 @@ const TrainerDashboard = ({ setUser, user }) => {
     setSelectedBranch(e.target.value);
   };
 
-
   const currentBranchName = branches.find((b) => b._id === selectedBranch)?.name || "";
 
   // Determina si hay algún modal abierto
@@ -298,6 +334,7 @@ const TrainerDashboard = ({ setUser, user }) => {
 
           {selectedBranch && (
             <>
+              {/* Sección de cursos */}
               <section className="courses-section">
                 <div className="section-header">
                   <h2 className="section-title">{currentBranchName} Courses</h2>
@@ -368,6 +405,91 @@ const TrainerDashboard = ({ setUser, user }) => {
                   )}
                 </ul>
               </section>
+
+              {/* Sección de evaluaciones */}
+              <section className="assessments-section">
+                <div className="section-header">
+                  <h2 className="section-title">{currentBranchName} Evaluaciones</h2>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="add-button"
+                      onClick={() => setShowAssessmentModal(true)}
+                      title="Agregar evaluación"
+                    >
+                      ＋
+                    </button>
+                    <button
+                      className="add-button"
+                      style={{ background: '#43a047' }}
+                      onClick={() => setShowComponentsConfigModal(true)}
+                      title="Configurar bloques/componentes"
+                    >
+                      ⚙️
+                    </button>
+                  </div>
+                </div>
+                <ul className="course-list">
+                  {assessments.length > 0 ? (
+                    assessments.filter(a => a && a.name).map((assessment, index) => (
+                      <li key={assessment._id || index} className="course-item">
+                        <div className="course-main-row">
+                          <span className="course-name">📝 {assessment.name}</span>
+                          <span className="course-status">
+                            {assessment.isLocked ? '🔒 Bloqueado' : '🟢 Activo'}
+                          </span>
+                          <div className="course-actions">
+                            <button
+                              className="update-button"
+                              onClick={() => { if (assessment && assessment._id) { setSelectedAssessment(assessment); setIsAssessmentEditModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
+                              title="Editar evaluación"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="delete-button"
+                              onClick={() => { if (assessment && assessment._id) { setAssessmentToDelete(assessment._id); setIsAssessmentConfirmModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
+                              title="Eliminar evaluación"
+                            >
+                              Eliminar
+                            </button>
+                            <button
+                              className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
+                              onClick={async () => {
+                                if (!assessment || !assessment._id) {
+                                  setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
+                                  return;
+                                }
+                                try {
+                                  const token = user.token || localStorage.getItem("token");
+                                  const response = await axios.patch(
+                                    `${API_URL}/api/assessments/${assessment._id}/toggle-lock`,
+                                    {},
+                                    { headers: { Authorization: `Bearer ${token}` } }
+                                  );
+                                  const updatedAssessment = response.data.assessment || response.data;
+                                  if (updatedAssessment && updatedAssessment._id) {
+                                    setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
+                                    setSnackbar({ open: true, message: updatedAssessment.isLocked ? "Evaluación bloqueada" : "Evaluación desbloqueada", type: "success" });
+                                  } else {
+                                    setSnackbar({ open: true, message: "Error: la evaluación bloqueada no tiene ID", type: "error" });
+                                  }
+                                } catch (error) {
+                                  setSnackbar({ open: true, message: "Error al bloquear/desbloquear evaluación", type: "error" });
+                                }
+                              }}
+                              title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
+                            >
+                              {assessment.isLocked ? "Unlock" : "Lock"}
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="empty-message">No hay evaluaciones registradas en esta sucursal.</li>
+                  )}
+                </ul>
+              </section>
             </>
           )}
         </main>
@@ -393,7 +515,29 @@ const TrainerDashboard = ({ setUser, user }) => {
         <CourseModal
           branchName={currentBranchName}
           onClose={() => setShowCourseModal(false)}
-          onSubmit={handleAddCourse}
+          onSubmit={async (courseData) => {
+            try {
+              const token = user.token;
+              const response = await axios.post(
+                `${API_URL}/api/courses`,
+                {
+                  ...courseData,
+                  createdBy: {
+                    id: user.id,
+                    name: user.name,
+                  },
+                },
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+              const newCourse = response.data.course;
+              setCourses((prevCourses) => [newCourse, ...prevCourses]);
+              setSnackbar({ open: true, message: "Curso creado con éxito", type: "success" });
+            } catch (error) {
+              setSnackbar({ open: true, message: "Error al crear el curso", type: "error" });
+            }
+          }}
           branchId={selectedBranch}
         />
       )}
@@ -407,6 +551,117 @@ const TrainerDashboard = ({ setUser, user }) => {
           userNames={userNames}
         />
       )}
+
+      {/* Modal para configurar bloques/componentes */}
+      {showComponentsConfigModal && (
+        <BlocksConfigModal
+          blocks={blocks}
+          setBlocks={setBlocks}
+          onClose={() => setShowComponentsConfigModal(false)}
+          branchId={selectedBranch}
+        />
+      )}
+
+      {/* Modal para crear/editar evaluación */}
+      {showAssessmentModal && (
+        <AssessmentModal
+          branchName={currentBranchName}
+          onClose={() => setShowAssessmentModal(false)}
+          onSubmit={async (data) => {
+            try {
+              const token = user.token;
+              const response = await axios.post(
+                `${API_URL}/api/assessments`,
+                {
+                  ...data,
+                  createdBy: {
+                    id: user.id,
+                    name: user.name,
+                  }
+                },
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+              const newAssessment = response.data.assessment || response.data;
+              if (newAssessment && newAssessment._id) {
+                setAssessments((prev) => [newAssessment, ...prev]);
+                setSnackbar({ open: true, message: "Evaluación creada con éxito", type: "success" });
+              } else {
+                setSnackbar({ open: true, message: "Error: la evaluación creada no tiene ID", type: "error" });
+              }
+            } catch (error) {
+              setSnackbar({ open: true, message: "Error al crear la evaluación", type: "error" });
+            }
+          }}
+          branchId={selectedBranch}
+          components={blocks}
+        />
+      )}
+      {isAssessmentEditModalOpen && (
+        <AssessmentModal
+          branchName={currentBranchName}
+          onClose={() => setIsAssessmentEditModalOpen(false)}
+          onSubmit={async (data) => {
+            try {
+              const token = user.token;
+              const response = await axios.put(
+                `${API_URL}/api/assessments/${selectedAssessment._id}`,
+                { ...data },
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+              const updatedAssessment = response.data.assessment || response.data;
+              if (updatedAssessment && updatedAssessment._id) {
+                setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
+                setSnackbar({ open: true, message: "Evaluación editada con éxito", type: "success" });
+              } else {
+                setSnackbar({ open: true, message: "Error: la evaluación editada no tiene ID", type: "error" });
+              }
+            } catch (error) {
+              setSnackbar({ open: true, message: "Error al editar la evaluación", type: "error" });
+            }
+          }}
+          initialData={selectedAssessment}
+          branchId={selectedBranch}
+          components={blocks}
+        />
+      )}
+      {isAssessmentConfirmModalOpen && (
+        <ConfirmModal
+          message="¿Estás seguro de que deseas eliminar esta evaluación?"
+          onConfirm={async () => {
+            try {
+              const token = user.token || localStorage.getItem("token");
+              await axios.delete(`${API_URL}/api/assessments/${assessmentToDelete}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              setAssessments((prev) => prev.filter(a => a._id !== assessmentToDelete));
+              setSnackbar({ open: true, message: "Evaluación eliminada con éxito", type: "success" });
+              setIsAssessmentSuccessModalOpen(true);
+            } catch (error) {
+              setSnackbar({ open: true, message: "Error al eliminar la evaluación", type: "error" });
+            } finally {
+              setIsAssessmentConfirmModalOpen(false);
+              setAssessmentToDelete(null);
+            }
+          }}
+          onCancel={() => setIsAssessmentConfirmModalOpen(false)}
+        />
+      )}
+      {isAssessmentSuccessModalOpen && (
+        <SuccessModal
+          message={assessmentSuccessMessage}
+          onClose={() => setIsAssessmentSuccessModalOpen(false)}
+        />
+      )}
+      <AlertMessage
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      />
     </>
   );
 };

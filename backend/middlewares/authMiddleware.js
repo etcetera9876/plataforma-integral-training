@@ -1,8 +1,11 @@
 const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ message: 'Acceso denegado' });
+    const authHeader = req.header('Authorization');
+    if (!authHeader) return res.status(401).json({ message: 'Acceso denegado' });
+
+    // Soporta "Bearer <token>" o solo "<token>"
+    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
 
     try {
         const verified = jwt.verify(token, 'secreto');

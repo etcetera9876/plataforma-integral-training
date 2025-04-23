@@ -1,0 +1,27 @@
+.alert-message {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  min-width: 220px;
+  max-width: 90vw;
+  padding: 14px 28px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  z-index: 9999;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  opacity: 0.97;
+  animation: fadeInOut 0.4s;
+}
+.alert-success {
+  background: #43a047;
+}
+.alert-error {
+  background: #d32f2f;
+}
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  100% { opacity: 0.97; transform: translateX(-50%) translateY(0); }
+}
