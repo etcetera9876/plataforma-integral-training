@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_URL from "../../config";
 import "./TestFormBuilder.css";
+import Modal from "./Modal";
 
 const FIELD_TYPES = [
   { value: "text", label: "Texto" },
@@ -110,6 +111,10 @@ const TestFormBuilder = ({ forms, setForms }) => {
     setForms([{ bgImage, fields }]);
   }, [bgImage, fields, setForms]);
 
+  // Modal
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewFormIdx, setViewFormIdx] = useState(null);
+
   return (
     <>
       <h3>Formularios replicados</h3>
@@ -117,6 +122,14 @@ const TestFormBuilder = ({ forms, setForms }) => {
         <div key={idx} style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <strong>Formulario #{idx + 1}</strong>
+            <button
+              type="button"
+              title="Ver formulario"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#1976d2' }}
+              onClick={() => { setViewFormIdx(idx); setViewModalOpen(true); }}
+            >
+              👁️
+            </button>
             {forms.length > 1 && (
               <button style={{ color: '#d32f2f', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => handleRemoveForm(idx)}>Eliminar</button>
             )}
@@ -219,6 +232,52 @@ const TestFormBuilder = ({ forms, setForms }) => {
         </div>
       ))}
       <button type="button" style={{ marginTop: 16, background: '#e8f5e9', border: '1px solid #b2dfdb', borderRadius: 6, padding: '6px 18px', cursor: 'pointer' }} onClick={handleAddForm}>Agregar otro formulario replicado</button>
+
+      {/* Modal de vista previa solo lectura */}
+      <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)}>
+        {viewFormIdx !== null && forms[viewFormIdx] && (
+          <div style={{ maxWidth: 720 }}>
+            <h4 style={{ marginTop: 0 }}>Vista previa del Formulario #{viewFormIdx + 1}</h4>
+            {forms[viewFormIdx].bgImage && (
+              <img
+                src={typeof forms[viewFormIdx].bgImage === "string" ? forms[viewFormIdx].bgImage : URL.createObjectURL(forms[viewFormIdx].bgImage)}
+                alt="formulario"
+                style={{ width: 700, maxWidth: '100%', borderRadius: 6, marginBottom: 12, display: 'block' }}
+              />
+            )}
+            <div style={{ position: 'relative', width: 700, maxWidth: '100%' }}>
+              {forms[viewFormIdx].fields && forms[viewFormIdx].fields.map((field, fidx) => (
+                <div
+                  key={fidx}
+                  style={{
+                    position: 'absolute',
+                    left: field.x,
+                    top: field.y,
+                    width: field.width || 140,
+                    minHeight: 38,
+                    background: '#f9f9f9',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    padding: 6,
+                    fontSize: 13,
+                    pointerEvents: 'none',
+                    opacity: 0.95
+                  }}
+                >
+                  <div style={{ fontWeight: 500, marginBottom: 2 }}>{field.label || '(Sin etiqueta)'}</div>
+                  {field.type === 'select' ? (
+                    <select disabled style={{ width: '100%' }}>
+                      {(field.options || '').split(',').map((opt, i) => <option key={i}>{opt.trim()}</option>)}
+                    </select>
+                  ) : (
+                    <input type={field.type} disabled style={{ width: '100%' }} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 };
