@@ -1,5 +1,26 @@
 const mongoose = require('mongoose');
 const Assessment = require('../models/assessment');
+const { exec } = require("child_process");
+const path = require("path");
+const multer = require("multer");
+
+// Configuración de multer para guardar archivos en /uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../uploads'));
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + file.originalname.replace(/\s+/g, '_');
+    cb(null, uniqueSuffix);
+  }
+});
+const upload = multer({ storage });
+
+// Controlador para subir archivos PDF a /uploads
+const uploadPdf = (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+  res.json({ filename: req.file.filename });
+};
 
 exports.getAssessments = async (req, res) => {
   try {
@@ -132,3 +153,28 @@ exports.toggleLockAssessment = async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar el estado de bloqueo', error: error.message });
   }
 };
+
+// Convierte la primera página de un PDF subido a imagen PNG y devuelve la ruta
+exports.convertPdfToImage = async (req, res) => {
+  try {
+    const { pdfFile } = req.body;
+    if (!pdfFile) return res.status(400).json({ error: "Falta el nombre del archivo PDF" });
+    const pdfPath = path.join(__dirname, "../uploads", pdfFile);
+    const outputBase = pdfFile.replace(/\.[^.]+$/, "");
+    const outputPath = path.join(__dirname, "../uploads", `${outputBase}-%d.png`);
+    const cmd = `magick "${pdfPath}" "${outputPath}"`;
+    exec(cmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error("Error ejecutando magick:", error, stderr);
+        return res.status(500).json({ error: "Error ejecutando magick", details: stderr });
+      }
+      // Devuelve la ruta de la primera imagen generada
+      res.json({ imagePath: `/uploads/${outputBase}-0.png` });
+    });
+  } catch (err) {
+    console.error("Error general convertPdfToImage:", err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+};
+
+module.exports.uploadPdf = uploadPdf;

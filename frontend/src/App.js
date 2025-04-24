@@ -10,6 +10,7 @@ import SupervisorDashboard from './components/Supervisor/SupervisorDashboard';
 import ManagerDashboard from './components/Manager/ManagerDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import CourseDetail from './components/CourseDetail';
+import TestEditPage from './pages/TestEditPage';
 
 import API_URL from './config';
 import axios from 'axios';
@@ -212,6 +213,10 @@ function App() {
   <Route 
     path="/course/:id" 
     element={user ? <CourseDetail /> : <Navigate to="/" />} 
+  />
+  <Route 
+    path="/tests/:id/edit" 
+    element={user ? <TestEditPage /> : <Navigate to="/" />} 
   />
 </Routes>
 

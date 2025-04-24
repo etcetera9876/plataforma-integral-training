@@ -26,7 +26,7 @@ const AssessmentEditModal = ({
   const [snackbar, setSnackbar] = useState({ open: false, message: "", type: "info" });
   const [selectedComponent, setSelectedComponent] = useState(
     initialData.components && initialData.components.length > 0
-      ? initialData.components[0].block
+      ? initialData.components[0]
       : ""
   );
   const [scheduledDate, setScheduledDate] = useState(

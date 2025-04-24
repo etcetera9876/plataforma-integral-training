@@ -13,7 +13,6 @@ import { getCourseStatus } from '../../utils/courseStatus'; // Importa la funci�
 import AssessmentModal from "./AssessmentModal"; // Importa el modal de evaluación
 import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregida
 import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
-import AssessmentEditModal from "./AssessmentEditModal"; // Importa el modal de edición de evaluación
 
 
 
@@ -44,7 +43,6 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [assessments, setAssessments] = useState([]);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
-  const [isAssessmentEditModalOpen, setIsAssessmentEditModalOpen] = useState(false);
   const [assessmentToDelete, setAssessmentToDelete] = useState(null);
   const [isAssessmentConfirmModalOpen, setIsAssessmentConfirmModalOpen] = useState(false);
   const [assessmentSuccessMessage, setAssessmentSuccessMessage] = useState("");
@@ -448,7 +446,13 @@ const TrainerDashboard = ({ setUser, user }) => {
                             <div className="course-actions">
                               <button
                                 className="update-button"
-                                onClick={() => { if (assessment && assessment._id) { setSelectedAssessment(assessment); setIsAssessmentEditModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
+                                onClick={() => {
+                                  if (assessment && assessment._id) {
+                                    navigate(`/tests/${assessment._id}/edit`);
+                                  } else {
+                                    setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
+                                  }
+                                }}
                                 title={isNewAssessment ? "Agregar preguntas a la evaluación" : "Actualizar evaluación"}
                               >
                                 {isNewAssessment ? "New" : "Editar"}
@@ -610,36 +614,6 @@ const TrainerDashboard = ({ setUser, user }) => {
               setSnackbar({ open: true, message: "Error al crear la evaluación", type: "error" });
             }
           }}
-          branchId={selectedBranch}
-          components={blocks}
-        />
-      )}
-      {isAssessmentEditModalOpen && (
-        <AssessmentEditModal
-          branchName={currentBranchName}
-          onClose={() => setIsAssessmentEditModalOpen(false)}
-          onSubmit={async (data) => {
-            try {
-              const token = user.token;
-              const response = await axios.put(
-                `${API_URL}/api/assessments/${selectedAssessment._id}`,
-                { ...data },
-                {
-                  headers: { Authorization: `Bearer ${token}` },
-                }
-              );
-              const updatedAssessment = response.data.assessment || response.data;
-              if (updatedAssessment && updatedAssessment._id) {
-                setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
-                setSnackbar({ open: true, message: "Evaluación editada con éxito", type: "success" });
-              } else {
-                setSnackbar({ open: true, message: "Error: la evaluación editada no tiene ID", type: "error" });
-              }
-            } catch (error) {
-              setSnackbar({ open: true, message: "Error al editar la evaluación", type: "error" });
-            }
-          }}
-          initialData={selectedAssessment}
           branchId={selectedBranch}
           components={blocks}
         />
