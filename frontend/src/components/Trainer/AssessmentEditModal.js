@@ -124,16 +124,16 @@ const AssessmentEditModal = ({
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
-                  style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 16 }}
+                  style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 16, marginBottom: '-10px', boxSizing: 'border-box' }}
                 />
               </div>
               <div className="modal-field">
-                <label style={{ fontWeight: 600, marginBottom: 4 }}>Descripción</label>
+                <label style={{ fontWeight: 600, marginBottom: 4}}>Descripción</label>
                 <textarea
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   rows={3}
-                  style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15, boxSizing: 'border-box', resize: 'vertical', minHeight: 60, marginRight: 0 }}
+                  style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15, boxSizing: 'border-box', resize: 'vertical', minHeight: 60, marginRight: 0,  marginBottom: '-10px' }}
                 />
               </div>
               <div className="modal-field">
@@ -141,7 +141,7 @@ const AssessmentEditModal = ({
                 <select
                   value={selectedComponent}
                   onChange={e => setSelectedComponent(e.target.value)}
-                  style={{ width: "100%", marginBottom: 10, borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
+                  style={{ width: "100%", marginBottom: '-5px', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
                   required
                 >
                   <option value="">Selecciona un bloque</option>
@@ -152,7 +152,7 @@ const AssessmentEditModal = ({
                   ))}
                 </select>
               </div>
-              <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 10, marginTop: 2, textAlign: 'center' }}>Reclutadores asignados</div>
+              <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 5, marginTop: 2, textAlign: 'center' }}>Reclutadores asignados</div>
               <section className="checklist-section" style={{ marginBottom: 8 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'flex-start', marginBottom: 10, justifyContent: 'flex-start', width: '100%' }}>
                   <label className="radio-row" style={{ fontWeight: 500, fontSize: 16, display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 16, width: '100%', justifyContent: 'space-between', padding: '8px 0', whiteSpace: 'nowrap' }}>
@@ -162,28 +162,29 @@ const AssessmentEditModal = ({
                       value="all"
                       checked={assignedMode === "all"}
                       onChange={() => setAssignedMode("all")}
-                      style={{ marginLeft: 12, transform: 'scale(1.2)' }}
+                      style={{ marginLeft: 25, transform: 'scale(1.2)', marginBottom:'-20px' }}
                     />
-                    <span className="radio-label" style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>Todos los reclutadores</span>
+                    <span className="radio-label" style={{ textAlign: 'left', whiteSpace: 'nowrap', marginBottom:'-20px'   }}>Todos los reclutadores</span>
                   </label>
-                  <label className="radio-row" style={{ fontWeight: 500, fontSize: 16, display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 16, width: '100%', justifyContent: 'space-between', padding: '8px 0', whiteSpace: 'nowrap' }}>
+                  <label className="radio-row" style={{  fontWeight: 500, fontSize: 16, display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 16, width: '100%', justifyContent: 'space-between', padding: '8px 0', whiteSpace: 'nowrap' }}>
                     <input
+            
                       type="radio"
                       name="assignedMode"
                       value="select"
                       checked={assignedMode === "select"}
                       onChange={() => setAssignedMode("select")}
-                      style={{ marginLeft: 12, transform: 'scale(1.2)' }}
+                      style={{ marginLeft: 12,  transform: 'scale(1.2)' }}
                     />
                     <span className="radio-label" style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>Seleccionar reclutadores</span>
                   </label>
                 </div>
               </section>
-              <section className="checklist-section" style={{ marginBottom: 8 }}>
-                <div className="check-list">
+              <section className="checklist-section" style={{ marginBottom: '-20px', marginTop: '-30px' }}>
+                <div className="check-list" >
                   {assignedMode === "select" && (
-                    <div className="modal-field" style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
-                      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                    <div className="modal-field" style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6}}>
+                      <ul style={{ margin: 0, padding: 0, listStyle: 'none'}}>
                         {branchUsers.map((user) => (
                           <li key={user._id} className="course-item recruiter-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                             <span className="recruiter-name" style={{ fontSize: 15 }}>{user.name}</span>

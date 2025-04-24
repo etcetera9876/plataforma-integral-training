@@ -432,11 +432,9 @@ const TrainerDashboard = ({ setUser, user }) => {
                 <ul className="course-list">
                   {assessments.length > 0 ? (
                     assessments.filter(a => a && a.name).map((assessment, index) => {
-                      // Considera incompleto si no tiene descripción, bloque o no tiene preguntas (components vacío)
+                      // Considera incompleto si no tiene preguntas
                       const isNewAssessment =
-                        !assessment.description ||
-                        !assessment.components ||
-                        assessment.components.length === 0;
+                        !assessment.questions || assessment.questions.length === 0;
                       return (
                         <li
                           key={assessment._id || index}
@@ -451,7 +449,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                               <button
                                 className="update-button"
                                 onClick={() => { if (assessment && assessment._id) { setSelectedAssessment(assessment); setIsAssessmentEditModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
-                                title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
+                                title={isNewAssessment ? "Agregar preguntas a la evaluación" : "Actualizar evaluación"}
                               >
                                 {isNewAssessment ? "New" : "Editar"}
                               </button>

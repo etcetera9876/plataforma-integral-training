@@ -26,14 +26,12 @@ const AssessmentModal = ({
   const [saving, setSaving] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", type: "info" });
 
-  // Para components (puedes dejarlo igual si solo usas uno)
   const [selectedComponent, setSelectedComponent] = useState(
     initialData.components && initialData.components.length > 0
       ? initialData.components[0]
       : ""
   );
 
-  // Asignación de usuarios
   const [assignedMode, setAssignedMode] = useState(
     initialData.assignedTo && initialData.assignedTo[0] === "All recruiters" ? "all" : "all"
   );
@@ -53,22 +51,15 @@ const AssessmentModal = ({
     }
   }, [assignedMode, branchName]);
 
-  // Tipos de evaluación
   const [evaluationType, setEvaluationType] = useState(initialData.evaluationType || "multiple-choice");
-  // Preguntas
   const [questions, setQuestions] = useState(initialData.questions || []);
 
-  // Mostrar sección de preguntas y tipo de evaluación solo en edición
-  const showQuestionsSection = false; // Nunca mostrar en creación
-
-  // Validación para habilitar Publish now
   const canPublishNow =
     name.trim().length > 0 &&
     description.trim().length > 0 &&
     selectedComponent &&
-    (assignedMode === "all" || (assignedMode === "select" && selectedUsers.length > 0)); // Ya no valida preguntas
+    (assignedMode === "all" || (assignedMode === "select" && selectedUsers.length > 0));
 
-  // Sección programado para creación (como en CourseModal)
   const [isSchedule, setIsSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
@@ -91,11 +82,10 @@ const AssessmentModal = ({
     handleSubmit(e, { schedule: true });
   };
 
-  // Cerrar si clic en overlay
   const handleOverlayClick = () => {
     onClose();
   };
-  // Evitar cerrar si clic dentro del modal
+
   const stopPropagation = (e) => {
     e.stopPropagation();
   };
@@ -132,11 +122,10 @@ const AssessmentModal = ({
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal assessment-modal-wide" onClick={stopPropagation} style={{ minWidth: 900, maxWidth: 1100, borderRadius: 18, boxShadow: '0 8px 32px rgba(60,60,60,0.18)' }}>
+      <div className="modal assessment-modal-wide" onClick={stopPropagation} style={{ minWidth: 420, maxWidth: 520, borderRadius: 18, boxShadow: '0 8px 32px rgba(60,60,60,0.18)' }}>
         <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, margin: '18px 0 24px 0', letterSpacing: 0.5 }}>Nueva evaluación</h3>
-        <div className="assessment-modal-content" style={{ display: 'flex', gap: 32, alignItems: 'flex-start', padding: 8 }}>
-          {/* Columna izquierda: datos generales */}
-          <div className="assessment-modal-left" style={{ flex: 1, minWidth: 340, maxWidth: 420, background: '#fff', borderRadius: 14, boxShadow: '0 2px 8px #e0e0e0', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="assessment-modal-content" style={{ padding: 8 }}>
+          <div className="assessment-modal-left" style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 8px #e0e0e0', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="modal-field">
                 <label style={{ fontWeight: 600, marginBottom: 4 }}>Nombre de la evaluación</label>
@@ -277,37 +266,12 @@ const AssessmentModal = ({
               )}
             </form>
           </div>
-          {/* Columna derecha: preguntas (no mostrar en creación) */}
-          {showQuestionsSection && (
-            <div className="assessment-modal-right" style={{ flex: 1.2, minWidth: 340, maxWidth: 600, borderLeft: '2px solid #e0e0e0', paddingLeft: 32, overflowY: 'auto', maxHeight: 600, background: '#f8f9fa', borderRadius: 16, boxShadow: '0 2px 8px #e0e0e0', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 16, textAlign: 'center', letterSpacing: 0.2 }}>Preguntas</div>
-              <div className="modal-field">
-                <label style={{ fontWeight: 600, marginBottom: 4 }}>Tipo de evaluación</label>
-                <select
-                  value={evaluationType}
-                  onChange={e => setEvaluationType(e.target.value)}
-                  style={{ width: "100%", marginBottom: 10, borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
-                >
-                  <option value="multiple-choice">Opción múltiple</option>
-                  <option value="single-choice">Opción única</option>
-                  <option value="true-false">Verdadero/Falso</option>
-                  <option value="open">Respuesta abierta</option>
-                  <option value="case">Caso simulado</option>
-                </select>
-              </div>
-              <AssessmentQuestions
-                questions={questions}
-                setQuestions={setQuestions}
-                evaluationType={evaluationType}
-              />
-            </div>
-          )}
         </div>
         <AlertMessage
           open={snackbar.open}
           message={snackbar.message}
           type={snackbar.type}
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          onClose={() => setSnackbar({ open: false, message: '', type: snackbar.type })}
         />
       </div>
     </div>

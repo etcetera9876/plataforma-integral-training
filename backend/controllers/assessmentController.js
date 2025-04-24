@@ -78,10 +78,10 @@ exports.getAssessmentById = async (req, res) => {
 exports.updateAssessment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo } = req.body;
+    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType } = req.body;
     const updated = await Assessment.findByIdAndUpdate(
       id,
-      { name, description, branch, components, block, publicationDate, expirationDate, assignedTo },
+      { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType },
       { new: true }
     );
     if (!updated) {
