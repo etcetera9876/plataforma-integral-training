@@ -43,11 +43,18 @@ exports.createAssessment = async (req, res) => {
       assignedTo,
     });
 
+    // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
+    let adaptedComponents = components;
+    if (typeof components[0] === 'string' || typeof components[0] === 'number') {
+      // Si es array de IDs, asignar peso por defecto (100)
+      adaptedComponents = components.map(id => ({ block: id, weight: 100 }));
+    }
+
     const assessment = new Assessment({
       name,
       description,
       branch,
-      components,
+      components: adaptedComponents,
       block,
       publicationDate,
       expirationDate,
@@ -78,10 +85,15 @@ exports.getAssessmentById = async (req, res) => {
 exports.updateAssessment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType } = req.body;
+    let { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType } = req.body;
+    // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
+    let adaptedComponents = components;
+    if (Array.isArray(components) && (typeof components[0] === 'string' || typeof components[0] === 'number')) {
+      adaptedComponents = components.map(id => ({ block: id, weight: 100 }));
+    }
     const updated = await Assessment.findByIdAndUpdate(
       id,
-      { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType },
+      { name, description, branch, components: adaptedComponents, block, publicationDate, expirationDate, assignedTo, questions, evaluationType },
       { new: true }
     );
     if (!updated) {

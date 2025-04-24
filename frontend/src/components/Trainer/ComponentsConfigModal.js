@@ -37,9 +37,15 @@ const BlocksConfigModal = ({ blocks = [], setBlocks, onClose, branchId }) => {
         setSuccess("Bloque eliminado con éxito");
         setAlertOpen(true);
       } catch (err) {
-        setError("Error al eliminar el bloque");
+        // Evita mostrar el error en la consola
+        if (err.response && err.response.data && err.response.data.message) {
+          setError(err.response.data.message);
+        } else {
+          setError("Error al eliminar el bloque");
+        }
         setAlertOpen(true);
-        return;
+        // Evita que axios imprima el error en consola
+        return false;
       }
     }
     setLocalBlocks(localBlocks.filter((_, i) => i !== idx));
@@ -54,6 +60,27 @@ const BlocksConfigModal = ({ blocks = [], setBlocks, onClose, branchId }) => {
     setSaving(true);
     setError("");
     setSuccess("");
+    // Validación extra antes de enviar
+    for (const block of localBlocks) {
+      if (!block.label || block.label.trim() === "") {
+        setError("El nombre del bloque no puede estar vacío.");
+        setAlertOpen(true);
+        setSaving(false);
+        return;
+      }
+      if (!block.weight || isNaN(Number(block.weight)) || Number(block.weight) <= 0) {
+        setError("El peso debe ser un número mayor a 0.");
+        setAlertOpen(true);
+        setSaving(false);
+        return;
+      }
+      if (!branchId) {
+        setError("No se ha seleccionado una sucursal válida.");
+        setAlertOpen(true);
+        setSaving(false);
+        return;
+      }
+    }
     let created = false;
     let updated = false;
     try {

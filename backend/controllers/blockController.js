@@ -8,27 +8,13 @@ exports.createBlock = async (req, res) => {
     if (!label || !weight || !branch) {
       return res.status(400).json({ message: 'Faltan campos obligatorios: label, weight o branch.' });
     }
-    // Permitir branch tipo string ("Global") o ObjectId válido
-    const isValidBranch = branch === "Global" || mongoose.Types.ObjectId.isValid(branch);
-    if (!isValidBranch) {
-      return res.status(400).json({ message: 'El campo branch debe ser un ObjectId válido o "Global".' });
+    if (!mongoose.Types.ObjectId.isValid(branch)) {
+      return res.status(400).json({ message: 'El campo branch debe ser un ObjectId válido.' });
     }
-
-    // Normalizar el label para comparar (sin acentos, minúsculas, sin espacios)
-    const normalize = str => str.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/\s+/g, '');
-    const normalizedLabel = normalize(label);
-    // Buscar bloques existentes en la rama (soporta branch string u ObjectId)
-    const blocks = await Block.find({ branch });
-    const exists = blocks.some(b => normalize(b.label) === normalizedLabel);
-    if (exists) {
-      return res.status(400).json({ message: 'Ya existe un bloque con un nombre igual o similar en esta rama.' });
-    }
-
     const type = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     const block = new Block({ label, type, weight, branch });
     await block.save();
-
-    res.status(201).json({ message: 'Bloque creado con éxito', block });
+    res.status(201).json(block);
   } catch (error) {
     res.status(500).json({ message: 'Error al crear el bloque', error: error.message });
   }
@@ -37,11 +23,6 @@ exports.createBlock = async (req, res) => {
 exports.getBlocksByBranch = async (req, res) => {
   try {
     const { branchId } = req.params;
-    // Permitir branchId como string o ObjectId válido
-    if (!branchId || (branchId !== 'Global' && !mongoose.Types.ObjectId.isValid(branchId))) {
-      return res.status(400).json({ message: 'branchId inválido' });
-    }
-    // Buscar bloques por branch (soporta string o ObjectId)
     const blocks = await Block.find({ branch: branchId }).sort({ label: 1 });
     res.json(blocks);
   } catch (error) {
@@ -51,23 +32,35 @@ exports.getBlocksByBranch = async (req, res) => {
 
 exports.updateBlock = async (req, res) => {
   try {
+    console.log('updateBlock req.params:', req.params); // LOG
+    console.log('updateBlock req.body:', req.body); // LOG
     const { id } = req.params;
     const { label, weight } = req.body;
+    // Validaciones extra
+    if (!label || label.trim() === "") {
+      console.log('Label vacío o inválido:', label); // LOG
+      return res.status(400).json({ message: 'El nombre del bloque no puede estar vacío.' });
+    }
+    if (weight === undefined || weight === null || isNaN(Number(weight)) || Number(weight) <= 0) {
+      console.log('Peso inválido:', weight); // LOG
+      return res.status(400).json({ message: 'El peso debe ser un número mayor a 0.' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log('ID de bloque inválido:', id); // LOG
+      return res.status(400).json({ message: 'ID de bloque inválido.' });
+    }
     const type = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     const updated = await Block.findByIdAndUpdate(id, { label, type, weight }, { new: true });
-    if (!updated) return res.status(404).json({ message: 'Bloque no encontrado' });
-    // Sincronizar el peso en todas las evaluaciones que usen este bloque
-    const result = await Assessment.updateMany(
-      { 'components.type': type },
-      { $set: { 'components.$[elem].weight': weight } },
-      { arrayFilters: [{ 'elem.type': type }] }
-    );
+    if (!updated) {
+      console.log('Bloque no encontrado:', id); // LOG
+      return res.status(404).json({ message: 'Bloque no encontrado' });
+    }
     res.json({
-      message: `Bloque actualizado. Peso sincronizado en ${result.modifiedCount} evaluaciones.`,
-      updated,
-      modifiedCount: result.modifiedCount
+      message: `Bloque actualizado.`,
+      updated
     });
   } catch (error) {
+    console.error('Error en updateBlock:', error); // LOG
     res.status(500).json({ message: 'Error al actualizar el bloque', error: error.message });
   }
 };
@@ -77,9 +70,11 @@ exports.deleteBlock = async (req, res) => {
     const { id } = req.params;
     const block = await Block.findById(id);
     if (!block) return res.status(404).json({ message: 'Bloque no encontrado' });
-    const used = await Assessment.findOne({ 'components.type': block.type });
-    if (used) {
-      return res.status(400).json({ message: 'No se puede eliminar: existe al menos una evaluación usando este bloque.' });
+    // Buscar evaluaciones que usen este bloque en components (array de objetos { block, weight })
+    const usedAssessments = await Assessment.find({ 'components.block': block._id }).select('name');
+    if (usedAssessments.length > 0) {
+      const testNames = usedAssessments.map(a => a.name).join(', ');
+      return res.status(400).json({ message: `No se puede eliminar el bloque porque está siendo usado en el/los test(s): ${testNames}` });
     }
     await Block.findByIdAndDelete(id);
     res.json({ message: 'Bloque eliminado correctamente' });
