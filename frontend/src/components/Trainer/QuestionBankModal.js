@@ -56,26 +56,71 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
   const [questions, setQuestions] = useState([]);
   const fileInputRef = React.useRef();
   const [lockedMap, setLockedMap] = useState({});
+  const [editIndex, setEditIndex] = useState(null);
+  const [currentAttachment, setCurrentAttachment] = useState(null);
 
-  useEffect(() => {
-    // Cargar preguntas existentes al abrir el modal
-    const fetchQuestions = async () => {
+  // Editar pregunta: carga los datos en el formulario
+  const handleEdit = (q, idx) => {
+    setForm({
+      statement: q.statement || '',
+      type: q.type || '',
+      difficulty: q.difficulty || '',
+      topic: q.topic || '',
+      options: Array.isArray(q.options) && q.options.length > 0 ? q.options : [''],
+      correctAnswer: q.correctAnswer || '',
+      correctAnswerIA: q.correctAnswerIA || '',
+      attachment: null,
+      attachmentType: '',
+    });
+    setCurrentAttachment(q.attachment && q.attachment.url ? q.attachment : null);
+    setEditIndex(idx);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCancelEdit = () => {
+    setEditIndex(null);
+    setForm(initialState);
+    setCurrentAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Eliminar pregunta
+  const handleDelete = async (q) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/api/questions/${q._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSnackbar({ open: true, message: 'Pregunta eliminada', type: 'success' });
+      setLoading(l => !l); // Fuerza recarga
+    } catch (err) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo eliminar', type: 'error' });
+    }
+  };
+
+  const fetchQuestions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/api/questions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setQuestions(res.data);
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_URL}/api/questions`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setQuestions(res.data);
-        // Consultar estado bloqueado/libre para cada pregunta
         const lockRes = await axios.post(`${API_URL}/api/questions/locked`, { ids: res.data.map(q => q._id) }, { headers: { Authorization: `Bearer ${token}` } });
-        setLockedMap(lockRes.data); // { id: true/false }
-      } catch (err) {
-        setQuestions([]);
+        setLockedMap(lockRes.data);
+      } catch {
         setLockedMap({});
       }
-    };
+    } catch {
+      setQuestions([]);
+      setLockedMap({});
+    }
+  };
+
+  useEffect(() => {
     fetchQuestions();
-  }, [loading]); // Se recarga al crear nueva pregunta
+    // eslint-disable-next-line
+  }, [loading]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -136,17 +181,30 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
       Object.entries(form).forEach(([key, value]) => {
         if (key === 'options') data.append('options', JSON.stringify(value));
         else if (key === 'attachment' && value) data.append('attachment', value);
-        else if (key === 'correctAnswerIA' && form.type !== 'open') return; // Solo enviar si es open
+        else if (key === 'correctAnswerIA' && form.type !== 'open') return;
         else if (value) data.append(key, value);
       });
-      await onCreate(data);
-      setSnackbar({ open: true, message: 'Pregunta creada con éxito', type: 'success' });
+      if (editIndex !== null && questions[editIndex]?._id) {
+        // Edición
+        const id = questions[editIndex]._id;
+        const token = localStorage.getItem('token');
+        await axios.put(`${API_URL}/api/questions/${id}`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setSnackbar({ open: true, message: 'Pregunta actualizada', type: 'success' });
+        setEditIndex(null);
+        setCurrentAttachment(null);
+      } else {
+        // Creación
+        await onCreate(data);
+        setSnackbar({ open: true, message: 'Pregunta creada con éxito', type: 'success' });
+      }
       setForm(initialState);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      setSnackbar({ open: true, message: 'Error al crear la pregunta', type: 'error' });
+      setSnackbar({ open: true, message: 'Error al guardar la pregunta', type: 'error' });
     } finally {
-      setLoading(false);
+      setLoading(l => !l);
     }
   };
 
@@ -241,11 +299,20 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
           )}
           <div className="modal-field">
             <label>Adjuntar PDF, imagen o video</label>
+            {editIndex !== null && currentAttachment ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: '#555' }}>Archivo actual:</span>
+                <a href={currentAttachment.url.startsWith('/uploads') ? `${API_BASE}${currentAttachment.url}` : currentAttachment.url} target="_blank" rel="noopener noreferrer">
+                  <img src={getAttachmentIcon(currentAttachment.type)} alt="adjunto" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
+                  <span style={{ marginLeft: 6 }}>{currentAttachment.name || 'Ver archivo'}</span>
+                </a>
+              </div>
+            ) : null}
             <input type="file" accept=".pdf,image/*,video/*" onChange={handleFileChange} ref={fileInputRef} />
           </div>
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-            <button className="cancel-button" type="button" onClick={onClose} disabled={loading}>Cancelar</button>
-            <button className="confirm-button" type="submit" disabled={loading}>{loading ? 'Creando...' : 'Crear'}</button>
+            <button className="cancel-button" type="button" onClick={handleCancelEdit} disabled={loading}>Cancelar</button>
+            <button className="confirm-button" type="submit" disabled={loading}>{editIndex !== null ? (loading ? 'Guardando...' : 'Guardar') : (loading ? 'Creando...' : 'Crear')}</button>
           </div>
         </form>
         <div style={{ marginTop: 24 }}>
@@ -262,11 +329,12 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
                   <th style={{ padding: '10px 16px', borderBottom: '1px solid #ddd' }}>Respuesta(s) correcta(s)</th>
                   <th style={{ padding: '10px 16px', borderBottom: '1px solid #ddd' }}>Adjunto</th>
                   <th style={{ padding: '10px 16px', borderBottom: '1px solid #ddd' }}>Estado</th>
+                  <th style={{ padding: '10px 16px', borderBottom: '1px solid #ddd' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {questions.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>(No hay preguntas aún)</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: 'center', color: '#888' }}>(No hay preguntas aún)</td></tr>
                 ) : (
                   questions.map((q, idx) => {
                     const isLocked = lockedMap[q._id];
@@ -288,6 +356,20 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
                           )}
                         </td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', fontWeight: 600, color: isLocked ? '#d32f2f' : '#388e3c' }}>{isLocked ? 'Bloqueado' : 'Libre'}</td>
+                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleEdit(q, idx)}
+                            disabled={isLocked}
+                            style={{ marginRight: 8, opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
+                            title={isLocked ? 'No se puede editar una pregunta usada en un test' : 'Editar'}
+                          >✏️</button>
+                          <button
+                            onClick={() => handleDelete(q)}
+                            disabled={isLocked}
+                            style={{ opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer', color: '#d32f2f', fontWeight: 600 }}
+                            title={isLocked ? 'No se puede eliminar una pregunta usada en un test' : 'Eliminar'}
+                          >🗑️</button>
+                        </td>
                       </tr>
                     );
                   })
