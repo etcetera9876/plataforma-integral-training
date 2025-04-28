@@ -13,7 +13,7 @@ import { getCourseStatus } from '../../utils/courseStatus'; // Importa la funci�
 import AssessmentModal from "./AssessmentModal"; // Importa el modal de evaluación
 import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregida
 import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
-
+import QuestionBankModal from './QuestionBankModal';
 
 
 // Configuración de Socket.IO
@@ -307,6 +307,11 @@ const TrainerDashboard = ({ setUser, user }) => {
   // Determina si hay algún modal abierto
   const isAnyModalOpen = showCourseModal || isModalOpen || isConfirmModalOpen || isSuccessModalOpen;
 
+  // Estado para el modal de banco de preguntas
+  const [showQuestionBankModal, setShowQuestionBankModal] = useState(false);
+  // Estado para temas (puedes poblarlo desde backend si lo deseas)
+  const [questionTopics] = useState(["General", "Scrum", "Kanban", "Waterfall"]); // Ejemplo
+
   return (
     <>
       <div className={`dashboard-container${isAnyModalOpen ? ' blurred' : ''}`}>
@@ -410,6 +415,16 @@ const TrainerDashboard = ({ setUser, user }) => {
                 <div className="section-header">
                   <h2 className="section-title">{currentBranchName} Evaluaciones</h2>
                   <div style={{ display: 'flex', gap: 8 }}>
+                    {/* Botón de banco de preguntas */}
+                    <button
+                      className="add-button"
+                      style={{ background: 'white', border: '1px solid #ccc', padding: 4, marginRight: 4 }}
+                      onClick={() => setShowQuestionBankModal(true)}
+                      title="Banco de preguntas"
+                    >
+                      <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 24, height: 24 }} />
+                    </button>
+                    {/* Botón para crear evaluación */}
                     <button
                       className="add-button"
                       onClick={() => setShowAssessmentModal(true)}
@@ -646,6 +661,29 @@ const TrainerDashboard = ({ setUser, user }) => {
         type={snackbar.type}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
       />
+
+      {/* Modal para crear pregunta de banco */}
+      {showQuestionBankModal && (
+        <QuestionBankModal
+          onClose={() => setShowQuestionBankModal(false)}
+          topics={questionTopics}
+          onCreate={async (formData) => {
+            try {
+              // Aquí debes ajustar la URL según tu backend
+              const token = user.token || localStorage.getItem("token");
+              await axios.post(`${API_URL}/api/questions`, formData, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'multipart/form-data',
+                },
+              });
+              setSnackbar({ open: true, message: "Pregunta guardada en banco", type: "success" });
+            } catch (err) {
+              setSnackbar({ open: true, message: "Error al guardar pregunta", type: "error" });
+            }
+          }}
+        />
+      )}
     </>
   );
 };

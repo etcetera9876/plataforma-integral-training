@@ -8,6 +8,7 @@ require('dotenv').config();
 const conectarDB = require('./config/db');
 const Course = require('./models/course');
 const { setSocketInstance, emitDbChange } = require('./socket');
+const authenticateToken = require('./middlewares/authMiddleware');
 
 // Inicializar la aplicación Express
 const app = express();
@@ -27,11 +28,14 @@ const userRoutes = require('./routes/userRoutes');
 const branchRoutes = require("./routes/branchRoutes");
 const courseRoutes = require("./routes/courseRoutes");
 const assessmentRoutes = require('./routes/assessmentRoutes');
+const questionRoutes = require('./routes/questionRoutes');
+
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/courses", courseRoutes);
 app.use('/api/assessments', assessmentRoutes);
+app.use('/api/questions', questionRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
