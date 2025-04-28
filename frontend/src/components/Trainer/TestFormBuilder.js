@@ -66,32 +66,11 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
   };
 
   // Handlers para cada formulario (usan handleLocalFormsChange)
-  const handleBgFileChange = async (e, idx) => {
+  const handleBgFileChange = (e, idx) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.type === "application/pdf") {
-      // Subir PDF y convertir a imagen
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const uploadData = await uploadRes.json();
-      if (!uploadData.filename) return alert("Error al subir PDF");
-      // Convertir PDF a imagen
-      const convertRes = await fetch(`${API_URL}/api/assessments/convert-pdf-to-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfFile: uploadData.filename }),
-      });
-      const convertData = await convertRes.json();
-      if (!convertData.imagePath) return alert("Error al convertir PDF a imagen");
-      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: convertData.imagePath } : f));
-    } else {
-      // Imagen normal
-      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: file } : f));
-    }
+    // Guardar el archivo en el estado local, sin subirlo ni convertirlo aún
+    handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: file } : f));
   };
   const handleAddField = (idx) => {
     handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, fields: [...(f.fields || []), { type: "text", label: "", x: 20, y: 20, width: 120, value: "" }] } : f));

@@ -11,12 +11,16 @@ const TestFormPreview = ({ form }) => {
     setFieldValues(fieldValues.map((v, i) => i === idx ? value : v));
   };
 
+  // Ajuste: tamaño grande y superposición correcta
+  const PREVIEW_WIDTH = 700;
+  const PREVIEW_HEIGHT = 700;
+
   return (
-    <div style={{ position: "relative", marginTop: 16, minHeight: 300, border: '1px solid #eee', borderRadius: 8, background: '#fafafa', maxWidth: 320 }}>
+    <div style={{ position: "relative", marginTop: 16, minHeight: PREVIEW_HEIGHT, width: PREVIEW_WIDTH, border: '1px solid #eee', borderRadius: 8, background: '#fafafa', maxWidth: '100%' }}>
       <img
         src={typeof form.bgImage === 'string' ? form.bgImage : URL.createObjectURL(form.bgImage)}
         alt="formulario"
-        style={{ width: "100%", maxWidth: 320, display: 'block', borderRadius: 8 }}
+        style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT, objectFit: 'contain', display: 'block', borderRadius: 8 }}
       />
       {form.fields && form.fields.map((field, idx) => (
         <div
@@ -25,51 +29,34 @@ const TestFormPreview = ({ form }) => {
             position: "absolute",
             left: field.x,
             top: field.y,
-            width: field.width,
+            width: field.width || 140,
+            minHeight: 38,
             zIndex: 2,
-            background: "rgba(255,255,255,0.8)",
+            background: "rgba(255,255,255,0.85)",
             border: '1px solid #bbb',
             borderRadius: 4,
-            padding: 2,
+            padding: 6,
+            boxSizing: 'border-box',
+            pointerEvents: 'none',
           }}
         >
-          <label style={{ fontWeight: 500, fontSize: 13 }}>{field.label}</label>
-          <div style={{ marginTop: 4 }}>
+          <div style={{ fontWeight: 500, fontSize: 13, marginBottom: 2 }}>{field.label || '(Sin etiqueta)'}</div>
+          <div>
             {field.type === "text" && (
-              <input
-                type="text"
-                value={fieldValues[idx]}
-                onChange={e => handleChange(idx, e.target.value)}
-                placeholder="Texto"
-                style={{ width: '90%' }}
-              />
+              <input type="text" value={fieldValues[idx]} disabled placeholder="Texto" style={{ width: '100%' }} />
             )}
             {field.type === "number" && (
-              <input
-                type="number"
-                value={fieldValues[idx]}
-                onChange={e => handleChange(idx, e.target.value)}
-                placeholder="Número"
-                style={{ width: '90%' }}
-              />
+              <input type="number" value={fieldValues[idx]} disabled placeholder="Número" style={{ width: '100%' }} />
             )}
             {field.type === "date" && (
-              <input
-                type="date"
-                value={fieldValues[idx]}
-                onChange={e => handleChange(idx, e.target.value)}
-                style={{ width: '90%' }}
-              />
+              <input type="date" value={fieldValues[idx]} disabled style={{ width: '100%' }} />
             )}
             {field.type === "select" && (
-              <select
-                value={fieldValues[idx]}
-                onChange={e => handleChange(idx, e.target.value)}
-                style={{ width: '90%' }}
-              >
+              <select value={fieldValues[idx]} disabled style={{ width: '100%' }}>
                 <option value="">Selecciona</option>
-                <option value="Opción 1">Opción 1</option>
-                <option value="Opción 2">Opción 2</option>
+                {(field.options || '').split(',').map((opt, i) => (
+                  <option key={i} value={opt.trim()}>{opt.trim()}</option>
+                ))}
               </select>
             )}
           </div>

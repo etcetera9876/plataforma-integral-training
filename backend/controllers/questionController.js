@@ -30,6 +30,14 @@ exports.createQuestion = async (req, res) => {
     let formsData = [];
     if (type === 'form-dynamic' && forms) {
       formsData = typeof forms === 'string' ? JSON.parse(forms) : forms;
+      // Si no hay adjunto, usar la imagen de fondo del primer formulario como adjunto
+      if (!attachment && Array.isArray(formsData) && formsData.length > 0 && formsData[0].bgImage) {
+        attachment = {
+          type: 'image',
+          url: formsData[0].bgImage,
+          name: 'Vista formulario',
+        };
+      }
     }
     const question = new Question({
       statement,

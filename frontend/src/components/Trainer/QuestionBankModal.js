@@ -65,6 +65,9 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
   const [forms, setForms] = useState([]);
   const [showFormPreview, setShowFormPreview] = useState(false);
   const [previewFormIdx, setPreviewFormIdx] = useState(null);
+  // Estado para vista previa de formulario dinámico desde la tabla
+  const [showDynamicFormPreview, setShowDynamicFormPreview] = useState(false);
+  const [dynamicFormToPreview, setDynamicFormToPreview] = useState(null);
 
   // Editar pregunta: carga los datos en el formulario
   const handleEdit = (q, idx) => {
@@ -94,15 +97,19 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
 
   // Eliminar pregunta
   const handleDelete = async (q) => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/api/questions/${q._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSnackbar({ open: true, message: 'Pregunta eliminada', type: 'success' });
-      setLoading(l => !l); // Fuerza recarga
+      // No usar toggle, solo recargar preguntas
+      await fetchQuestions();
     } catch (err) {
       setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo eliminar', type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -189,16 +196,37 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
       if (form.type === 'form-dynamic' && forms.length > 0) {
         processedForms = await Promise.all(forms.map(async (f) => {
           if (f.bgImage && typeof f.bgImage !== 'string') {
-            const file = f.bgImage;
-            const formData = new FormData();
-            formData.append('file', file);
-            const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
-              method: 'POST',
-              body: formData,
-            });
-            const uploadData = await uploadRes.json();
-            if (!uploadData.filename) throw new Error('Error al subir archivo');
-            return { ...f, bgImage: uploadData.filename };
+            // Si es PDF, primero subir y luego convertir a imagen
+            if (f.bgImage.type === 'application/pdf') {
+              const formData = new FormData();
+              formData.append('file', f.bgImage);
+              const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
+                method: 'POST',
+                body: formData,
+              });
+              const uploadData = await uploadRes.json();
+              if (!uploadData.filename) throw new Error('Error al subir PDF');
+              // Convertir PDF a imagen
+              const convertRes = await fetch(`${API_URL}/api/assessments/convert-pdf-to-image`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdfFile: uploadData.filename }),
+              });
+              const convertData = await convertRes.json();
+              if (!convertData.imagePath) throw new Error('Error al convertir PDF a imagen');
+              return { ...f, bgImage: convertData.imagePath };
+            } else {
+              // Si es imagen, subirla y guardar la ruta
+              const formData = new FormData();
+              formData.append('file', f.bgImage);
+              const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
+                method: 'POST',
+                body: formData,
+              });
+              const uploadData = await uploadRes.json();
+              if (!uploadData.filename) throw new Error('Error al subir imagen');
+              return { ...f, bgImage: uploadData.filename };
+            }
           } else if (f.bgImage && typeof f.bgImage === 'string') {
             return { ...f, bgImage: f.bgImage };
           } else {
@@ -446,13 +474,25 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{typeLabel}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{q.difficulty}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{q.topic}</td>
-                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'form-dynamic' ? `${q.forms?.length || 0} formularios dinámicos` : (Array.isArray(q.options) && q.options.length > 0 ? q.options.join(', ') : '-')}</td>
+                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'form-dynamic' ? '-' : (Array.isArray(q.options) && q.options.length > 0 ? q.options.join(', ') : '-')}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'open' ? '-' : (Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer || '-')}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
-                          {adjIcon && q.attachment?.url ? (
-                            <a href={q.attachment.url.startsWith('/uploads') ? `${API_BASE}${q.attachment.url}` : q.attachment.url} target="_blank" rel="noopener noreferrer"><img src={adjIcon} alt="adjunto" style={{ width: 28, height: 28, verticalAlign: 'middle' }} /></a>
+                          {q.type === 'form-dynamic' && q.forms && q.forms.length > 0 ? (
+                            <button
+                              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                              title="Vista previa de formulario dinámico"
+                              onClick={() => { setDynamicFormToPreview(q.forms[0]); setShowDynamicFormPreview(true); }}
+                            >
+                              <img src={adjIcon} alt="adjunto" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
+                            </button>
                           ) : (
-                            '-'
+                            adjIcon && q.attachment?.url ? (
+                              <a href={q.attachment.url.startsWith('/uploads') ? `${API_BASE}${q.attachment.url}` : q.attachment.url} target="_blank" rel="noopener noreferrer">
+                                <img src={adjIcon} alt="adjunto" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
+                              </a>
+                            ) : (
+                              '-' 
+                            )
                           )}
                         </td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', fontWeight: 600, color: isLocked ? '#d32f2f' : '#388e3c' }}>{isLocked ? 'Bloqueado' : 'Libre'}</td>
@@ -485,6 +525,16 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
           onClose={() => setSnackbar({ ...snackbar, open: false })}
         />
       </div>
+      {/* Modal de vista previa de formulario dinámico */}
+      {showDynamicFormPreview && dynamicFormToPreview && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowDynamicFormPreview(false)}>
+          <div className="modal" style={{ minWidth: 700, maxWidth: 700, borderRadius: 16, boxShadow: '0 8px 32px #2224', padding: 24, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
+            <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', zIndex: 11 }} onClick={() => setShowDynamicFormPreview(false)}>✕</button>
+            <h4 style={{ marginTop: 0, marginBottom: 12 }}>Vista previa del Formulario</h4>
+            <TestFormPreview form={dynamicFormToPreview} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
