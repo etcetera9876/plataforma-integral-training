@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import AlertMessage from './AlertMessage';
 import axios from 'axios';
 import API_URL from '../../config';
@@ -10,6 +11,8 @@ import mp4Icon from '../../assets/mp4-icon.png';
 import wordIcon from '../../assets/word-icon.png';
 import excelIcon from '../../assets/excel-icon.png';
 import ppIcon from '../../assets/pp-icon.png';
+import TestFormBuilder from './TestFormBuilder';
+import TestFormPreview from './TestFormPreview';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -41,6 +44,7 @@ const typeOptions = [
   { value: 'single', label: 'Opción simple' },
   { value: 'open', label: 'Respuesta abierta' },
   { value: 'boolean', label: 'Verdadero/Falso' },
+  { value: 'form-dynamic', label: 'Formulario dinámico' },
 ];
 
 const difficultyOptions = [
@@ -58,6 +62,9 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
   const [lockedMap, setLockedMap] = useState({});
   const [editIndex, setEditIndex] = useState(null);
   const [currentAttachment, setCurrentAttachment] = useState(null);
+  const [forms, setForms] = useState([]);
+  const [showFormPreview, setShowFormPreview] = useState(false);
+  const [previewFormIdx, setPreviewFormIdx] = useState(null);
 
   // Editar pregunta: carga los datos en el formulario
   const handleEdit = (q, idx) => {
@@ -72,6 +79,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
       attachment: null,
       attachmentType: '',
     });
+    setForms(q.forms || []);
     setCurrentAttachment(q.attachment && q.attachment.url ? q.attachment : null);
     setEditIndex(idx);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -157,7 +165,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.statement || !form.type || !form.difficulty || !form.topic) {
+      if (!form.type || !form.difficulty || !form.topic) {
         setSnackbar({ open: true, message: 'Completa todos los campos obligatorios', type: 'error' });
         setLoading(false);
         return;
@@ -177,6 +185,31 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
         setLoading(false);
         return;
       }
+      let processedForms = forms;
+      if (form.type === 'form-dynamic' && forms.length > 0) {
+        processedForms = await Promise.all(forms.map(async (f) => {
+          if (f.bgImage && typeof f.bgImage !== 'string') {
+            const file = f.bgImage;
+            const formData = new FormData();
+            formData.append('file', file);
+            const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
+              method: 'POST',
+              body: formData,
+            });
+            const uploadData = await uploadRes.json();
+            if (!uploadData.filename) throw new Error('Error al subir archivo');
+            return { ...f, bgImage: uploadData.filename };
+          } else if (f.bgImage && typeof f.bgImage === 'string') {
+            return { ...f, bgImage: f.bgImage };
+          } else {
+            return { ...f, bgImage: null };
+          }
+        }));
+      }
+      // Log para depuración
+      if (form.type === 'form-dynamic') {
+        console.log('Enviando forms al backend:', processedForms);
+      }
       const data = new FormData();
       Object.entries(form).forEach(([key, value]) => {
         if (key === 'options') data.append('options', JSON.stringify(value));
@@ -184,45 +217,61 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
         else if (key === 'correctAnswerIA' && form.type !== 'open') return;
         else if (value) data.append(key, value);
       });
+      if (form.type === 'form-dynamic') {
+        data.append('forms', JSON.stringify(processedForms));
+      }
+      let response;
       if (editIndex !== null && questions[editIndex]?._id) {
         // Edición
         const id = questions[editIndex]._id;
         const token = localStorage.getItem('token');
-        await axios.put(`${API_URL}/api/questions/${id}`, data, {
+        response = await axios.put(`${API_URL}/api/questions/${id}`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setSnackbar({ open: true, message: 'Pregunta actualizada', type: 'success' });
-        setEditIndex(null);
-        setCurrentAttachment(null);
+        if (response.status === 200) {
+          setSnackbar({ open: true, message: 'Pregunta actualizada', type: 'success' });
+          setEditIndex(null);
+          setCurrentAttachment(null);
+          setForm(initialState);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
       } else {
         // Creación
-        await onCreate(data);
-        setSnackbar({ open: true, message: 'Pregunta creada con éxito', type: 'success' });
+        try {
+          response = await onCreate(data);
+          if (response && response.status && (response.status === 200 || response.status === 201)) {
+            setSnackbar({ open: true, message: 'Pregunta creada con éxito', type: 'success' });
+            setForm(initialState);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+          } else {
+            setSnackbar({ open: true, message: 'Error al guardar la pregunta', type: 'error' });
+          }
+        } catch (err) {
+          setSnackbar({ open: true, message: err?.response?.data?.message || 'Error al guardar la pregunta', type: 'error' });
+        }
       }
-      setForm(initialState);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      setSnackbar({ open: true, message: 'Error al guardar la pregunta', type: 'error' });
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'Error al guardar la pregunta', type: 'error' });
     } finally {
-      setLoading(l => !l);
+      setLoading(false);
     }
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ minWidth: 700, maxWidth: 1200, borderRadius: 14, boxShadow: '0 8px 32px rgba(60,60,60,0.18)' }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ minWidth: 700, maxWidth: 1200, borderRadius: 14, boxShadow: '0 8px 32px rgba(60,60,60,0.18)', maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 24, margin: '10px 0 18px 0', letterSpacing: 0.5 }}>Crear pregunta en banco</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="modal-field">
-            <label>Enunciado *</label>
-            <textarea name="statement" value={form.statement} onChange={handleChange} required style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }} />
-          </div>
-          <div className="modal-field">
             <label>Tipo de pregunta *</label>
-            <select name="type" value={form.type} onChange={handleChange} required style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}>
+            <select name="type" value={form.type} onChange={e => { handleChange(e); if(e.target.value !== 'form-dynamic') setForms([]); }} required style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}>
               <option value="">Selecciona tipo</option>
               {typeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
+          </div>
+          <div className="modal-field">
+            <label>Enunciado *</label>
+            <textarea name="statement" value={form.statement} onChange={handleChange} required style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }} />
           </div>
           <div className="modal-field">
             <label>Dificultad *</label>
@@ -238,6 +287,54 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               {topics.map((t, i) => <option key={i} value={t} />)}
             </datalist>
           </div>
+          {/* Mostrar formulario replicado aquí si es form-dynamic */}
+          {form.type === 'form-dynamic' && (
+            <div style={{ margin: '18px 0', background: '#f8f9fa', borderRadius: 10, padding: 12, border: '1.5px solid #e0e0e0', position: 'relative' }}>
+              <TestFormBuilder forms={forms} setForms={setForms} showPreviewPanel={showFormPreview} setShowPreviewPanel={setShowFormPreview} previewFormIdx={previewFormIdx} setPreviewFormIdx={setPreviewFormIdx} />
+              {showFormPreview && forms[previewFormIdx] && (
+                <div style={{
+                  background: '#fff',
+                  borderRadius: 16,
+                  boxShadow: '0 8px 32px #2224',
+                  padding: 24,
+                  minWidth: 320,
+                  maxWidth: 700,
+                  width: '90vw',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  margin: '24px auto',
+                  position: 'relative',
+                  zIndex: 10,
+                }}>
+                  <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', zIndex: 11 }} onClick={() => setShowFormPreview(false)}>✕</button>
+                  <h4 style={{ marginTop: 0, marginBottom: 12 }}>Vista previa del Formulario #{previewFormIdx + 1}</h4>
+                  {typeof TestFormPreview !== 'undefined' ? (
+                    <TestFormPreview form={forms[previewFormIdx]} />
+                  ) : (
+                    <>
+                      {forms[previewFormIdx].bgImage && (
+                        <img src={typeof forms[previewFormIdx].bgImage === 'string' ? forms[previewFormIdx].bgImage : URL.createObjectURL(forms[previewFormIdx].bgImage)} alt="formulario" style={{ width: '100%', maxWidth: 700, borderRadius: 6, marginBottom: 12, display: 'block' }} />
+                      )}
+                      <div style={{ position: 'relative', width: '100%', maxWidth: 700 }}>
+                        {forms[previewFormIdx].fields && forms[previewFormIdx].fields.map((field, fidx) => (
+                          <div key={fidx} style={{ position: 'absolute', left: field.x, top: field.y, width: field.width || 140, minHeight: 38, background: '#f9f9f9', border: '1px solid #ddd', borderRadius: 4, padding: 6, fontSize: 13, pointerEvents: 'none', opacity: 0.95 }}>
+                            <div style={{ fontWeight: 500, marginBottom: 2 }}>{field.label || '(Sin etiqueta)'}</div>
+                            {field.type === 'select' ? (
+                              <select disabled style={{ width: '100%' }}>
+                                {(field.options || '').split(',').map((opt, i) => <option key={i}>{opt.trim()}</option>)}
+                              </select>
+                            ) : (
+                              <input type={field.type} disabled style={{ width: '100%' }} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {(form.type === 'multiple' || form.type === 'single') && (
             <div className="modal-field">
               <label>Opciones</label>
@@ -297,19 +394,22 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               <textarea name="correctAnswerIA" value={form.correctAnswerIA} onChange={handleChange} required style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }} placeholder="Escribe aquí la respuesta ideal para IA" />
             </div>
           )}
-          <div className="modal-field">
-            <label>Adjuntar PDF, imagen o video</label>
-            {editIndex !== null && currentAttachment ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: '#555' }}>Archivo actual:</span>
-                <a href={currentAttachment.url.startsWith('/uploads') ? `${API_BASE}${currentAttachment.url}` : currentAttachment.url} target="_blank" rel="noopener noreferrer">
-                  <img src={getAttachmentIcon(currentAttachment.type)} alt="adjunto" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
-                  <span style={{ marginLeft: 6 }}>{currentAttachment.name || 'Ver archivo'}</span>
-                </a>
-              </div>
-            ) : null}
-            <input type="file" accept=".pdf,image/*,video/*" onChange={handleFileChange} ref={fileInputRef} />
-          </div>
+          {/* Ocultar adjunto si es form-dynamic */}
+          {form.type !== 'form-dynamic' && (
+            <div className="modal-field">
+              <label>Adjuntar PDF, imagen o video</label>
+              {editIndex !== null && currentAttachment ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, color: '#555' }}>Archivo actual:</span>
+                  <a href={currentAttachment.url.startsWith('/uploads') ? `${API_BASE}${currentAttachment.url}` : currentAttachment.url} target="_blank" rel="noopener noreferrer">
+                    <img src={getAttachmentIcon(currentAttachment.type)} alt="adjunto" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
+                    <span style={{ marginLeft: 6 }}>{currentAttachment.name || 'Ver archivo'}</span>
+                  </a>
+                </div>
+              ) : null}
+              <input type="file" accept=".pdf,image/*,video/*" onChange={handleFileChange} ref={fileInputRef} />
+            </div>
+          )}
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
             <button className="cancel-button" type="button" onClick={handleCancelEdit} disabled={loading}>Cancelar</button>
             <button className="confirm-button" type="submit" disabled={loading}>{editIndex !== null ? (loading ? 'Guardando...' : 'Guardar') : (loading ? 'Creando...' : 'Crear')}</button>
@@ -346,7 +446,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{typeLabel}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{q.difficulty}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{q.topic}</td>
-                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{Array.isArray(q.options) && q.options.length > 0 ? q.options.join(', ') : '-'}</td>
+                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'form-dynamic' ? `${q.forms?.length || 0} formularios dinámicos` : (Array.isArray(q.options) && q.options.length > 0 ? q.options.join(', ') : '-')}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'open' ? '-' : (Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer || '-')}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
                           {adjIcon && q.attachment?.url ? (

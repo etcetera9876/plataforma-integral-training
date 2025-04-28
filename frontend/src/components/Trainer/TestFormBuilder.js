@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_URL from "../../config";
 import "./TestFormBuilder.css";
-import Modal from "./Modal";
 
 const FIELD_TYPES = [
   { value: "text", label: "Texto" },
@@ -11,7 +10,7 @@ const FIELD_TYPES = [
   { value: "select", label: "Selección" },
 ];
 
-const TestFormBuilder = ({ forms, setForms }) => {
+const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPanel, previewFormIdx, setPreviewFormIdx }) => {
   const navigate = useNavigate();
   const [bgImage, setBgImage] = useState(null);
   const [fields, setFields] = useState([]);
@@ -23,12 +22,15 @@ const TestFormBuilder = ({ forms, setForms }) => {
   // Drag & drop para campos sobre la imagen
   const [dragInfo, setDragInfo] = useState({ idx: null, offsetX: 0, offsetY: 0 });
 
-  const handleFieldMouseDown = (idx, e) => {
+  const handleFieldMouseDown = (formIdx, fieldIdx, e) => {
+    const form = localForms[formIdx];
+    if (!form || !form.fields || !form.fields[fieldIdx]) return;
     const containerRect = containerRef.current.getBoundingClientRect();
     setDragInfo({
-      idx,
-      offsetX: e.clientX - fields[idx].x - containerRect.left,
-      offsetY: e.clientY - fields[idx].y - containerRect.top,
+      idx: fieldIdx,
+      formIdx,
+      offsetX: e.clientX - form.fields[fieldIdx].x - containerRect.left,
+      offsetY: e.clientY - form.fields[fieldIdx].y - containerRect.top,
     });
     document.addEventListener("mousemove", handleFieldMouseMove);
     document.addEventListener("mouseup", handleFieldMouseUp);
@@ -48,13 +50,27 @@ const TestFormBuilder = ({ forms, setForms }) => {
     document.removeEventListener("mouseup", handleFieldMouseUp);
   };
 
-  const handleBgFileChange = async (e) => {
+  // Estado local para cada formulario
+  const [localForms, setLocalForms] = useState(forms.length > 0 ? forms : [{ bgImage: null, fields: [] }]);
+
+  // Solo sincroniza localForms cuando forms cambia externamente
+  React.useEffect(() => {
+    setLocalForms(forms);
+    // eslint-disable-next-line
+  }, [forms]);
+
+  // Handler para actualizar ambos estados
+  const handleLocalFormsChange = (newLocalForms) => {
+    setLocalForms(newLocalForms);
+    setForms(newLocalForms);
+  };
+
+  // Handlers para cada formulario (usan handleLocalFormsChange)
+  const handleBgFileChange = async (e, idx) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.type.startsWith("image/")) {
-      setBgImage(file);
-    } else if (file.type === "application/pdf") {
-      // Subir el PDF al backend (a /uploads)
+    if (file.type === "application/pdf") {
+      // Subir PDF y convertir a imagen
       const formData = new FormData();
       formData.append("file", file);
       const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
@@ -63,8 +79,7 @@ const TestFormBuilder = ({ forms, setForms }) => {
       });
       const uploadData = await uploadRes.json();
       if (!uploadData.filename) return alert("Error al subir PDF");
-      setPdfFile(uploadData.filename);
-      // Convertir el PDF a imagen
+      // Convertir PDF a imagen
       const convertRes = await fetch(`${API_URL}/api/assessments/convert-pdf-to-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,53 +87,35 @@ const TestFormBuilder = ({ forms, setForms }) => {
       });
       const convertData = await convertRes.json();
       if (!convertData.imagePath) return alert("Error al convertir PDF a imagen");
-      setPdfImage(convertData.imagePath);
-      setBgImage(convertData.imagePath); // Usar automáticamente la imagen como fondo
+      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: convertData.imagePath } : f));
     } else {
-      alert("Solo se permiten imágenes o PDF");
+      // Imagen normal
+      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: file } : f));
     }
   };
-
-  const handleAddField = () => {
-    setFields(fields => [
-      ...fields,
-      { type: "text", label: "", x: 20, y: 20, width: 120, value: "" }
-    ]);
+  const handleAddField = (idx) => {
+    handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, fields: [...(f.fields || []), { type: "text", label: "", x: 20, y: 20, width: 120, value: "" }] } : f));
   };
-
-  const handleFieldChange = (idx, field, value) => {
-    setFields(fields.map((f, i) => (i === idx ? { ...f, [field]: value } : f)));
+  const handleFieldChange = (idx, fidx, field, value) => {
+    handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, fields: f.fields.map((fld, j) => j === fidx ? { ...fld, [field]: value } : fld) } : f));
   };
-
-  const handleRemoveField = (idx) => {
-    setFields(fields.filter((_, i) => i !== idx));
+  const handleRemoveField = (idx, fidx) => {
+    handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, fields: f.fields.filter((_, j) => j !== fidx) } : f));
   };
-
-  const handleFieldPositionChange = (idx, axis, value) => {
-    setFields(fields => fields.map((f, i) => i === idx ? { ...f, [axis]: Number(value) } : f));
+  const handleFieldPositionChange = (idx, fidx, axis, value) => {
+    handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, fields: f.fields.map((fld, j) => j === fidx ? { ...fld, [axis]: Number(value) } : fld) } : f));
   };
-
-  // MULTI-FORMULARIO: Permitir varios formularios replicados
   const handleAddForm = () => {
-    setForms(forms => [...forms, { bgImage: null, fields: [] }]);
+    handleLocalFormsChange([...localForms, { bgImage: null, fields: [] }]);
   };
   const handleRemoveForm = (idx) => {
-    setForms(forms => forms.filter((_, i) => i !== idx));
+    handleLocalFormsChange(localForms.filter((_, i) => i !== idx));
   };
-
-  // Guardar el formulario en el estado global
-  React.useEffect(() => {
-    setForms([{ bgImage, fields }]);
-  }, [bgImage, fields, setForms]);
-
-  // Modal
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [viewFormIdx, setViewFormIdx] = useState(null);
 
   return (
     <>
       <h3>Formularios replicados</h3>
-      {forms.map((form, idx) => (
+      {localForms.map((form, idx) => (
         <div key={idx} style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <strong>Formulario #{idx + 1}</strong>
@@ -126,31 +123,35 @@ const TestFormBuilder = ({ forms, setForms }) => {
               type="button"
               title="Ver formulario"
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#1976d2' }}
-              onClick={() => { setViewFormIdx(idx); setViewModalOpen(true); }}
+              onClick={() => { setPreviewFormIdx(idx); setShowPreviewPanel(true); }}
             >
               👁️
             </button>
-            {forms.length > 1 && (
+            {localForms.length > 1 && (
               <button style={{ color: '#d32f2f', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => handleRemoveForm(idx)}>Eliminar</button>
             )}
           </div>
           <label>Subir imagen o PDF de formulario:</label>
           <input type="file" accept="image/*,application/pdf" onChange={e => handleBgFileChange(e, idx)} style={{ marginBottom: 4 }} />
           {!form.bgImage && <div style={{ color: '#888', fontSize: 13 }}>(Sube una imagen o PDF de formulario para comenzar)</div>}
-          {/* Mostrar la imagen antes de los campos y con width 700px */}
           {form.bgImage && (
             <div ref={containerRef} style={{ marginTop: 8, position: 'relative', width: 700, maxWidth: '100%' }}>
               <img
                 ref={imageRef}
-                src={typeof form.bgImage === "string" ? form.bgImage : URL.createObjectURL(form.bgImage)}
+                src={
+                  typeof form.bgImage === "string"
+                    ? form.bgImage.startsWith("http")
+                      ? form.bgImage
+                      : `${API_URL}${form.bgImage.startsWith("/") ? "" : "/"}${form.bgImage}`
+                    : URL.createObjectURL(form.bgImage)
+                }
                 alt="formulario"
                 style={{ width: 700, maxWidth: '100%', borderRadius: 6, marginBottom: 8, display: 'block' }}
               />
-              {/* Renderizar campos editables sobre la imagen */}
-              {fields.map((field, fidx) => (
+              {form.fields && form.fields.map((field, fidx) => (
                 <div
                   key={fidx}
-                  onMouseDown={e => handleFieldMouseDown(fidx, e)}
+                  onMouseDown={e => handleFieldMouseDown(idx, fidx, e)}
                   style={{
                     position: 'absolute',
                     left: field.x,
@@ -175,19 +176,19 @@ const TestFormBuilder = ({ forms, setForms }) => {
                   <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 4 }}>
                     <select
                       value={field.type}
-                      onChange={e => handleFieldChange(fidx, 'type', e.target.value)}
+                      onChange={e => handleFieldChange(idx, fidx, 'type', e.target.value)}
                       style={{ fontSize: 13, flex: 1, minWidth: 0 }}
                     >
                       {FIELD_TYPES.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                    <button type="button" onClick={() => handleRemoveField(fidx)} style={{ color: '#d32f2f', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: 0, marginLeft: 2, lineHeight: 1 }}>✕</button>
+                    <button type="button" onClick={() => handleRemoveField(idx, fidx)} style={{ color: '#d32f2f', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: 0, marginLeft: 2, lineHeight: 1 }}>✕</button>
                   </div>
                   <input
                     type="text"
                     value={field.label}
-                    onChange={e => handleFieldChange(fidx, 'label', e.target.value)}
+                    onChange={e => handleFieldChange(idx, fidx, 'label', e.target.value)}
                     placeholder="Etiqueta"
                     style={{ width: '100%', fontSize: 13, marginTop: 2, marginBottom: 2 }}
                   />
@@ -195,7 +196,7 @@ const TestFormBuilder = ({ forms, setForms }) => {
                     <input
                       type="text"
                       value={field.options || ''}
-                      onChange={e => handleFieldChange(fidx, 'options', e.target.value)}
+                      onChange={e => handleFieldChange(idx, fidx, 'options', e.target.value)}
                       placeholder="Opciones (separadas por coma)"
                       style={{ width: '100%', fontSize: 12, marginTop: 2 }}
                     />
@@ -205,7 +206,7 @@ const TestFormBuilder = ({ forms, setForms }) => {
                     <input
                       type="number"
                       value={field.x}
-                      onChange={e => handleFieldPositionChange(fidx, 'x', e.target.value)}
+                      onChange={e => handleFieldPositionChange(idx, fidx, 'x', e.target.value)}
                       style={{ width: 48, fontSize: 12, padding: '2px 4px' }}
                       min={0}
                       max={700 - (field.width || 140)}
@@ -215,7 +216,7 @@ const TestFormBuilder = ({ forms, setForms }) => {
                     <input
                       type="number"
                       value={field.y}
-                      onChange={e => handleFieldPositionChange(fidx, 'y', e.target.value)}
+                      onChange={e => handleFieldPositionChange(idx, fidx, 'y', e.target.value)}
                       style={{ width: 48, fontSize: 12, padding: '2px 4px' }}
                       min={0}
                       max={700 - 38}
@@ -226,58 +227,63 @@ const TestFormBuilder = ({ forms, setForms }) => {
               ))}
             </div>
           )}
-          {/* Mostrar los campos después de la imagen */}
-          {/* ...el resto de la UI de edición de campos puede quedarse para edición textual/manual... */}
           <button type="button" onClick={() => handleAddField(idx)} style={{ marginTop: 6 }}>Agregar campo</button>
         </div>
       ))}
       <button type="button" style={{ marginTop: 16, background: '#e8f5e9', border: '1px solid #b2dfdb', borderRadius: 6, padding: '6px 18px', cursor: 'pointer' }} onClick={handleAddForm}>Agregar otro formulario replicado</button>
-
-      {/* Modal de vista previa solo lectura */}
-      <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)}>
-        {viewFormIdx !== null && forms[viewFormIdx] && (
-          <div style={{ maxWidth: 720 }}>
-            <h4 style={{ marginTop: 0 }}>Vista previa del Formulario #{viewFormIdx + 1}</h4>
-            {forms[viewFormIdx].bgImage && (
-              <img
-                src={typeof forms[viewFormIdx].bgImage === "string" ? forms[viewFormIdx].bgImage : URL.createObjectURL(forms[viewFormIdx].bgImage)}
-                alt="formulario"
-                style={{ width: 700, maxWidth: '100%', borderRadius: 6, marginBottom: 12, display: 'block' }}
-              />
+      {/* Modal de vista previa */}
+      
+      {showPreviewPanel && previewFormIdx !== null && localForms[previewFormIdx] && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowPreviewPanel(false)}>
+          <div className="modal" style={{ minWidth: 700, maxWidth: 700, borderRadius: 16, boxShadow: '0 8px 32px #2224', padding: 24, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
+          <h4 style={{ marginTop: 0, marginBottom: 12 }}>Vista previa del Formulario #{previewFormIdx + 1}</h4>
+            <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', zIndex: 11 }} onClick={() => setShowPreviewPanel(false)}>✕</button>
+            {localForms[previewFormIdx].bgImage && (
+              <div style={{ position: 'relative', width: 700, maxWidth: '100%', minHeight: 300, margin: '0 auto', maxHeight: '80vh', overflowY: 'auto' }}>
+                <img
+                  src={
+                    typeof localForms[previewFormIdx].bgImage === "string"
+                      ? localForms[previewFormIdx].bgImage.startsWith("http")
+                        ? localForms[previewFormIdx].bgImage
+                        : `${API_URL}${localForms[previewFormIdx].bgImage.startsWith("/") ? "" : "/"}${localForms[previewFormIdx].bgImage}`
+                      : URL.createObjectURL(localForms[previewFormIdx].bgImage)
+                  }
+                  alt="formulario"
+                  style={{ width: 700, maxWidth: '100%', borderRadius: 6, marginBottom: 8, display: 'block' }}
+                />
+                {localForms[previewFormIdx].fields && localForms[previewFormIdx].fields.map((field, fidx) => (
+                  <div
+                    key={fidx}
+                    style={{
+                      position: 'absolute',
+                      left: field.x,
+                      top: field.y,
+                      width: field.width || 140,
+                      minHeight: 38,
+                      background: '#f9f9f9',
+                      border: '1px solid #ddd',
+                      borderRadius: 4,
+                      padding: 6,
+                      fontSize: 13,
+                      pointerEvents: 'none',
+                      opacity: 0.95
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, marginBottom: 2 }}></div>
+                    {field.type === 'select' ? (
+                      <select disabled style={{ width: '100%' }}>
+                        {(field.options || '').split(',').map((opt, i) => <option key={i}>{opt.trim()}</option>)}
+                      </select>
+                    ) : (
+                      <input type={field.type} disabled style={{ width: '100%' }} />
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
-            <div style={{ position: 'relative', width: 700, maxWidth: '100%' }}>
-              {forms[viewFormIdx].fields && forms[viewFormIdx].fields.map((field, fidx) => (
-                <div
-                  key={fidx}
-                  style={{
-                    position: 'absolute',
-                    left: field.x,
-                    top: field.y,
-                    width: field.width || 140,
-                    minHeight: 38,
-                    background: '#f9f9f9',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    padding: 6,
-                    fontSize: 13,
-                    pointerEvents: 'none',
-                    opacity: 0.95
-                  }}
-                >
-                  <div style={{ fontWeight: 500, marginBottom: 2 }}>{field.label || '(Sin etiqueta)'}</div>
-                  {field.type === 'select' ? (
-                    <select disabled style={{ width: '100%' }}>
-                      {(field.options || '').split(',').map((opt, i) => <option key={i}>{opt.trim()}</option>)}
-                    </select>
-                  ) : (
-                    <input type={field.type} disabled style={{ width: '100%' }} />
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
-        )}
-      </Modal>
+        </div>
+      )}
     </>
   );
 };

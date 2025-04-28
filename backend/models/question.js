@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const QuestionSchema = new mongoose.Schema({
   statement: { type: String, required: true },
-  type: { type: String, enum: ['multiple', 'single', 'open', 'boolean'], required: true },
+  type: { type: String, enum: ['multiple', 'single', 'open', 'boolean', 'form-dynamic'], required: true },
   difficulty: { type: String, enum: ['facil', 'medio', 'dificil'], required: true },
   topic: { type: String, required: true },
   options: [{ type: String }], // solo para multiple/single
@@ -16,6 +16,7 @@ const QuestionSchema = new mongoose.Schema({
     url: String,
     name: String,
   },
+  forms: { type: Array, default: [] }, // Para formularios dinámicos
 }, { timestamps: true });
 
 module.exports = mongoose.model('Question', QuestionSchema);

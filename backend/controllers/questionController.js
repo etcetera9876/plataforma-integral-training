@@ -14,7 +14,7 @@ exports.getQuestions = async (req, res) => {
 // Crear pregunta
 exports.createQuestion = async (req, res) => {
   try {
-    const { statement, type, difficulty, topic, options, correctAnswer, correctAnswerIA } = req.body;
+    const { statement, type, difficulty, topic, options, correctAnswer, correctAnswerIA, forms } = req.body;
     let attachment = null;
     if (req.file) {
       let fileType = 'other';
@@ -27,6 +27,10 @@ exports.createQuestion = async (req, res) => {
         name: req.file.originalname,
       };
     }
+    let formsData = [];
+    if (type === 'form-dynamic' && forms) {
+      formsData = typeof forms === 'string' ? JSON.parse(forms) : forms;
+    }
     const question = new Question({
       statement,
       type,
@@ -36,6 +40,7 @@ exports.createQuestion = async (req, res) => {
       correctAnswer,
       correctAnswerIA: type === 'open' ? correctAnswerIA : undefined,
       attachment,
+      forms: formsData,
     });
     await question.save();
     res.status(201).json(question);
@@ -53,7 +58,7 @@ exports.updateQuestion = async (req, res) => {
     if (used) {
       return res.status(400).json({ message: 'No se puede editar: la pregunta ya está en un test.' });
     }
-    const { statement, type, difficulty, topic, options, correctAnswer, correctAnswerIA } = req.body;
+    const { statement, type, difficulty, topic, options, correctAnswer, correctAnswerIA, forms } = req.body;
     let update = {
       statement,
       type,
@@ -63,6 +68,9 @@ exports.updateQuestion = async (req, res) => {
       correctAnswer,
       correctAnswerIA: type === 'open' ? correctAnswerIA : undefined,
     };
+    if (type === 'form-dynamic' && forms) {
+      update.forms = typeof forms === 'string' ? JSON.parse(forms) : forms;
+    }
     if (req.file) {
       let fileType = 'other';
       if (req.file.mimetype.startsWith('image/')) fileType = 'image';
