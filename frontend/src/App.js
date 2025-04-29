@@ -42,7 +42,6 @@ function App() {
   
 
   const handleLogin = (userData) => {
-    console.log("userData recibido:", userData);
     // Usamos un pequeño retraso para permitir que React termine de renderizar
     setTimeout(() => {
       setUser(userData);
@@ -80,12 +79,12 @@ function App() {
           axios.post(`${API_URL}/api/auth/updatePopupStatus`, {}, {
             headers: { Authorization: token }
           })
-          .then(response => {
-            console.log("Estado del popup actualizado:", response.data);
-          })
-          .catch(error => {
-            console.error("Error al actualizar estado del popup:", error.response?.data || error.message);
-          });
+          // .then(response => {
+          //   console.log("Estado del popup actualizado:", response.data);
+          // })
+          // .catch(error => {
+          //   console.error("Error al actualizar estado del popup:", error.response?.data || error.message);
+          // });
         }
       }
     }, 500); // 100 ms de retraso; puedes ajustar este tiempo si es necesario

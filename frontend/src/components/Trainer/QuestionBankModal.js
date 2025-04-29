@@ -88,9 +88,20 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Limpia el formulario y los formularios replicados al cerrar el modal
+  const handleClose = () => {
+    setForm(initialState);
+    setForms([]);
+    setEditIndex(null);
+    setCurrentAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    onClose();
+  };
+
   const handleCancelEdit = () => {
     setEditIndex(null);
     setForm(initialState);
+    setForms([]);
     setCurrentAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -214,6 +225,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               });
               const convertData = await convertRes.json();
               if (!convertData.imagePath) throw new Error('Error al convertir PDF a imagen');
+              // Siempre guardar la ruta de la imagen generada
               return { ...f, bgImage: convertData.imagePath };
             } else {
               // Si es imagen, subirla y guardar la ruta
@@ -225,6 +237,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               });
               const uploadData = await uploadRes.json();
               if (!uploadData.filename) throw new Error('Error al subir imagen');
+              // Siempre guardar la ruta de la imagen generada
               return { ...f, bgImage: uploadData.filename };
             }
           } else if (f.bgImage && typeof f.bgImage === 'string') {
@@ -233,10 +246,16 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
             return { ...f, bgImage: null };
           }
         }));
+        // Log de depuración: mostrar rutas finales de bgImage
+        processedForms.forEach((f, idx) => {
+          // console.log(`[QuestionBankModal] Formulario #${idx + 1} bgImage final:`, f.bgImage);
+        });
+        // ACTUALIZA EL ESTADO PARA QUE EL RENDER USE LA RUTA DE LA IMAGEN Y NO EL FILE
+        setForms(processedForms);
       }
       // Log para depuración
       if (form.type === 'form-dynamic') {
-        console.log('Enviando forms al backend:', processedForms);
+        // console.log('Enviando forms al backend:', processedForms);
       }
       const data = new FormData();
       Object.entries(form).forEach(([key, value]) => {
@@ -270,6 +289,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
           if (response && response.status && (response.status === 200 || response.status === 201)) {
             setSnackbar({ open: true, message: 'Pregunta creada con éxito', type: 'success' });
             setForm(initialState);
+            setForms([]);
             if (fileInputRef.current) fileInputRef.current.value = '';
           } else {
             setSnackbar({ open: true, message: 'Error al guardar la pregunta', type: 'error' });
@@ -286,7 +306,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ minWidth: 700, maxWidth: 1200, borderRadius: 14, boxShadow: '0 8px 32px rgba(60,60,60,0.18)', maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 24, margin: '10px 0 18px 0', letterSpacing: 0.5 }}>Crear pregunta en banco</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

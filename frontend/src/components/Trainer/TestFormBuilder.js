@@ -11,11 +11,6 @@ const FIELD_TYPES = [
 ];
 
 const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPanel, previewFormIdx, setPreviewFormIdx }) => {
-  const navigate = useNavigate();
-  const [bgImage, setBgImage] = useState(null);
-  const [fields, setFields] = useState([]);
-  const [pdfFile, setPdfFile] = useState(null);
-  const [pdfImage, setPdfImage] = useState(null);
   const containerRef = useRef();
   const imageRef = useRef();
 
@@ -41,7 +36,17 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
     const containerRect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - containerRect.left - dragInfo.offsetX;
     const y = e.clientY - containerRect.top - dragInfo.offsetY;
-    setFields(fields => fields.map((f, i) => i === dragInfo.idx ? { ...f, x: Math.max(0, Math.min(x, 700 - 120)), y: Math.max(0, Math.min(y, 700 - 30)) } : f));
+    // Actualiza la posición del campo en localForms
+    handleLocalFormsChange(localForms.map((f, i) =>
+      i === dragInfo.formIdx
+        ? {
+            ...f,
+            fields: f.fields.map((fld, j) =>
+              j === dragInfo.idx ? { ...fld, x: Math.max(0, Math.min(x, 700 - 120)), y: Math.max(0, Math.min(y, 700 - 30)) } : fld
+            ),
+          }
+        : f
+    ));
   };
 
   const handleFieldMouseUp = () => {
@@ -52,6 +57,13 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
 
   // Estado local para cada formulario
   const [localForms, setLocalForms] = useState(forms.length > 0 ? forms : [{ bgImage: null, fields: [] }]);
+
+  // Log para depuración: mostrar bgImage cada vez que cambia
+  React.useEffect(() => {
+    localForms.forEach((form, idx) => {
+      console.log(`[TestFormBuilder] Formulario #${idx + 1} bgImage:`, form.bgImage);
+    });
+  }, [localForms]);
 
   // Solo sincroniza localForms cuando forms cambia externamente
   React.useEffect(() => {
@@ -66,11 +78,51 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
   };
 
   // Handlers para cada formulario (usan handleLocalFormsChange)
-  const handleBgFileChange = (e, idx) => {
+  const handleBgFileChange = async (e, idx) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Guardar el archivo en el estado local, sin subirlo ni convertirlo aún
-    handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: file } : f));
+    // Si es imagen, subir y guardar la URL
+    if (file.type.startsWith('image/')) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadData.filename) {
+        alert('Error al subir imagen');
+        return;
+      }
+      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: uploadData.filename } : f));
+    } else if (file.type === 'application/pdf') {
+      // Subir PDF y convertir a imagen
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch(`${API_URL}/api/assessments/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadData.filename) {
+        alert('Error al subir PDF');
+        return;
+      }
+      // Convertir PDF a imagen
+      const convertRes = await fetch(`${API_URL}/api/assessments/convert-pdf-to-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfFile: uploadData.filename }),
+      });
+      const convertData = await convertRes.json();
+      if (!convertData.imagePath) {
+        alert('Error al convertir PDF a imagen');
+        return;
+      }
+      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: convertData.imagePath } : f));
+    } else {
+      alert('Solo se permiten imágenes o PDF');
+    }
   };
   const handleAddField = (idx) => {
     handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, fields: [...(f.fields || []), { type: "text", label: "", x: 20, y: 20, width: 120, value: "" }] } : f));
@@ -89,6 +141,22 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
   };
   const handleRemoveForm = (idx) => {
     handleLocalFormsChange(localForms.filter((_, i) => i !== idx));
+  };
+
+  // Utilidad para obtener la URL absoluta de la imagen de fondo
+  const getBgImageUrl = (bgImage) => {
+    if (!bgImage) return '';
+    if (typeof bgImage === 'string') {
+      // Elimina cualquier prefijo /uploads/ o \uploads\ del nombre
+      const cleanName = bgImage.replace(/^[/\\]?uploads[/\\]?/, '');
+      if (cleanName.startsWith('http')) return cleanName;
+      const url = `${API_URL}/uploads/${cleanName}`;
+      console.log('[TestFormBuilder] getBgImageUrl para string:', url);
+      return url;
+    }
+    const url = URL.createObjectURL(bgImage);
+    console.log('[TestFormBuilder] getBgImageUrl para archivo:', url);
+    return url;
   };
 
   return (
@@ -117,13 +185,7 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
             <div ref={containerRef} style={{ marginTop: 8, position: 'relative', width: 700, maxWidth: '100%' }}>
               <img
                 ref={imageRef}
-                src={
-                  typeof form.bgImage === "string"
-                    ? form.bgImage.startsWith("http")
-                      ? form.bgImage
-                      : `${API_URL}${form.bgImage.startsWith("/") ? "" : "/"}${form.bgImage}`
-                    : URL.createObjectURL(form.bgImage)
-                }
+                src={getBgImageUrl(form.bgImage)}
                 alt="formulario"
                 style={{ width: 700, maxWidth: '100%', borderRadius: 6, marginBottom: 8, display: 'block' }}
               />
@@ -220,13 +282,7 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
             {localForms[previewFormIdx].bgImage && (
               <div style={{ position: 'relative', width: 700, maxWidth: '100%', minHeight: 300, margin: '0 auto', maxHeight: '80vh', overflowY: 'auto' }}>
                 <img
-                  src={
-                    typeof localForms[previewFormIdx].bgImage === "string"
-                      ? localForms[previewFormIdx].bgImage.startsWith("http")
-                        ? localForms[previewFormIdx].bgImage
-                        : `${API_URL}${localForms[previewFormIdx].bgImage.startsWith("/") ? "" : "/"}${localForms[previewFormIdx].bgImage}`
-                      : URL.createObjectURL(localForms[previewFormIdx].bgImage)
-                  }
+                  src={getBgImageUrl(localForms[previewFormIdx].bgImage)}
                   alt="formulario"
                   style={{ width: 700, maxWidth: '100%', borderRadius: 6, marginBottom: 8, display: 'block' }}
                 />

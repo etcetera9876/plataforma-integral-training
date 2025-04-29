@@ -161,8 +161,10 @@ exports.convertPdfToImage = async (req, res) => {
     if (!pdfFile) return res.status(400).json({ error: "Falta el nombre del archivo PDF" });
     const pdfPath = path.join(__dirname, "../uploads", pdfFile);
     const outputBase = pdfFile.replace(/\.[^.]+$/, "");
-    const outputPath = path.join(__dirname, "../uploads", `${outputBase}-%d.png`);
-    const cmd = `magick "${pdfPath}" "${outputPath}"`;
+    // Asegura que la imagen se guarde en la carpeta uploads
+    const outputPath = path.join(__dirname, "../uploads", `${outputBase}-0.png`);
+    // Solo convertir la primera página del PDF
+    const cmd = `magick "${pdfPath}[0]" "${outputPath}"`;
     exec(cmd, (error, stdout, stderr) => {
       if (error) {
         console.error("Error ejecutando magick:", error, stderr);

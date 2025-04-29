@@ -146,7 +146,6 @@ const TrainerDashboard = ({ setUser, user }) => {
       const sortedCourses = response.data.sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
-      console.log("Cursos obtenidos desde el backend:", sortedCourses); // Log para depuración
       setCourses(sortedCourses);
     } catch (error) {
       console.error("Error al obtener cursos:", error.response?.data || error.message);
@@ -205,7 +204,7 @@ const TrainerDashboard = ({ setUser, user }) => {
       );
 
       const newCourse = response.data.course; // Acceder al curso desde response.data.course
-      console.log("Nuevo curso creado:", newCourse); // Log para depuración
+      // console.log("Nuevo curso creado:", newCourse); // Log para depuración
 
       // Actualizar el estado con el nuevo curso
       setCourses((prevCourses) => [newCourse, ...prevCourses]);
@@ -669,17 +668,18 @@ const TrainerDashboard = ({ setUser, user }) => {
           topics={questionTopics}
           onCreate={async (formData) => {
             try {
-              // Aquí debes ajustar la URL según tu backend
               const token = user.token || localStorage.getItem("token");
-              await axios.post(`${API_URL}/api/questions`, formData, {
+              const response = await axios.post(`${API_URL}/api/questions`, formData, {
                 headers: {
                   'Authorization': `Bearer ${token}`,
                   'Content-Type': 'multipart/form-data',
                 },
               });
               setSnackbar({ open: true, message: "Pregunta guardada en banco", type: "success" });
+              return response; // <-- Retornar la respuesta para que el modal la use
             } catch (err) {
               setSnackbar({ open: true, message: "Error al guardar pregunta", type: "error" });
+              return err?.response; // <-- Retornar el error para manejo en el modal
             }
           }}
         />
