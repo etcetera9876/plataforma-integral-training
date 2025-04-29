@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from "react";
 const TestFormPreview = ({ form }) => {
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const imgRef = useRef();
+  const API_BASE = 'http://localhost:5000'; // Ajusta si tu backend usa otro puerto
 
   useEffect(() => {
     if (imgRef.current) {
@@ -10,6 +11,7 @@ const TestFormPreview = ({ form }) => {
         setImgSize({ width: imgRef.current.naturalWidth, height: imgRef.current.naturalHeight });
       } else {
         imgRef.current.onload = () => {
+          if (!imgRef.current) return;
           setImgSize({ width: imgRef.current.naturalWidth, height: imgRef.current.naturalHeight });
         };
       }
@@ -18,15 +20,25 @@ const TestFormPreview = ({ form }) => {
 
   if (!form || !form.bgImage) return <div style={{ color: '#888' }}>(No hay formulario para vista previa)</div>;
 
-  const bgUrl = typeof form.bgImage === 'string' ? form.bgImage : URL.createObjectURL(form.bgImage);
+  const bgUrl = typeof form.bgImage === 'string'
+  ? (form.bgImage.startsWith('/uploads')
+      ? `${API_BASE}${form.bgImage}`
+      : form.bgImage.match(/^[a-zA-Z0-9\-_]+\.(png|jpg|jpeg|gif)$/i)
+        ? `${API_BASE}/uploads/${form.bgImage}`
+        : form.bgImage)
+  : URL.createObjectURL(form.bgImage);
+
+  // Usa el tamaño original si está disponible en el objeto form
+  const originalWidth = form.originalWidth || imgSize.width || 100;
+  const originalHeight = form.originalHeight || imgSize.height || 100;
 
   return (
     <div
       style={{
         position: "relative",
         marginTop: 16,
-        width: imgSize.width || 100,
-        height: imgSize.height || 100,
+        width: originalWidth,
+        height: originalHeight,
         border: '1px solid #eee',
         borderRadius: 8,
         overflow: 'auto',
@@ -40,13 +52,13 @@ const TestFormPreview = ({ form }) => {
         src={bgUrl}
         alt="formulario"
         style={{
-          width: imgSize.width || 'auto',
-          height: imgSize.height || 'auto',
+          width: originalWidth,
+          height: originalHeight,
           display: 'block',
           borderRadius: 8,
         }}
       />
-      {form.fields && imgSize.width > 0 && imgSize.height > 0 && form.fields.map((field, idx) => (
+      {form.fields && originalWidth > 0 && originalHeight > 0 && form.fields.map((field, idx) => (
         <div
           key={idx}
           style={{
@@ -61,21 +73,20 @@ const TestFormPreview = ({ form }) => {
             borderRadius: 4,
             padding: 6,
             boxSizing: 'border-box',
-            pointerEvents: 'none',
           }}
         >
           {/* Solo input, sin etiqueta */}
           {field.type === "text" && (
-            <input type="text" disabled placeholder="Texto" style={{ width: '100%' }} />
+            <input type="text" placeholder="Texto" style={{ width: '100%' }} />
           )}
           {field.type === "number" && (
-            <input type="number" disabled placeholder="Número" style={{ width: '100%' }} />
+            <input type="number" placeholder="Número" style={{ width: '100%' }} />
           )}
           {field.type === "date" && (
-            <input type="date" disabled style={{ width: '100%' }} />
+            <input type="date" style={{ width: '100%' }} />
           )}
           {field.type === "select" && (
-            <select disabled style={{ width: '100%' }}>
+            <select style={{ width: '100%' }}>
               <option value="">Selecciona</option>
               {(field.options || '').split(',').map((opt, i) => (
                 <option key={i} value={opt.trim()}>{opt.trim()}</option>

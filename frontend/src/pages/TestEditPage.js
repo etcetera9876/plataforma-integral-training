@@ -422,10 +422,12 @@ function TestPreviewModal({ test, userName, onClose }) {
       }
     });
   };
+  // Importar dinámicamente TestFormPreview para evitar ciclo de dependencias
+  const TestFormPreview = require('../components/Trainer/TestFormPreview').default;
   if (!test) return null;
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, minWidth: 340, maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', position: 'relative', fontFamily: 'inherit' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, minWidth: 340, maxWidth: 900, maxHeight: '90vh', overflowY: 'auto', position: 'relative', fontFamily: 'inherit' }} onClick={e => e.stopPropagation()}>
         <button style={{ position: 'absolute', top: 12, right: 16, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={onClose}>✕</button>
         <h2 style={{ margin: '0 0 8px 0', fontWeight: 700, fontSize: 22, color: '#1976d2', letterSpacing: 0.2 }}>{test.name || 'Test sin nombre'}</h2>
         {test.description && <div style={{ marginBottom: 12, color: '#444', fontSize: 16, fontWeight: 400 }}>{test.description}</div>}
@@ -438,37 +440,35 @@ function TestPreviewModal({ test, userName, onClose }) {
           {test.questions.map((q, idx) => (
             <li key={q._id || idx} style={{ marginBottom: 24 }}>
               <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 8 }}>{q.statement || q.text}</div>
-              {/* Verdadero/Falso: uno debajo del otro, radio a la derecha */}
+              {/* Verdadero/Falso: uno debajo del otro, radio a la izquierda */}
               {q.type === 'boolean' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch', marginLeft: 8 }}>
-                  <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
-                    Verdadero
-                    <input type="radio" name={`q${idx}`} checked={answers[idx] === true} onChange={() => handleChange(idx, true)} style={{ marginLeft: 8 }} />
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
-                    Falso
-                    <input type="radio" name={`q${idx}`} checked={answers[idx] === false} onChange={() => handleChange(idx, false)} style={{ marginLeft: 8 }} />
-                  </label>
-                </div>
-              )}
-              {/* Opción simple: opciones una debajo de otra, radio a la derecha */}
-              {q.type === 'single' && Array.isArray(q.options) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
-                  {q.options.map((opt, i) => (
-                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
-                      {opt}
-                      <input type="radio" name={`q${idx}`} checked={answers[idx] === opt} onChange={() => handleChange(idx, opt)} style={{ marginLeft: 8 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start', marginLeft: 8 }}>
+                  {["Verdadero", "Falso"].map((opt, i) => (
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0 }}>
+                      <input type="radio" name={`q${idx}`} checked={answers[idx] === (opt === "Verdadero")} onChange={() => handleChange(idx, opt === "Verdadero")}/>
+                      <span style={{ marginLeft: 6 }}>{opt}</span>
                     </label>
                   ))}
                 </div>
               )}
-              {/* Opción múltiple: opciones una debajo de otra, checkbox a la derecha */}
-              {q.type === 'multiple' && Array.isArray(q.options) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
+              {/* Opción simple: opciones una debajo de otra, radio a la izquierda, alineadas como pregunta 1 */}
+              {q.type === 'single' && Array.isArray(q.options) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginLeft: 0 }}>
                   {q.options.map((opt, i) => (
-                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
-                      {opt}
-                      <input type="checkbox" name={`q${idx}`} checked={Array.isArray(answers[idx]) && answers[idx].includes(opt)} onChange={() => handleCheckbox(idx, opt)} style={{ marginLeft: 8 }} />
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0, marginBottom: 6, marginRight: 570 }}>
+                      <input type="radio" name={`q${idx}`} checked={answers[idx] === opt} onChange={() => handleChange(idx, opt)} style={{ marginRight: 8 }} />
+                      <span>{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {/* Opción múltiple: opciones una debajo de otra, checkbox a la izquierda, alineadas como pregunta 1 */}
+              {q.type === 'multiple' && Array.isArray(q.options) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginLeft: 0 }}>
+                  {q.options.map((opt, i) => (
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0, marginBottom: 6, marginRight: 570 }}>
+                      <input type="checkbox" name={`q${idx}`} checked={Array.isArray(answers[idx]) && answers[idx].includes(opt)} onChange={() => handleCheckbox(idx, opt)} style={{ marginRight: 8 }} />
+                      <span>{opt}</span>
                     </label>
                   ))}
                 </div>
@@ -476,6 +476,12 @@ function TestPreviewModal({ test, userName, onClose }) {
               {/* Abierta */}
               {q.type === 'open' && (
                 <textarea style={{ width: '100%', minHeight: 48, borderRadius: 6, border: '1px solid #bbb', padding: 6 }} placeholder="Escribe tu respuesta..." value={answers[idx] || ''} onChange={e => handleChange(idx, e.target.value)} />
+              )}
+              {/* Formulario dinámico */}
+              {q.type === 'form-dynamic' && Array.isArray(q.forms) && q.forms.length > 0 && (
+                <div style={{ margin: '16px 0', border: '1.5px solid #e0e0e0', borderRadius: 10, background: '#f8f9fa', padding: 12 }}>
+                  <TestFormPreview form={q.forms[0]} editable={true} />
+                </div>
               )}
               {/* Si no hay tipo, solo muestra opciones si existen */}
               {!q.type && Array.isArray(q.options) && (
