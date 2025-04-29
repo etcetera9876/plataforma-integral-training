@@ -34,6 +34,9 @@ router.put('/:id', authMiddleware, assessmentController.updateAssessment);
 router.delete('/:id', authMiddleware, assessmentController.deleteAssessment);
 router.patch('/:id/toggle-lock', authMiddleware, assessmentController.toggleLockAssessment);
 
+// Generar tests personalizados para múltiples usuarios
+router.post('/generate-multi', authMiddleware, assessmentController.generateMultiAssessments);
+
 // Convierte PDF a imagen (POST: { pdfFile: "nombre.pdf" })
 router.post('/convert-pdf-to-image', assessmentController.convertPdfToImage);
 

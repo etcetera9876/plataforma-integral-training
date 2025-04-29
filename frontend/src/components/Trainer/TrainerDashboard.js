@@ -6,7 +6,7 @@ import useBranches from "../../hooks/useBranches";
 import CourseModal from "./CourseModal"; // Asegúrate de importar CourseModal
 import "./TrainerDashboard.css";
 import io from "socket.io-client"; // Importación de Socket.IO
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ConfirmModal, SuccessModal } from "./ConfirmModal"; // Importa el modal de confirmación
 import CourseEditModal from "./CourseEditModal"; // Importa el nuevo modal de edición
 import { getCourseStatus } from '../../utils/courseStatus'; // Importa la función centralizada
@@ -26,6 +26,7 @@ const socket = io(API_URL, {
 
 const TrainerDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { branches, loading } = useBranches();
   const [selectedBranch, setSelectedBranch] = useState("");
   const [courses, setCourses] = useState([]);

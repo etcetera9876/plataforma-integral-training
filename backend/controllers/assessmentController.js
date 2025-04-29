@@ -204,4 +204,58 @@ exports.convertPdfToImage = async (req, res) => {
   }
 };
 
+// Generar tests personalizados para múltiples usuarios
+exports.generateMultiAssessments = async (req, res) => {
+  try {
+    const { name, description, branch, assignedTo, components, questionFilters, maxRepeats } = req.body;
+    let userIds = assignedTo;
+    // Si es All branch o All recruiters, buscar todos los usuarios cuyo place sea el nombre del branch
+    if (assignedTo === 'All branch' || (Array.isArray(assignedTo) && assignedTo[0] === 'All recruiters')) {
+      const Branch = require('../models/branch');
+      const branchDoc = await Branch.findById(branch);
+      if (!branchDoc) return res.status(400).json({ message: 'Branch no encontrado' });
+      const users = await require('../models/user').find({ place: branchDoc.name });
+      userIds = users.map(u => u._id.toString());
+    }
+    // Obtener todas las preguntas filtradas
+    const Question = require('../models/question');
+    const allQuestions = await Question.find({
+      difficulty: questionFilters.difficulty,
+      ...(questionFilters.topic ? { topic: questionFilters.topic } : {})
+    });
+    // Agrupar preguntas por tipo
+    const questionsByType = {};
+    allQuestions.forEach(q => {
+      if (!questionsByType[q.type]) questionsByType[q.type] = [];
+      questionsByType[q.type].push(q);
+    });
+    // Algoritmo de asignación
+    const tests = [];
+    const usedQuestions = {};
+    let missing = [];
+    for (const userId of userIds) {
+      let testQuestions = [];
+      for (const [type, count] of Object.entries(questionFilters.counts)) {
+        if (count > 0) {
+          let pool = questionsByType[type] || [];
+          pool = pool.filter(q => (usedQuestions[q._id] || 0) < (maxRepeats || 1));
+          const shuffled = pool.sort(() => 0.5 - Math.random());
+          const selected = shuffled.slice(0, count);
+          selected.forEach(q => {
+            usedQuestions[q._id] = (usedQuestions[q._id] || 0) + 1;
+          });
+          testQuestions = testQuestions.concat(selected);
+          if (selected.length < count) {
+            missing.push({ userId, type, missing: count - selected.length });
+          }
+        }
+      }
+      tests.push({ userId, name, description, branch, components, questions: testQuestions });
+    }
+    res.json({ tests, missing });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al generar tests personalizados', error: error.message });
+  }
+};
+
 module.exports.uploadPdf = uploadPdf;

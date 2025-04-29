@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import AlertMessage from "../components/Trainer/AlertMessage";
 import TestQuestionsEditor from "../components/Trainer/TestQuestionsEditor";
 import TestFormBuilder from "../components/Trainer/TestFormBuilder";
@@ -23,6 +23,7 @@ const DIFFICULTY_OPTIONS = [
 const TestEditPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -45,6 +46,12 @@ const TestEditPage = () => {
     counts: QUESTION_TYPES.reduce((acc, t) => ({ ...acc, [t.value]: 0 }), {})
   });
   const [topics, setTopics] = useState([]);
+  const [maxRepeats, setMaxRepeats] = useState(1);
+  const [multiPreview, setMultiPreview] = useState(null);
+  const [multiMissing, setMultiMissing] = useState([]);
+  const [multiLoading, setMultiLoading] = useState(false);
+  const [userNamesMap, setUserNamesMap] = useState({});
+  const [branchUsers, setBranchUsers] = useState([]);
 
   // Cargar temas únicos del banco de preguntas
   useEffect(() => {
@@ -104,6 +111,42 @@ const TestEditPage = () => {
     fetchTest();
   }, [id]);
 
+  // Cargar usuarios del branch si es All branch o si hay asignados específicos
+  useEffect(() => {
+    async function fetchBranchUsers() {
+      if (!branchId) return;
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API_URL}/api/users/branch/${branchId}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setBranchUsers(res.data);
+        // Crear un mapa de IDs a nombres para acceso rápido (asegurando que la clave sea string)
+        const namesMap = {};
+        res.data.forEach(u => { namesMap[String(u._id)] = u.name; });
+        setUserNamesMap(namesMap);
+      } catch {
+        setBranchUsers([]);
+        setUserNamesMap({});
+      }
+    }
+    fetchBranchUsers();
+  }, [branchId]);
+
+  // Hook para asegurar que todos los userIds de multiPreview estén en userNamesMap
+  useEffect(() => {
+    if (!multiPreview) return;
+    const missingIds = multiPreview
+      .map(t => String(t.userId))
+      .filter(id => !userNamesMap[id]);
+    if (missingIds.length > 0) {
+      axios.post(`${API_URL}/api/users/names`, { userIds: missingIds })
+        .then(res => {
+          setUserNamesMap(prev => ({ ...prev, ...res.data }));
+        });
+    }
+  }, [multiPreview, userNamesMap]);
+
   function toLocalDatetimeString(dateStr) {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -149,7 +192,17 @@ const TestEditPage = () => {
         {/* Título principal y botón regresar en la misma fila */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <h2 style={{ margin: 0 }}>Editar Test</h2>
-          <button type="button" onClick={() => navigate(-1)} style={{ fontSize: 16, padding: '6px 18px', borderRadius: 8, border: '1px solid #bbb', background: '#f5f5f5', cursor: 'pointer' }}>&larr; Regresar</button>
+          {/* Botón regresar que mantiene el branch seleccionado */}
+          <button
+            type="button"
+            onClick={() => {
+              // Si hay branchId y/o branchName, pásalos en el estado
+              navigate('/courses-assessments', { state: { branchId, branchName: test?.branchName || location.state?.branchName } });
+            }}
+            style={{ fontSize: 16, padding: '6px 18px', borderRadius: 8, border: '1px solid #bbb', background: '#f5f5f5', cursor: 'pointer' }}
+          >
+            &larr; Regresar
+          </button>
         </div>
         <form onSubmit={e => { e.preventDefault(); handleSave(false); }}>
           {/* Campo: Nombre del test */}
@@ -191,11 +244,8 @@ const TestEditPage = () => {
               </div>
             )}
           </div>
-       
-       
-          {/* Formulario para seleccionar preguntas del banco */}
           <div style={{ marginBottom: 32, padding: 16, background: '#f8f9fa', borderRadius: 10, border: '1.5px solid #e0e0e0' }}>
-            <h4 style={{ marginTop: 0 }}>Agregar preguntas desde banco</h4>
+            <h4 style={{ marginTop: 0 }}>Generar tests personalizados para cada usuario</h4>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <div>
                 <label>Dificultad *</label><br />
@@ -232,65 +282,107 @@ const TestEditPage = () => {
                   />
                 </div>
               ))}
+              <div style={{ marginLeft: 24, opacity: 0.85 }}>
+                <label style={{ fontWeight: 500 }}>Repeticiones permitidas</label><br />
+                <input
+                  type="number"
+                  min={1}
+                  style={{ width: 60 }}
+                  value={maxRepeats}
+                  onChange={e => setMaxRepeats(Number(e.target.value))}
+                />
+              </div>
               <button
                 type="button"
                 style={{ height: 38, alignSelf: 'flex-end', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, padding: '0 18px', fontWeight: 600, cursor: 'pointer' }}
+                disabled={multiLoading}
                 onClick={async () => {
+                  setMultiLoading(true);
+                  setMultiPreview(null);
+                  setMultiMissing([]);
                   try {
-                    if (!questionFilters.difficulty) {
-                      setError("Selecciona una dificultad para buscar preguntas");
-                      setShowAlert(true);
-                      return;
-                    }
                     const token = localStorage.getItem("token");
-                    let newQuestions = [];
-                    for (const type of QUESTION_TYPES) {
-                      const count = questionFilters.counts[type.value];
-                      if (count > 0) {
-                        const res = await axios.get(`${API_URL}/api/questions/random`, {
-                          params: {
-                            type: type.value,
-                            difficulty: questionFilters.difficulty,
-                            topic: questionFilters.topic || undefined,
-                            exclude: questions.map(q => q._id),
-                            count
-                          },
-                          headers: { Authorization: `Bearer ${token}` },
-                        });
-                        newQuestions = newQuestions.concat(res.data);
-                      }
-                    }
-                    if (newQuestions.length === 0) {
-                      setError("No se encontraron preguntas con los filtros seleccionados.");
-                      setShowAlert(true);
-                      return;
-                    }
-                    // Mapear preguntas del banco al formato esperado por TestQuestionsEditor
-                    const mapQuestion = (q) => ({
-                      ...q,
-                      text: q.text || q.statement || "",
-                      options: q.options || [],
-                      answer: q.correctAnswer || q.answer || "",
-                    });
-                    setQuestions(prev => [
-                      ...prev,
-                      ...newQuestions.map(mapQuestion)
-                    ]);
-                    setSuccess("Preguntas agregadas desde el banco");
-                    setShowAlert(true);
+                    const res = await axios.post(
+                      `${API_URL}/api/assessments/generate-multi`,
+                      {
+                        name,
+                        description,
+                        branch: branchId,
+                        assignedTo: assignedTo.length > 0 ? assignedTo : "All branch",
+                        components: [{ block, weight: 100 }],
+                        questionFilters,
+                        maxRepeats
+                      },
+                      { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    setMultiPreview(res.data.tests);
+                    setMultiMissing(res.data.missing || []);
                   } catch (err) {
-                    setError("Error al buscar preguntas en el banco");
+                    setError("Error al generar tests personalizados");
                     setShowAlert(true);
+                  } finally {
+                    setMultiLoading(false);
                   }
                 }}
-              >Agregar preguntas</button>
+              >Generar tests personalizados</button>
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 16, marginTop: 32 }}>
-            <button type="button" onClick={() => handleSave(false)}>Guardar borrador</button>
-            <button type="button" onClick={() => handleSave(true)}>Publicar</button>
+            {/* Previsualización */}
+            {multiPreview && (
+              <div style={{ marginTop: 18 }}>
+                <h5>Previsualización de tests generados:</h5>
+                {multiMissing.length > 0 && (
+                  <div style={{ color: "#d32f2f", marginBottom: 8 }}>
+                    {multiMissing.map((m, i) => {
+                      const userName = userNamesMap[String(m.userId)] || m.userId;
+                      const typeLabel = (QUESTION_TYPES.find(t => t.value === m.type)?.label) || m.type;
+                      const diffLabel = (DIFFICULTY_OPTIONS.find(d => d.value === questionFilters.difficulty)?.label) || questionFilters.difficulty;
+                      return (
+                        <div key={i}>
+                          Falta(n) {m.missing} pregunta(s) de tipo {typeLabel} con dificultad {diffLabel} para {userName}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 18, overflowX: 'auto', border: "1px solid #eee", borderRadius: 8, background: "#fafbfc", padding: 8, minHeight: 180 }}>
+                  {multiPreview.map((test, idx) => {
+                    const userName = userNamesMap[String(test.userId)] || test.userId;
+                    return (
+                      <div key={idx} style={{ minWidth: 260, maxWidth: 340, flex: '0 0 260px', background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0', padding: 14, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <b style={{ marginBottom: 8, fontSize: 16 }}>Test para {userName}</b>
+                        <ul style={{ marginTop: 6, paddingLeft: 18, width: '100%' }}>
+                          {test.questions.map(q => (
+                            <li key={q._id} style={{ marginBottom: 10 }}>
+                              <div style={{ fontWeight: 500 }}>{q.statement || q.text}</div>
+                              {Array.isArray(q.options) && q.options.length > 0 && (
+                                <ul style={{ margin: '4px 0 0 12px', padding: 0 }}>
+                                  {q.options.map((opt, i) => (
+                                    <li key={i} style={{ listStyle: 'circle', fontWeight: 400 }}>{opt}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </form>
+        {/* Botón Guardar fijo */}
+        <div style={{ position: 'sticky', bottom: 0, background: '#fff', zIndex: 10, padding: '16px 0 0 0', marginTop: 24, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee' }}>
+          <button
+            type="button"
+            style={{ background: '#1976d2', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 32px', fontWeight: 600, fontSize: 17, boxShadow: '0 1px 4px #e0e0e0', cursor: 'pointer' }}
+            onClick={() => handleSave(false)}
+            disabled={loading}
+          >
+            Guardar
+          </button>
+        </div>
         <AlertMessage open={showAlert} message={error || success} type={error ? "error" : "success"} onClose={() => setShowAlert(false)} />
       </div>
     </div>

@@ -154,7 +154,18 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    // Si el tipo es boolean, setea las opciones por defecto
+    if (name === 'type') {
+      if (value === 'boolean') {
+        setForm((prev) => ({ ...prev, type: value, options: ['Verdadero', 'Falso'] }));
+      } else if (value === 'multiple' || value === 'single') {
+        setForm((prev) => ({ ...prev, type: value, options: ['', ''] }));
+      } else {
+        setForm((prev) => ({ ...prev, type: value, options: [''] }));
+      }
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleOptionChange = (idx, value) => {
@@ -387,6 +398,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               )}
             </div>
           )}
+          {/* Opciones solo para multiple y single */}
           {(form.type === 'multiple' || form.type === 'single') && (
             <div className="modal-field">
               <label>Opciones</label>
@@ -407,7 +419,25 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               <button type="button" onClick={addOption} style={{ marginTop: 4, background: '#e3f2fd', color: '#1976d2', border: 'none', borderRadius: 6, padding: '6px 18px', fontSize: 15, fontWeight: 500, cursor: 'pointer' }}>Agregar opción</button>
             </div>
           )}
-          {(form.type === 'multiple' || form.type === 'single') && (
+          {/* Opciones solo para boolean */}
+          {form.type === 'boolean' && (
+            <div className="modal-field">
+              <label>Opciones</label>
+              {form.options.map((opt, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                  <input
+                    type="text"
+                    value={opt}
+                    readOnly
+                    disabled
+                    style={{ flex: 1, borderRadius: 6, border: '1px solid #ccc', padding: 6, background: '#f5f5f5', color: '#333', fontWeight: 500 }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Respuesta correcta para single */}
+          {form.type === 'single' && (
             <div className="modal-field">
               <label>Respuesta correcta *</label>
               <select
@@ -424,20 +454,31 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               </select>
             </div>
           )}
-          {form.type === 'boolean' && (
-            <div className="modal-field">
-              <label>Respuesta correcta *</label>
-              <select
-                name="correctAnswer"
-                value={form.correctAnswer}
-                onChange={handleChange}
-                required
-                style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
-              >
-                <option value="">Selecciona la respuesta</option>
-                <option value="true">Verdadero</option>
-                <option value="false">Falso</option>
-              </select>
+          {/* Respuestas correctas para multiple */}
+          {form.type === 'multiple' && (
+            <div className="modal-field" >
+              <label>Respuestas correctas *</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginRight: 640 }}>
+                {form.options.map((opt, idx) => (
+                  <label key={idx} style={{ display: 'flex', alignItems: 'center', fontWeight: 400, marginLeft: 0, padding: '2px 0' }}>
+                    <input
+                      type="checkbox"
+                      style={{ margin: 0, marginRight: 4, verticalAlign: 'middle' }}
+                      checked={Array.isArray(form.correctAnswer) ? form.correctAnswer.includes(opt) : false}
+                      onChange={e => {
+                        let newCorrect = Array.isArray(form.correctAnswer) ? [...form.correctAnswer] : [];
+                        if (e.target.checked) {
+                          newCorrect.push(opt);
+                        } else {
+                          newCorrect = newCorrect.filter(o => o !== opt);
+                        }
+                        setForm(prev => ({ ...prev, correctAnswer: newCorrect }));
+                      }}
+                    />
+                    <span style={{ marginLeft: 0, fontSize: 15 }}>{opt}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
           {form.type === 'open' && (
