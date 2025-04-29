@@ -37,8 +37,12 @@ const BlocksConfigModal = ({ blocks = [], setBlocks, onClose, branchId }) => {
         setSuccess("Bloque eliminado con éxito");
         setAlertOpen(true);
       } catch (err) {
-        // Evita mostrar el error en la consola
-        if (err.response && err.response.data && err.response.data.message) {
+        // Mostrar los tests donde se usa el bloque si el backend lo informa
+        if (err.response && err.response.data && err.response.data.usedIn) {
+          setError(
+            `${err.response.data.message}\n\nUsado en: ${err.response.data.usedIn.join(', ')}`
+          );
+        } else if (err.response && err.response.data && err.response.data.message) {
           setError(err.response.data.message);
         } else {
           setError("Error al eliminar el bloque");
@@ -88,7 +92,8 @@ const BlocksConfigModal = ({ blocks = [], setBlocks, onClose, branchId }) => {
         label: b.label,
         weight: Number(b.weight),
         branch: branchId,
-        _id: b._id
+        _id: b._id,
+        type: b.type || (b.label ? b.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : undefined)
       }));
       const token = localStorage.getItem("token");
       const results = [];
@@ -96,7 +101,7 @@ const BlocksConfigModal = ({ blocks = [], setBlocks, onClose, branchId }) => {
         if (block._id) {
           const res = await axios.put(
             `${API_URL}/api/assessments/blocks/${block._id}`,
-            { label: block.label, weight: block.weight },
+            { label: block.label, weight: block.weight, type: block.type },
             { headers: { Authorization: `Bearer ${token}` } }
           );
           results.push(res.data.updated);
@@ -143,6 +148,7 @@ const BlocksConfigModal = ({ blocks = [], setBlocks, onClose, branchId }) => {
         onClose();
       }
     } catch (err) {
+      console.error("[BlocksConfigModal] handleSave error:", err.response ? err.response.data : err); // LOG
       setError("Error al guardar los bloques. Intenta de nuevo.");
       setAlertOpen(true);
     } finally {

@@ -21,6 +21,7 @@ const AssessmentSchema = new mongoose.Schema({
   assignedTo: [{ type: mongoose.Schema.Types.Mixed }], // Permite ObjectId o string
   components: [{
     block: { type: mongoose.Schema.Types.ObjectId, ref: 'Block', required: true },
+    label: { type: String, required: true }, // Agregado: nombre del bloque
     weight: { type: Number, required: true }
   }],
   block: { type: mongoose.Schema.Types.ObjectId, ref: 'Block' }, // Nuevo campo para guardar el bloque principal del test

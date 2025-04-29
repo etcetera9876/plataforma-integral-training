@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Assessment = require('../models/assessment');
+const Block = require('../models/block');
 const { exec } = require("child_process");
 const path = require("path");
 const multer = require("multer");
@@ -67,15 +68,28 @@ exports.createAssessment = async (req, res) => {
     // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
     let adaptedComponents = components;
     if (typeof components[0] === 'string' || typeof components[0] === 'number') {
-      // Si es array de IDs, asignar peso por defecto (100)
-      adaptedComponents = components.map(id => ({ block: id, weight: 100 }));
+      // Si es array de IDs, consultar el peso real de cada bloque
+      const blocks = await Block.find({ _id: { $in: components } });
+      const blockWeightMap = {};
+      blocks.forEach(b => { blockWeightMap[b._id.toString()] = b.weight; });
+      adaptedComponents = components.map(id => ({ block: id, weight: blockWeightMap[id.toString()] || 100 }));
     }
-
+    // Obtener labels de los bloques
+    const blockIds = adaptedComponents.map(c => c.block);
+    const blocks = await Block.find({ _id: { $in: blockIds } });
+    const blockMap = {};
+    blocks.forEach(b => { blockMap[b._id.toString()] = b.label; });
+    // Agregar label a cada componente
+    const componentsWithLabels = adaptedComponents.map(c => ({
+      block: c.block,
+      label: blockMap[c.block.toString()] || '',
+      weight: c.weight
+    }));
     const assessment = new Assessment({
       name,
       description,
       branch,
-      components: adaptedComponents,
+      components: componentsWithLabels,
       block,
       publicationDate,
       expirationDate,
@@ -112,9 +126,20 @@ exports.updateAssessment = async (req, res) => {
     if (Array.isArray(components) && (typeof components[0] === 'string' || typeof components[0] === 'number')) {
       adaptedComponents = components.map(id => ({ block: id, weight: 100 }));
     }
+    // Obtener labels de los bloques
+    const blockIds = adaptedComponents.map(c => c.block);
+    const blocks = await Block.find({ _id: { $in: blockIds } });
+    const blockMap = {};
+    blocks.forEach(b => { blockMap[b._id.toString()] = b.label; });
+    // Agregar label a cada componente
+    const componentsWithLabels = adaptedComponents.map(c => ({
+      block: c.block,
+      label: blockMap[c.block.toString()] || '',
+      weight: c.weight
+    }));
     const updated = await Assessment.findByIdAndUpdate(
       id,
-      { name, description, branch, components: adaptedComponents, block, publicationDate, expirationDate, assignedTo, questions, evaluationType },
+      { name, description, branch, components: componentsWithLabels, block, publicationDate, expirationDate, assignedTo, questions, evaluationType },
       { new: true }
     );
     if (!updated) {

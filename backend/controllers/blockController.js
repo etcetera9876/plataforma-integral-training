@@ -50,6 +50,9 @@ exports.getBlocksByBranch = async (req, res) => {
 };
 
 exports.updateBlock = async (req, res) => {
+  // LOGS para depuración
+  console.log('updateBlock - req.params:', req.params);
+  console.log('updateBlock - req.body:', req.body);
   try {
     const { id } = req.params;
     const { label, weight } = req.body;
@@ -58,9 +61,9 @@ exports.updateBlock = async (req, res) => {
     if (!updated) return res.status(404).json({ message: 'Bloque no encontrado' });
     // Sincronizar el peso en todas las evaluaciones que usen este bloque
     const result = await Assessment.updateMany(
-      { 'components.type': type },
+      { 'components.block': id },
       { $set: { 'components.$[elem].weight': weight } },
-      { arrayFilters: [{ 'elem.type': type }] }
+      { arrayFilters: [{ 'elem.block': id }] }
     );
     res.json({
       message: `Bloque actualizado. Peso sincronizado en ${result.modifiedCount} evaluaciones.`,
@@ -77,9 +80,14 @@ exports.deleteBlock = async (req, res) => {
     const { id } = req.params;
     const block = await Block.findById(id);
     if (!block) return res.status(404).json({ message: 'Bloque no encontrado' });
-    const used = await Assessment.findOne({ 'components.type': block.type });
-    if (used) {
-      return res.status(400).json({ message: 'No se puede eliminar: existe al menos una evaluación usando este bloque.' });
+    // Buscar evaluaciones que usan este bloque
+    const usedAssessments = await Assessment.find({ 'components.block': id }, 'name');
+    if (usedAssessments.length > 0) {
+      // Devuelve los nombres de los tests que usan el bloque
+      return res.status(400).json({ 
+        message: 'No se puede eliminar: el bloque está siendo usado en evaluaciones.',
+        usedIn: usedAssessments.map(a => a.name)
+      });
     }
     await Block.findByIdAndDelete(id);
     res.json({ message: 'Bloque eliminado correctamente' });
