@@ -548,7 +548,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
       {/* Modal de vista previa de formulario dinámico */}
       {showDynamicFormPreview && dynamicFormToPreview && (
         <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowDynamicFormPreview(false)}>
-          <div className="modal" style={{ minWidth: 700, maxWidth: 700, borderRadius: 16, boxShadow: '0 8px 32px #2224', padding: 24, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={{ minWidth: 600, maxWidth: 700, borderRadius: 16, boxShadow: '0 8px 32px #2224', padding: 24, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
             <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', zIndex: 11 }} onClick={() => setShowDynamicFormPreview(false)}>✕</button>
             <h4 style={{ marginTop: 0, marginBottom: 12 }}>Vista previa del Formulario</h4>
             <TestFormPreview form={dynamicFormToPreview} />
