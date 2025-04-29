@@ -134,3 +134,36 @@ exports.getLockedStates = async (req, res) => {
     res.status(500).json({ message: 'Error al consultar estados', error: err.message });
   }
 };
+
+// Nuevo endpoint: obtener preguntas aleatorias filtradas
+exports.getRandomQuestions = async (req, res) => {
+  try {
+    const { type, difficulty, topic, exclude, count } = req.query;
+    // type puede ser string o array
+    let typeFilter = type;
+    if (Array.isArray(typeFilter)) {
+      // nada
+    } else if (typeof typeFilter === 'string') {
+      typeFilter = [typeFilter];
+    } else {
+      typeFilter = [];
+    }
+    let filter = {};
+    if (typeFilter.length > 0) filter.type = { $in: typeFilter };
+    if (difficulty) filter.difficulty = difficulty;
+    if (topic) filter.topic = topic;
+    if (exclude) {
+      let excludeArr = Array.isArray(exclude) ? exclude : [exclude];
+      filter._id = { $nin: excludeArr };
+    }
+    const n = parseInt(count) || 1;
+    // Buscar preguntas filtradas
+    const questions = await require('../models/question').aggregate([
+      { $match: filter },
+      { $sample: { size: n } }
+    ]);
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener preguntas aleatorias', error: error.message });
+  }
+};

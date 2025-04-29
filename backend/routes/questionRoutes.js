@@ -21,5 +21,6 @@ router.post('/', authMiddleware, upload.single('attachment'), questionController
 router.put('/:id', authMiddleware, upload.single('attachment'), questionController.updateQuestion);
 router.delete('/:id', authMiddleware, questionController.deleteQuestion);
 router.post('/locked', authMiddleware, questionController.getLockedStates);
+router.get('/random', authMiddleware, questionController.getRandomQuestions);
 
 module.exports = router;
