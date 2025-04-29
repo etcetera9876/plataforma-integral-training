@@ -52,6 +52,8 @@ const TestEditPage = () => {
   const [multiLoading, setMultiLoading] = useState(false);
   const [userNamesMap, setUserNamesMap] = useState({});
   const [branchUsers, setBranchUsers] = useState([]);
+  const [previewTest, setPreviewTest] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Cargar temas únicos del banco de preguntas
   useEffect(() => {
@@ -347,17 +349,28 @@ const TestEditPage = () => {
                 <div style={{ display: 'flex', gap: 18, overflowX: 'auto', border: "1px solid #eee", borderRadius: 8, background: "#fafbfc", padding: 8, minHeight: 180 }}>
                   {multiPreview.map((test, idx) => {
                     const userName = userNamesMap[String(test.userId)] || test.userId;
+                    // Obtener label del bloque
+                    const blockLabel = (blocks.find(b => b._id === (test.block || test.components?.[0]?.block))?.label) || '';
                     return (
                       <div key={idx} style={{ minWidth: 260, maxWidth: 340, flex: '0 0 260px', background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0', padding: 14, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <b style={{ marginBottom: 8, fontSize: 16 }}>Test para {userName}</b>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <b style={{ fontSize: 16 }}>Test para {userName}</b>
+                          <button
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, marginLeft: 4 }}
+                            title="Ver previsualización"
+                            onClick={e => { e.stopPropagation(); e.preventDefault(); setPreviewTest({ ...test, blockLabel }); setShowPreview(true); }}
+                          >
+                            👁️
+                          </button>
+                        </div>
                         <ul style={{ marginTop: 6, paddingLeft: 18, width: '100%' }}>
-                          {test.questions.map(q => (
-                            <li key={q._id} style={{ marginBottom: 10 }}>
+                          {test.questions.map((q, i) => (
+                            <li key={q._id || i} style={{ marginBottom: 10 }}>
                               <div style={{ fontWeight: 500 }}>{q.statement || q.text}</div>
                               {Array.isArray(q.options) && q.options.length > 0 && (
                                 <ul style={{ margin: '4px 0 0 12px', padding: 0 }}>
-                                  {q.options.map((opt, i) => (
-                                    <li key={i} style={{ listStyle: 'circle', fontWeight: 400 }}>{opt}</li>
+                                  {q.options.map((opt, j) => (
+                                    <li key={j} style={{ listStyle: 'circle', fontWeight: 400 }}>{opt}</li>
                                   ))}
                                 </ul>
                               )}
@@ -368,6 +381,10 @@ const TestEditPage = () => {
                     );
                   })}
                 </div>
+                {/* Modal de previsualización reutilizable */}
+                {showPreview && previewTest && (
+                  <TestPreviewModal test={previewTest} userName={userNamesMap[String(previewTest.userId)] || previewTest.userId} onClose={() => setShowPreview(false)} />
+                )}
               </div>
             )}
           </div>
@@ -388,5 +405,92 @@ const TestEditPage = () => {
     </div>
   );
 };
+
+// Mueve TestPreviewModal fuera del componente principal para cumplir con las reglas de hooks
+function TestPreviewModal({ test, userName, onClose }) {
+  const [answers, setAnswers] = React.useState({});
+  const handleChange = (idx, value) => {
+    setAnswers(a => ({ ...a, [idx]: value }));
+  };
+  const handleCheckbox = (idx, opt) => {
+    setAnswers(a => {
+      const prev = Array.isArray(a[idx]) ? a[idx] : [];
+      if (prev.includes(opt)) {
+        return { ...a, [idx]: prev.filter(o => o !== opt) };
+      } else {
+        return { ...a, [idx]: [...prev, opt] };
+      }
+    });
+  };
+  if (!test) return null;
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, minWidth: 340, maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', position: 'relative', fontFamily: 'inherit' }} onClick={e => e.stopPropagation()}>
+        <button style={{ position: 'absolute', top: 12, right: 16, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={onClose}>✕</button>
+        <h2 style={{ margin: '0 0 8px 0', fontWeight: 700, fontSize: 22, color: '#1976d2', letterSpacing: 0.2 }}>{test.name || 'Test sin nombre'}</h2>
+        {test.description && <div style={{ marginBottom: 12, color: '#444', fontSize: 16, fontWeight: 400 }}>{test.description}</div>}
+        {test.blockLabel && (
+          <div style={{ marginBottom: 18, padding: '8px 0', borderBottom: '1.5px solid #e3e3e3', color: '#1976d2', fontWeight: 500, fontSize: 15 }}>
+            {test.blockLabel}
+          </div>
+        )}
+        <ol style={{ paddingLeft: 20, margin: 0 }}>
+          {test.questions.map((q, idx) => (
+            <li key={q._id || idx} style={{ marginBottom: 24 }}>
+              <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 8 }}>{q.statement || q.text}</div>
+              {/* Verdadero/Falso: uno debajo del otro, radio a la derecha */}
+              {q.type === 'boolean' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch', marginLeft: 8 }}>
+                  <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
+                    Verdadero
+                    <input type="radio" name={`q${idx}`} checked={answers[idx] === true} onChange={() => handleChange(idx, true)} style={{ marginLeft: 8 }} />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
+                    Falso
+                    <input type="radio" name={`q${idx}`} checked={answers[idx] === false} onChange={() => handleChange(idx, false)} style={{ marginLeft: 8 }} />
+                  </label>
+                </div>
+              )}
+              {/* Opción simple: opciones una debajo de otra, radio a la derecha */}
+              {q.type === 'single' && Array.isArray(q.options) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
+                  {q.options.map((opt, i) => (
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
+                      {opt}
+                      <input type="radio" name={`q${idx}`} checked={answers[idx] === opt} onChange={() => handleChange(idx, opt)} style={{ marginLeft: 8 }} />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {/* Opción múltiple: opciones una debajo de otra, checkbox a la derecha */}
+              {q.type === 'multiple' && Array.isArray(q.options) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginLeft: 8 }}>
+                  {q.options.map((opt, i) => (
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', fontWeight: 400 }}>
+                      {opt}
+                      <input type="checkbox" name={`q${idx}`} checked={Array.isArray(answers[idx]) && answers[idx].includes(opt)} onChange={() => handleCheckbox(idx, opt)} style={{ marginLeft: 8 }} />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {/* Abierta */}
+              {q.type === 'open' && (
+                <textarea style={{ width: '100%', minHeight: 48, borderRadius: 6, border: '1px solid #bbb', padding: 6 }} placeholder="Escribe tu respuesta..." value={answers[idx] || ''} onChange={e => handleChange(idx, e.target.value)} />
+              )}
+              {/* Si no hay tipo, solo muestra opciones si existen */}
+              {!q.type && Array.isArray(q.options) && (
+                <ul style={{ margin: '4px 0 0 12px', padding: 0 }}>
+                  {q.options.map((opt, i) => (
+                    <li key={i} style={{ listStyle: 'circle', fontWeight: 400 }}>{opt}</li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
 
 export default TestEditPage;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import API_URL from "../../config";
 import Sidebar from "../Sidebar";
@@ -137,10 +137,15 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [user, navigate]);
 
+  const getValidToken = () => {
+    // Prioriza el token del usuario, si no, usa el de localStorage
+    return (user && user.token) || localStorage.getItem("token") || "";
+  };
+
   const fetchCourses = useCallback(async () => {
     if (!selectedBranch) return;
     try {
-      const token = user.token;
+      const token = getValidToken();
       const response = await axios.get(`${API_URL}/api/courses/${selectedBranch}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -149,23 +154,35 @@ const TrainerDashboard = ({ setUser, user }) => {
       );
       setCourses(sortedCourses);
     } catch (error) {
+      if (error.response?.data?.message === "Token inválido") {
+        setUser(null);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        navigate("/");
+      }
       console.error("Error al obtener cursos:", error.response?.data || error.message);
     }
-  }, [selectedBranch, user.token]);
+  }, [selectedBranch, user]);
 
   const fetchAssessments = useCallback(async () => {
     if (!selectedBranch) return;
     try {
-      const token = user.token;
+      const token = getValidToken();
       const response = await axios.get(`${API_URL}/api/assessments`, {
         params: { branchId: selectedBranch },
         headers: { Authorization: `Bearer ${token}` },
       });
       setAssessments(response.data);
     } catch (error) {
+      if (error.response?.data?.message === "Token inválido") {
+        setUser(null);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        navigate("/");
+      }
       console.error("Error al obtener evaluaciones:", error.response?.data || error.message);
     }
-  }, [selectedBranch, user.token]);
+  }, [selectedBranch, user]);
 
   const fetchUserNames = useCallback(async (userIds) => {
     try {
@@ -312,6 +329,23 @@ const TrainerDashboard = ({ setUser, user }) => {
   // Estado para temas (puedes poblarlo desde backend si lo deseas)
   const [questionTopics] = useState(["General", "Scrum", "Kanban", "Waterfall"]); // Ejemplo
 
+  const branchSelectedRef = useRef(false);
+  const initialBranchId = useRef(location.state?.branchId || "");
+  useEffect(() => {
+    const branchIdToSelect = initialBranchId.current;
+    if (
+      branchIdToSelect &&
+      branches.length > 0 &&
+      !branchSelectedRef.current
+    ) {
+      const found = branches.find(b => String(b._id) === String(branchIdToSelect));
+      if (found) {
+        setSelectedBranch(branchIdToSelect);
+        branchSelectedRef.current = true;
+      }
+    }
+  }, [branches]);
+
   return (
     <>
       <div className={`dashboard-container${isAnyModalOpen ? ' blurred' : ''}`}>
@@ -320,19 +354,22 @@ const TrainerDashboard = ({ setUser, user }) => {
           <h1 className="title">Trainer Dashboard</h1>
           <p className="subtitle">Bienvenido, aquí puedes gestionar cursos y evaluaciones por sucursal.</p>
 
+          {/* Mostrar el selector solo cuando branches y selectedBranch estén listos */}
           <section className="branch-selector">
             <label htmlFor="branch-select">Select the branch:</label>
             {loading ? (
               <p>Loading branches...</p>
-            ) : (
-              <select id="branch-select" value={selectedBranch} onChange={handleBranchChange}>
+            ) : branches.length > 0 ? (
+              <select id="branch-select" value={selectedBranch ? String(selectedBranch) : ""} onChange={handleBranchChange}>
                 <option value="">-- Selecciona una sucursal --</option>
                 {branches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
+                  <option key={branch._id} value={String(branch._id)}>
                     {branch.name}
                   </option>
                 ))}
               </select>
+            ) : (
+              <p>Selecciona una sucursal...</p>
             )}
           </section>
 

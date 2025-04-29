@@ -421,20 +421,36 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
           )}
           {/* Opciones solo para boolean */}
           {form.type === 'boolean' && (
-            <div className="modal-field">
-              <label>Opciones</label>
-              {form.options.map((opt, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                  <input
-                    type="text"
-                    value={opt}
-                    readOnly
-                    disabled
-                    style={{ flex: 1, borderRadius: 6, border: '1px solid #ccc', padding: 6, background: '#f5f5f5', color: '#333', fontWeight: 500 }}
-                  />
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="modal-field">
+                <label>Opciones</label>
+                {form.options.map((opt, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <input
+                      type="text"
+                      value={opt}
+                      readOnly
+                      disabled
+                      style={{ flex: 1, borderRadius: 6, border: '1px solid #ccc', padding: 6, background: '#f5f5f5', color: '#333', fontWeight: 500 }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="modal-field">
+                <label>Respuesta correcta *</label>
+                <select
+                  name="correctAnswer"
+                  value={form.correctAnswer}
+                  onChange={handleChange}
+                  required
+                  style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
+                >
+                  <option value="">Selecciona la respuesta correcta</option>
+                  <option value="Verdadero">Verdadero</option>
+                  <option value="Falso">Falso</option>
+                </select>
+              </div>
+            </>
           )}
           {/* Respuesta correcta para single */}
           {form.type === 'single' && (
