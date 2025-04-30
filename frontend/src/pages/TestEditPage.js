@@ -55,6 +55,56 @@ const TestEditPage = () => {
   const [previewTest, setPreviewTest] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  // --- MERGE AUTOMÁTICO DE CAMPOS PARA FORM-DYNAMIC EN MULTIPREVIEW ---
+  // Guarda el banco de preguntas para mergear datos de imagen en form-dynamic
+  const [questionBank, setQuestionBank] = useState([]);
+
+  // Cargar banco de preguntas completo al inicio
+  useEffect(() => {
+    async function fetchQuestionBank() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API_URL}/api/questions`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setQuestionBank(res.data);
+      } catch {}
+    }
+    fetchQuestionBank();
+  }, []);
+
+  // Merge automático de originalWidth/originalHeight en form-dynamic al recibir multiPreview
+  useEffect(() => {
+    if (!multiPreview || questionBank.length === 0) return;
+    let changed = false;
+    const merged = multiPreview.map(test => ({
+      ...test,
+      questions: test.questions.map(q => {
+        if (q.type === 'form-dynamic' && Array.isArray(q.forms) && q.forms.length > 0) {
+          const original = questionBank.find(oq => oq._id === q._id);
+          if (original && Array.isArray(original.forms) && original.forms[0]) {
+            const origForm = original.forms[0];
+            const form = q.forms[0];
+            // Solo mergea si faltan los campos
+            if ((form.originalWidth == null || form.originalHeight == null) && (origForm.originalWidth && origForm.originalHeight)) {
+              changed = true;
+              return {
+                ...q,
+                forms: [{
+                  ...form,
+                  originalWidth: origForm.originalWidth,
+                  originalHeight: origForm.originalHeight
+                }]
+              };
+            }
+          }
+        }
+        return q;
+      })
+    }));
+    if (changed) setMultiPreview(merged);
+  }, [multiPreview, questionBank]);
+
   // Cargar temas únicos del banco de preguntas
   useEffect(() => {
     async function fetchTopics() {

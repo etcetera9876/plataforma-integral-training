@@ -28,17 +28,20 @@ const TestFormPreview = ({ form }) => {
         : form.bgImage)
   : URL.createObjectURL(form.bgImage);
 
-  // Usa el tamaño original si está disponible en el objeto form
-  const originalWidth = form.originalWidth || imgSize.width || 100;
-  const originalHeight = form.originalHeight || imgSize.height || 100;
+  // Forzar ancho a 700px y escalar altura proporcionalmente
+  const fixedWidth = 700;
+  const aspectRatio = (form.originalWidth && form.originalHeight)
+    ? form.originalHeight / form.originalWidth
+    : (imgSize.height && imgSize.width ? imgSize.height / imgSize.width : 1);
+  const scaledHeight = Math.round(fixedWidth * aspectRatio);
 
   return (
     <div
       style={{
         position: "relative",
         marginTop: 16,
-        width: originalWidth,
-        height: originalHeight,
+        width: fixedWidth,
+        height: scaledHeight,
         border: '1px solid #eee',
         borderRadius: 8,
         overflow: 'auto',
@@ -52,13 +55,13 @@ const TestFormPreview = ({ form }) => {
         src={bgUrl}
         alt="formulario"
         style={{
-          width: originalWidth,
-          height: originalHeight,
+          width: fixedWidth,
+          height: scaledHeight,
           display: 'block',
           borderRadius: 8,
         }}
       />
-      {form.fields && originalWidth > 0 && originalHeight > 0 && form.fields.map((field, idx) => (
+      {form.fields && fixedWidth > 0 && scaledHeight > 0 && form.fields.map((field, idx) => (
         <div
           key={idx}
           style={{

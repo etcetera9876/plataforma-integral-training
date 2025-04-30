@@ -81,7 +81,7 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
   const handleBgFileChange = async (e, idx) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Si es imagen, subir y guardar la URL
+    // Si es imagen, subir y guardar la URL y dimensiones originales
     if (file.type.startsWith('image/')) {
       const formData = new FormData();
       formData.append('file', file);
@@ -94,7 +94,16 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
         alert('Error al subir imagen');
         return;
       }
-      handleLocalFormsChange(localForms.map((f, i) => i === idx ? { ...f, bgImage: uploadData.filename } : f));
+      // Obtener dimensiones originales de la imagen
+      const img = new window.Image();
+      img.onload = () => {
+        handleLocalFormsChange(localForms.map((f, i) =>
+          i === idx
+            ? { ...f, bgImage: uploadData.filename, originalWidth: img.naturalWidth, originalHeight: img.naturalHeight }
+            : f
+        ));
+      };
+      img.src = URL.createObjectURL(file);
     } else if (file.type === 'application/pdf') {
       // Subir PDF y convertir a imagen
       const formData = new FormData();
