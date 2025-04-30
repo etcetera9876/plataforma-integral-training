@@ -112,7 +112,7 @@ const AssessmentEditModal = ({
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal assessment-modal-wide" onClick={stopPropagation} style={{ minWidth: 900, maxWidth: 1100, borderRadius: 18, boxShadow: '0 8px 32px rgba(60,60,60,0.18)' }}>
-        <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, margin: '18px 0 24px 0', letterSpacing: 0.5 }}>Editar evaluación</h3>
+        <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, marginTop: 18, marginRight: 0, marginBottom: 24, marginLeft: 0, letterSpacing: 0.5 }}>Editar evaluación</h3>
         <div className="assessment-modal-content" style={{ display: 'flex', gap: 32, alignItems: 'flex-start', justifyContent: 'center', padding: 8 }}>
           {/* Columna izquierda: datos generales */}
           <div className="assessment-modal-left" style={{ flex: 1, minWidth: 420, maxWidth: 540, background: '#fff', borderRadius: 14, boxShadow: '0 2px 8px #e0e0e0', padding: 18, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'stretch', maxHeight: 650, overflowY: 'auto' }}>
@@ -180,11 +180,11 @@ const AssessmentEditModal = ({
                   </label>
                 </div>
               </section>
-              <section className="checklist-section" style={{ marginBottom: '-20px', marginTop: '-30px' }}>
+              <section className="checklist-section" style={{ marginBottom: '-20px', marginTop: '-30px', paddingTop: 10 }}>
                 <div className="check-list" >
                   {assignedMode === "select" && (
                     <div className="modal-field" style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6}}>
-                      <ul style={{ margin: 0, padding: 0, listStyle: 'none'}}>
+                      <ul style={{ marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, padding: 0, listStyle: 'none' }}>
                         {branchUsers.map((user) => (
                           <li key={user._id} className="course-item recruiter-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                             <span className="recruiter-name" style={{ fontSize: 15 }}>{user.name}</span>
@@ -208,7 +208,7 @@ const AssessmentEditModal = ({
                   )}
                 </div>
               </section>
-              <div className="modal-field" style={{ maxWidth: 480, margin: '0 auto', width: '100%', marginTop: 8, marginBottom: 18 }}>
+              <div className="modal-field" style={{ maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', width: '100%', marginTop: 8, marginBottom: 18 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 17, marginBottom: 6, marginTop: 8, gap: 12, width: '100%' }}>
                   <span style={{ marginBottom: 12 }}>Programado</span>
                   <input type="checkbox" checked={showSchedule} onChange={e => setShowSchedule(e.target.checked)} style={{ transform: 'scale(1.2)' }} />

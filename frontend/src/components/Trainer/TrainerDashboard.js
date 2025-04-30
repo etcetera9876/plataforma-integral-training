@@ -315,6 +315,14 @@ const TrainerDashboard = ({ setUser, user }) => {
     return () => clearTimeout(timeout);
   }, [courses, now]);
 
+  useEffect(() => {
+    if (location.state && location.state.successMessage) {
+      setSnackbar({ open: true, message: location.state.successMessage, type: "success" });
+      // Limpia el mensaje del state para evitar que se repita si navega de nuevo
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const handleBranchChange = (e) => {
     setSelectedBranch(e.target.value);
   };
@@ -482,9 +490,8 @@ const TrainerDashboard = ({ setUser, user }) => {
                 <ul className="course-list">
                   {assessments.length > 0 ? (
                     assessments.filter(a => a && a.name).map((assessment, index) => {
-                      // Considera incompleto si no tiene preguntas
-                      const isNewAssessment =
-                        !assessment.questions || assessment.questions.length === 0;
+                      // Considera incompleto si no tiene filtros
+                      const isNewAssessment = !assessment.filters;
                       return (
                         <li
                           key={assessment._id || index}
@@ -550,7 +557,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                           {isNewAssessment && (
                             <div className="incomplete-course-row">
                               <span className="incomplete-course-text">
-                                Evaluación incompleta: agrega preguntas.
+                                Evaluación incompleta: configura los filtros y genera tests personalizados.
                               </span>
                             </div>
                           )}

@@ -126,11 +126,13 @@ const CourseModal = ({
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={stopPropagation}>
-        <h3>Add course for {branchName}:</h3>
+        <h3>Add course for {branchName}</h3>
 
 
         <section className="checklist-section">  
         <div>
+        <h4>Assign to: {branchName}:</h4>
+
   <label className="radio-row">
     <span className="radio-label">All recruiters</span>
     <input

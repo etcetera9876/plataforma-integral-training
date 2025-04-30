@@ -328,14 +328,14 @@ const TestEditPage = () => {
   const handleSave = async (publish = false) => {
     try {
       setError("");
-      setSuccess("");
-      setShowAlert(false);
       const token = localStorage.getItem("token");
+      const selectedBlock = blocks.find(b => b._id === block);
+      const blockWeight = selectedBlock ? selectedBlock.weight : 100;
       const payload = {
         name,
         description,
         branch: branchId,
-        components: [{ block, weight: 100 }],
+        components: [{ block, weight: blockWeight }],
         assignedTo,
         publicationDate: scheduled && publicationDate ? new Date(publicationDate).toISOString() : null,
         expirationDate: scheduled && expirationDate ? new Date(expirationDate).toISOString() : null,
@@ -350,15 +350,15 @@ const TestEditPage = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      setSuccess("Se actualizó el test con éxito");
+      setSuccess("");
       setError("");
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 1000);
+      setShowAlert(false);
+      setTimeout(() => {
+        navigate('/courses-assessments', { state: { branchId, successMessage: "¡Test editado con éxito!" } });
+      }, 800);
       localStorage.removeItem(draftKey);
       setHasDraft(false);
       setShowingDraft(false);
-      // Navegar al dashboard de trainer con el branch seleccionado
-      navigate('/courses-assessments', { state: { branchId } });
     } catch (err) {
       setError("Error al guardar el test");
       setSuccess("");
@@ -370,11 +370,11 @@ const TestEditPage = () => {
   if (loading) return <div>Cargando...</div>;
 
   return (
-    <div style={{ maxWidth: 800, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #e0e0e0", padding: 32 }}>
-      <div style={{ width: '100%', maxWidth: 500, minWidth: 700, margin: '0 auto' }}>
+    <div style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', marginTop: 40, marginBottom: 40, background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #e0e0e0", padding: 32 }}>
+      <div style={{ width: '100%', maxWidth: 500, minWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
         {/* Título principal y botón regresar en la misma fila */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h2 style={{ margin: 0 }}>Editar Test</h2>
+          <h2 style={{ marginTop: 0, marginBottom: 0 }}>Editar Test</h2>
           {/* Botón regresar que mantiene el branch seleccionado */}
           <button
             type="button"
@@ -407,10 +407,10 @@ const TestEditPage = () => {
             </select>
           </div>
           {/* Selector de asignados (igual a los modales de curso, alineado a la izquierda) */}
-          <div className="modal-field" style={{marginTop:25, marginBottom: 16, maxWidth: 480, width: '100%', textAlign: 'left', marginLeft: 0, marginRight: 0 }}>
-          <label>Asignados a</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8, marginTop: 10 }}>
-              <label style={{ fontWeight: 400, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
+          <div className="modal-field" style={{ maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', width: '100%', marginTop: 25, marginBottom: 26 }}>
+            <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 6, textAlign: 'center' }}>Asignados a</div>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 24, justifyContent: 'center', marginBottom: 12 }}>
+              <label style={{ fontWeight: 400, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>Todos los reclutadores</span>
                 <input
                   type="radio"
@@ -418,10 +418,10 @@ const TestEditPage = () => {
                   value="all"
                   checked={assignedMode === "all"}
                   onChange={() => handleAssignedModeChange("all")}
-                  style={{ marginLeft: 8 }}
+                  style={{ marginLeft: 8, transform: 'scale(1.15)' }}
                 />
               </label>
-              <label style={{ fontWeight: 400, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
+              <label style={{ fontWeight: 400, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>Seleccionar reclutadores</span>
                 <input
                   type="radio"
@@ -429,37 +429,33 @@ const TestEditPage = () => {
                   value="select"
                   checked={assignedMode === "select"}
                   onChange={() => handleAssignedModeChange("select")}
-                  style={{ marginLeft: 8 }}
+                  style={{ marginLeft: 8, transform: 'scale(1.15)' }}
                 />
               </label>
             </div>
-            {assignedMode === "select" && branchUsers.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, maxWidth: 480, width: '100%', maxHeight: 120, overflowY: 'auto', margin: 0, border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
-                {branchUsers.map((user) => (
-                  <button
-                    key={user._id}
-                    type="button"
-                    style={recruiterButtonStyle(selectedUsers.includes(user._id))}
-                    onClick={() => handleUserCheckbox(user._id)}
-                  >
-                    {user.name}
-                    <input
-                      type="checkbox"
-                      value={user._id}
-                      checked={selectedUsers.includes(user._id)}
-                      onChange={() => handleUserCheckbox(user._id)}
-                      style={{ display: 'none' }}
-                      tabIndex={-1}
-                    />
-                  </button>
-                ))}
+            {assignedMode === "select" && (
+              <div className="modal-field" style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #000', borderRadius: 10, padding: 10, background: '#fff', marginTop: 0, boxShadow: '0 2px 8px #e0e0e0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', maxWidth: 480 }}>
+                  {branchUsers.map((user) => (
+                    <li key={user._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 8, background: '#fafbfc', borderRadius: 8, boxShadow: '0 1px 4px #e0e0e0', padding: '10px 14px', border: '1px solid #e0e0e0', gap: 8 }}>
+                      <span style={{ flex: 1, fontSize: 15 }}>{user.name}</span>
+                      <input
+                        type="checkbox"
+                        value={user._id}
+                        checked={selectedUsers.includes(user._id)}
+                        onChange={() => handleUserCheckbox(user._id)}
+                        style={{ transform: 'scale(1.15)' }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                {branchUsers.length === 0 && (
+                  <div style={{ fontSize: 14, color: '#888', marginTop: 8, marginLeft: 8 }}>No hay reclutadores disponibles en esta sucursal.</div>
+                )}
               </div>
             )}
-            {assignedMode === "select" && branchUsers.length === 0 && (
-              <div style={{ fontSize: 14, color: '#888', marginTop: 8, marginLeft: 8 }}>No hay reclutadores disponibles en esta sucursal.</div>
-            )}
           </div>
-          <div style={{ marginBottom: 32, padding: 16, background: '#f8f9fa', borderRadius: 10, border: '1.5px solid #e0e0e0' }}>
+          <div style={{ marginTop: 32, marginBottom: 32, padding: 16, background: '#f8f9fa', borderRadius: 10, border: '1.5px solid #e0e0e0' }}>
             <h4 style={{ marginTop: 0 }}>Generar tests personalizados para cada usuario</h4>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <div>
@@ -510,22 +506,8 @@ const TestEditPage = () => {
               </div>
               <button
                 type="button"
-                style={{
-                  height: 38,
-                  alignSelf: 'flex-end',
-                  background: '#d32f2f',
-                  color: '#fff',
-                  border: '2px solid #d32f2f',
-                  borderRadius: 4,
-                  padding: '0 18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px #e0e0e0',
-                  marginTop: 8,
-                  minWidth: 180,
-                  fontSize: 15,
-                  transition: 'all 0.15s',
-                }}
+                className="confirm-button"
+                style={{ minWidth: 220, fontSize: 17, padding: '5px 15px', marginTop: 12 }}
                 disabled={multiLoading}
                 onClick={async () => {
                   setMultiLoading(true);
@@ -533,6 +515,8 @@ const TestEditPage = () => {
                   setMultiMissing([]);
                   try {
                     const token = localStorage.getItem("token");
+                    const selectedBlock = blocks.find(b => b._id === block);
+                    const blockWeight = selectedBlock ? selectedBlock.weight : 100;
                     const res = await axios.post(
                       `${API_URL}/api/assessments/generate-multi`,
                       {
@@ -540,7 +524,7 @@ const TestEditPage = () => {
                         description,
                         branch: branchId,
                         assignedTo: assignedTo.length > 0 ? assignedTo : "All branch",
-                        components: [{ block, weight: 100 }],
+                        components: [{ block, weight: blockWeight }],
                         questionFilters,
                         maxRepeats
                       },
@@ -555,7 +539,9 @@ const TestEditPage = () => {
                     setMultiLoading(false);
                   }
                 }}
-              >Generar tests personalizados</button>
+              >
+                Generar tests personalizados
+              </button>
             </div>
             {/* Previsualización */}
             {multiPreview && (
@@ -606,7 +592,7 @@ const TestEditPage = () => {
           </div>
         </form>
         {/* Botón Guardar fijo y Guardar borrador/Mostrar borrador */}
-        <div style={{ position: 'sticky', bottom: 0, background: '#fff', zIndex: 10, padding: '16px 0 0 0', marginTop: 24, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee', gap: 12 }}>
+        <div style={{ position: 'sticky', bottom: 0, background: '#fff', zIndex: 10, paddingTop: 16, marginTop: 24, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee', gap: 12 }}>
           <button
             type="button"
             style={{ background: '#e0e0e0', color: '#444', border: 'none', borderRadius: 8, padding: '10px 18px', fontWeight: 500, fontSize: 15, marginRight: 8, opacity: 0.85, transition: 'all 0.15s', minWidth: 140, cursor: 'pointer' }}
@@ -652,14 +638,14 @@ function TestPreviewModal({ test, userName, onClose }) {
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, minWidth: 340, maxWidth: 900, maxHeight: '90vh', overflowY: 'auto', position: 'relative', fontFamily: 'inherit' }} onClick={e => e.stopPropagation()}>
         <button style={{ position: 'absolute', top: 12, right: 16, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={onClose}>✕</button>
-        <h2 style={{ margin: '0 0 8px 0', fontWeight: 700, fontSize: 22, color: '#1976d2', letterSpacing: 0.2 }}>{test.name || 'Test sin nombre'}</h2>
+        <h2 style={{ marginTop: 0, marginRight: 0, marginBottom: 8, marginLeft: 0, fontWeight: 700, fontSize: 22, color: '#1976d2', letterSpacing: 0.2 }}>{test.name || 'Test sin nombre'}</h2>
         {test.description && <div style={{ marginBottom: 12, color: '#444', fontSize: 16, fontWeight: 400 }}>{test.description}</div>}
         {test.blockLabel && (
-          <div style={{ marginBottom: 18, padding: '8px 0', borderBottom: '1.5px solid #e3e3e3', color: '#1976d2', fontWeight: 500, fontSize: 15 }}>
+          <div style={{ marginTop: 8, marginBottom: 18, paddingTop: 8, paddingBottom: 8, borderBottom: '1.5px solid #e3e3e3', color: '#1976d2', fontWeight: 500, fontSize: 15 }}>
             {test.blockLabel}
           </div>
         )}
-        <ol style={{ paddingLeft: 20, margin: 0 }}>
+        <ol style={{ paddingLeft: 20, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0 }}>
           {test.questions.map((q, idx) => (
             <li key={q._id || idx} style={{ marginBottom: 24 }}>
               <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 8 }}>{q.statement || q.text}</div>
@@ -702,13 +688,13 @@ function TestPreviewModal({ test, userName, onClose }) {
               )}
               {/* Formulario dinámico */}
               {q.type === 'form-dynamic' && Array.isArray(q.forms) && q.forms.length > 0 && (
-                <div style={{ margin: '16px 0', border: '1.5px solid #e0e0e0', borderRadius: 10, background: '#f8f9fa', padding: 12 }}>
+                <div style={{ marginTop: 16, marginBottom: 16, border: '1.5px solid #e0e0e0', borderRadius: 10, background: '#f8f9fa', padding: 12 }}>
                   <TestFormPreview form={q.forms[0]} editable={true} />
                 </div>
               )}
               {/* Si no hay tipo, solo muestra opciones si existen */}
               {!q.type && Array.isArray(q.options) && (
-                <ul style={{ margin: '4px 0 0 12px', padding: 0 }}>
+                <ul style={{ marginTop: 4, marginRight: 0, marginBottom: 0, marginLeft: 12, padding: 0 }}>
                   {q.options.map((opt, i) => (
                     <li key={i} style={{ listStyle: 'circle', fontWeight: 400 }}>{opt}</li>
                   ))}
@@ -730,7 +716,7 @@ function TestPreviewThumbnail({ test, blockLabel }) {
       <div style={{ fontWeight: 700, color: '#1976d2', marginBottom: 2, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{test.name || 'Test sin nombre'}</div>
       {test.description && <div style={{ color: '#444', fontSize: 12, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{test.description}</div>}
       {blockLabel && <div style={{ color: '#1976d2', fontWeight: 500, fontSize: 12, marginBottom: 2 }}>{blockLabel}</div>}
-      <ol style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: '#333', maxHeight: 60, overflow: 'hidden' }}>
+      <ol style={{ paddingLeft: 16, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, fontSize: 12, color: '#333', maxHeight: 60, overflow: 'hidden' }}>
         {test.questions.slice(0, 2).map((q, idx) => (
           <li key={q._id || idx} style={{ marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {q.statement || q.text}
