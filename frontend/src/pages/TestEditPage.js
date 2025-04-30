@@ -249,6 +249,72 @@ const TestEditPage = () => {
     return localISO;
   }
 
+  // Obtener el userId del localStorage (ajusta si tu app lo guarda diferente)
+  const userId = localStorage.getItem('userId');
+  const draftKey = `draft_test_${id}_${userId}`;
+  const [hasDraft, setHasDraft] = useState(false);
+  const [showingDraft, setShowingDraft] = useState(false);
+
+  // Al cargar, verifica si hay borrador
+  useEffect(() => {
+    if (localStorage.getItem(draftKey)) {
+      setHasDraft(true);
+    } else {
+      setHasDraft(false);
+    }
+  }, [draftKey]);
+
+  // Guardar borrador
+  const handleSaveDraft = () => {
+    try {
+      const draft = {
+        name,
+        description,
+        block,
+        assignedTo,
+        scheduled,
+        publicationDate,
+        expirationDate,
+        questionFilters,
+        maxRepeats,
+        multiPreview,
+        multiMissing
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+      setHasDraft(true);
+      setShowingDraft(false);
+      setSuccess('¡Borrador guardado con éxito!');
+      setError('');
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 2000);
+    } catch (e) {
+      setError('Error al guardar el borrador');
+      setSuccess('');
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 2000);
+    }
+  };
+
+  // Mostrar borrador
+  const handleShowDraft = () => {
+    const draft = JSON.parse(localStorage.getItem(draftKey));
+    if (draft) {
+      setName(draft.name || "");
+      setDescription(draft.description || "");
+      setBlock(draft.block || "");
+      setAssignedTo(draft.assignedTo || []);
+      setScheduled(draft.scheduled || false);
+      setPublicationDate(draft.publicationDate || "");
+      setExpirationDate(draft.expirationDate || "");
+      setQuestionFilters(draft.questionFilters || { difficulty: "", topic: "", counts: {} });
+      setMaxRepeats(draft.maxRepeats || 1);
+      setMultiPreview(draft.multiPreview || null);
+      setMultiMissing(draft.multiMissing || []);
+      setShowingDraft(true);
+    }
+  };
+
+  // Al guardar en BD, limpia el borrador
   const handleSave = async (publish = false) => {
     try {
       setError("");
@@ -259,22 +325,26 @@ const TestEditPage = () => {
         name,
         description,
         branch: branchId,
-        components: [{ block, weight: 100 }], // Por ahora solo un bloque, puedes adaptar para varios
+        components: [{ block, weight: 100 }],
         assignedTo,
         publicationDate: scheduled && publicationDate ? new Date(publicationDate).toISOString() : null,
         expirationDate: scheduled && expirationDate ? new Date(expirationDate).toISOString() : null,
-        // ...agrega aquí preguntas, etc. en siguientes pasos
       };
       await axios.put(`/api/assessments/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setSuccess(publish ? "Test publicado con éxito" : "Borrador guardado");
+      setSuccess("Se actualizó el test con éxito");
+      setError("");
       setShowAlert(true);
-      // Opcional: redirigir después de guardar
-      // navigate("/tests");
+      setTimeout(() => setShowAlert(false), 2000);
+      localStorage.removeItem(draftKey);
+      setHasDraft(false);
+      setShowingDraft(false);
     } catch (err) {
       setError("Error al guardar el test");
+      setSuccess("");
       setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 2000);
     }
   };
 
@@ -345,19 +415,26 @@ const TestEditPage = () => {
               </label>
             </div>
             {assignedMode === "select" && branchUsers.length > 0 && (
-              <ul style={{ paddingLeft: 18, maxWidth: 480, width: '100%', maxHeight: 120, overflowY: 'auto', margin: 0, border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, maxWidth: 480, width: '100%', maxHeight: 120, overflowY: 'auto', margin: 0, border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
                 {branchUsers.map((user) => (
-                  <li key={user._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ flex: 1 }}>{user.name}</span>
+                  <button
+                    key={user._id}
+                    type="button"
+                    style={recruiterButtonStyle(selectedUsers.includes(user._id))}
+                    onClick={() => handleUserCheckbox(user._id)}
+                  >
+                    {user.name}
                     <input
                       type="checkbox"
                       value={user._id}
                       checked={selectedUsers.includes(user._id)}
                       onChange={() => handleUserCheckbox(user._id)}
+                      style={{ display: 'none' }}
+                      tabIndex={-1}
                     />
-                  </li>
+                  </button>
                 ))}
-              </ul>
+              </div>
             )}
             {assignedMode === "select" && branchUsers.length === 0 && (
               <div style={{ fontSize: 14, color: '#888', marginTop: 8, marginLeft: 8 }}>No hay reclutadores disponibles en esta sucursal.</div>
@@ -414,7 +491,22 @@ const TestEditPage = () => {
               </div>
               <button
                 type="button"
-                style={{ height: 38, alignSelf: 'flex-end', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, padding: '0 18px', fontWeight: 600, cursor: 'pointer' }}
+                style={{
+                  height: 38,
+                  alignSelf: 'flex-end',
+                  background: '#d32f2f',
+                  color: '#fff',
+                  border: '2px solid #d32f2f',
+                  borderRadius: 4,
+                  padding: '0 18px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px #e0e0e0',
+                  marginTop: 8,
+                  minWidth: 180,
+                  fontSize: 15,
+                  transition: 'all 0.15s',
+                }}
                 disabled={multiLoading}
                 onClick={async () => {
                   setMultiLoading(true);
@@ -494,8 +586,15 @@ const TestEditPage = () => {
             )}
           </div>
         </form>
-        {/* Botón Guardar fijo */}
-        <div style={{ position: 'sticky', bottom: 0, background: '#fff', zIndex: 10, padding: '16px 0 0 0', marginTop: 24, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee' }}>
+        {/* Botón Guardar fijo y Guardar borrador/Mostrar borrador */}
+        <div style={{ position: 'sticky', bottom: 0, background: '#fff', zIndex: 10, padding: '16px 0 0 0', marginTop: 24, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee', gap: 12 }}>
+          <button
+            type="button"
+            style={{ background: '#e0e0e0', color: '#444', border: 'none', borderRadius: 8, padding: '10px 18px', fontWeight: 500, fontSize: 15, marginRight: 8, opacity: 0.85, transition: 'all 0.15s', minWidth: 140, cursor: 'pointer' }}
+            onClick={hasDraft && !showingDraft ? handleShowDraft : handleSaveDraft}
+          >
+            {hasDraft && !showingDraft ? 'Mostrar borrador' : 'Guardar borrador'}
+          </button>
           <button
             type="button"
             style={{ background: '#1976d2', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 32px', fontWeight: 600, fontSize: 17, boxShadow: '0 1px 4px #e0e0e0', cursor: 'pointer' }}
@@ -623,5 +722,23 @@ function TestPreviewThumbnail({ test, blockLabel }) {
     </div>
   );
 }
+
+// 1. ESTILO RECLUTADORES COMO BOTÓN ROJO
+const recruiterButtonStyle = (selected) => ({
+  background: selected ? '#d32f2f' : '#fff',
+  color: selected ? '#fff' : '#d32f2f',
+  border: '2px solid #d32f2f',
+  borderRadius: 4,
+  padding: '4px 12px',
+  fontWeight: 600,
+  fontSize: 14,
+  cursor: 'pointer',
+  marginRight: 8,
+  marginBottom: 6,
+  outline: selected ? '2px solid #b71c1c' : 'none',
+  transition: 'all 0.15s',
+  minWidth: 120,
+  display: 'inline-block',
+});
 
 export default TestEditPage;
