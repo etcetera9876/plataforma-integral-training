@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import AlertMessage from "../components/Trainer/AlertMessage";
-import TestQuestionsEditor from "../components/Trainer/TestQuestionsEditor";
-import TestFormBuilder from "../components/Trainer/TestFormBuilder";
 import API_URL from "../config";
 
 const QUESTION_TYPES = [
@@ -33,13 +31,18 @@ const TestEditPage = () => {
   const [block, setBlock] = useState("");
   const [blocks, setBlocks] = useState([]);
   const [assignedTo, setAssignedTo] = useState([]);
+  const [assignedMode, setAssignedMode] = useState("select");
+  const [branchUsers, setBranchUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState(
+    Array.isArray(assignedTo) && assignedTo[0] !== "All recruiters"
+      ? assignedTo
+      : []
+  );
   const [scheduled, setScheduled] = useState(false);
   const [publicationDate, setPublicationDate] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [branchId, setBranchId] = useState("");
   const [showAlert, setShowAlert] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [forms, setForms] = useState([]);
   const [questionFilters, setQuestionFilters] = useState({
     difficulty: "",
     topic: "",
@@ -51,7 +54,6 @@ const TestEditPage = () => {
   const [multiMissing, setMultiMissing] = useState([]);
   const [multiLoading, setMultiLoading] = useState(false);
   const [userNamesMap, setUserNamesMap] = useState({});
-  const [branchUsers, setBranchUsers] = useState([]);
   const [previewTest, setPreviewTest] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -143,7 +145,6 @@ const TestEditPage = () => {
         } else {
           setScheduled(false);
         }
-        if (data.questions) setQuestions(data.questions);
         // Si tienes formularios en el backend, también puedes cargarlos aquí
         // if (data.forms) setForms(data.forms);
         // Cargar bloques disponibles para la sucursal
@@ -163,27 +164,68 @@ const TestEditPage = () => {
     fetchTest();
   }, [id]);
 
-  // Cargar usuarios del branch si es All branch o si hay asignados específicos
+  // Sincroniza assignedMode y selectedUsers SOLO cuando assignedTo cambia por la carga del test
   useEffect(() => {
-    async function fetchBranchUsers() {
-      if (!branchId) return;
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_URL}/api/users/branch/${branchId}/users`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setBranchUsers(res.data);
-        // Crear un mapa de IDs a nombres para acceso rápido (asegurando que la clave sea string)
-        const namesMap = {};
-        res.data.forEach(u => { namesMap[String(u._id)] = u.name; });
-        setUserNamesMap(namesMap);
-      } catch {
-        setBranchUsers([]);
-        setUserNamesMap({});
+    if (Array.isArray(assignedTo) && assignedTo.length > 0) {
+      if (assignedTo[0] === "All recruiters") {
+        setAssignedMode("all");
+        setSelectedUsers([]);
+      } else {
+        setAssignedMode("select");
+        setSelectedUsers(assignedTo);
       }
     }
-    fetchBranchUsers();
-  }, [branchId]);
+  }, [assignedTo]);
+
+  // Handler para radio
+  const handleAssignedModeChange = (mode) => {
+    setAssignedMode(mode);
+    if (mode === "all") {
+      setAssignedTo(["All recruiters"]);
+      setSelectedUsers([]);
+      setBranchUsers([]);
+    } else if (mode === "select" && branchId) {
+      // Forzar recarga inmediata
+      axios
+        .get(`${API_URL}/api/users/branch/${branchId}/users`)
+        .then((response) => setBranchUsers(response.data))
+        .catch(() => setBranchUsers([]));
+      setAssignedTo(selectedUsers);
+    }
+  };
+
+  // Handler para checkboxes
+  const handleUserCheckbox = (userId) => {
+    setSelectedUsers((prev) => {
+      let updated;
+      if (prev.includes(userId)) {
+        updated = prev.filter((id) => id !== userId);
+      } else {
+        updated = [...prev, userId];
+      }
+      setAssignedTo(updated);
+      return updated;
+    });
+  };
+
+  // Cargar usuarios del branch cuando assignedMode o branchId cambian
+  useEffect(() => {
+    console.log('DEBUG assignedMode:', assignedMode, 'branchId:', branchId);
+    if (assignedMode === "select" && branchId) {
+      axios
+        .get(`${API_URL}/api/users/branch/${branchId}/users`)
+        .then((response) => {
+          console.log('DEBUG branchUsers response:', response.data);
+          setBranchUsers(response.data);
+        })
+        .catch((err) => {
+          console.error('DEBUG error fetching branchUsers:', err);
+          setBranchUsers([]);
+        });
+    } else if (assignedMode !== "select") {
+      setBranchUsers([]); // Limpia la lista si no está en modo select
+    }
+  }, [assignedMode, branchId]);
 
   // Hook para asegurar que todos los userIds de multiPreview estén en userNamesMap
   useEffect(() => {
@@ -268,32 +310,57 @@ const TestEditPage = () => {
           </div>
           <div style={{ marginBottom: 16 }}>
             <label>Bloque</label>
-            <select value={block} onChange={e => setBlock(e.target.value)} style={{ width: "100%" }} required>
+            <select value={block} onChange={e => setBlock(e.target.value)} style={{ width: "100%", borderRadius: 8, padding: 8, border: '1.5px solid #e0e0e0' }} required>
               <option value="">Selecciona un bloque</option>
               {blocks.map(b => (
                 <option key={b._id} value={b._id}>{b.label}</option>
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <label>Asignados a</label>
-            <input type="text" value={assignedTo.join(", ")} readOnly style={{ width: "100%" }} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label>
-              <input type="checkbox" checked={scheduled} onChange={e => setScheduled(e.target.checked)} /> Programado
-            </label>
-            {scheduled && (
-              <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-                <div>
-                  <label>Fecha de publicación</label>
-                  <input type="datetime-local" value={publicationDate} onChange={e => setPublicationDate(e.target.value)} />
-                </div>
-                <div>
-                  <label>Fecha de expiración</label>
-                  <input type="datetime-local" value={expirationDate} onChange={e => setExpirationDate(e.target.value)} />
-                </div>
-              </div>
+          {/* Selector de asignados (igual a los modales de curso, alineado a la izquierda) */}
+          <div className="modal-field" style={{marginTop:25, marginBottom: 16, maxWidth: 480, width: '100%', textAlign: 'left', marginLeft: 0, marginRight: 0 }}>
+          <label>Asignados a</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8, marginTop: 10 }}>
+              <label style={{ fontWeight: 400, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
+                <span>Todos los reclutadores</span>
+                <input
+                  type="radio"
+                  name="assignedMode"
+                  value="all"
+                  checked={assignedMode === "all"}
+                  onChange={() => handleAssignedModeChange("all")}
+                  style={{ marginLeft: 8 }}
+                />
+              </label>
+              <label style={{ fontWeight: 400, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
+                <span>Seleccionar reclutadores</span>
+                <input
+                  type="radio"
+                  name="assignedMode"
+                  value="select"
+                  checked={assignedMode === "select"}
+                  onChange={() => handleAssignedModeChange("select")}
+                  style={{ marginLeft: 8 }}
+                />
+              </label>
+            </div>
+            {assignedMode === "select" && branchUsers.length > 0 && (
+              <ul style={{ paddingLeft: 18, maxWidth: 480, width: '100%', maxHeight: 120, overflowY: 'auto', margin: 0, border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
+                {branchUsers.map((user) => (
+                  <li key={user._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ flex: 1 }}>{user.name}</span>
+                    <input
+                      type="checkbox"
+                      value={user._id}
+                      checked={selectedUsers.includes(user._id)}
+                      onChange={() => handleUserCheckbox(user._id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {assignedMode === "select" && branchUsers.length === 0 && (
+              <div style={{ fontSize: 14, color: '#888', marginTop: 8, marginLeft: 8 }}>No hay reclutadores disponibles en esta sucursal.</div>
             )}
           </div>
           <div style={{ marginBottom: 32, padding: 16, background: '#f8f9fa', borderRadius: 10, border: '1.5px solid #e0e0e0' }}>
@@ -305,6 +372,7 @@ const TestEditPage = () => {
                   value={questionFilters.difficulty}
                   onChange={e => setQuestionFilters(f => ({ ...f, difficulty: e.target.value }))}
                   required
+                  style={{ width: '100%', borderRadius: 8, padding: 8, border: '1.5px solid #e0e0e0' }}
                 >
                   <option value="">Selecciona dificultad</option>
                   {DIFFICULTY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -399,34 +467,21 @@ const TestEditPage = () => {
                 <div style={{ display: 'flex', gap: 18, overflowX: 'auto', border: "1px solid #eee", borderRadius: 8, background: "#fafbfc", padding: 8, minHeight: 180 }}>
                   {multiPreview.map((test, idx) => {
                     const userName = userNamesMap[String(test.userId)] || test.userId;
-                    // Obtener label del bloque
                     const blockLabel = (blocks.find(b => b._id === (test.block || test.components?.[0]?.block))?.label) || '';
                     return (
-                      <div key={idx} style={{ minWidth: 260, maxWidth: 340, flex: '0 0 260px', background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0', padding: 14, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div key={idx} style={{ minWidth: 260, maxWidth: 340, flex: '0 0 260px', background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0', padding: 14, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }}
+                        onClick={() => { setPreviewTest({ ...test, blockLabel }); setShowPreview(true); }}
+                      >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <b style={{ fontSize: 16 }}>Test para {userName}</b>
-                          <button
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, marginLeft: 4 }}
-                            title="Ver previsualización"
-                            onClick={e => { e.stopPropagation(); e.preventDefault(); setPreviewTest({ ...test, blockLabel }); setShowPreview(true); }}
-                          >
-                            👁️
-                          </button>
                         </div>
-                        <ul style={{ marginTop: 6, paddingLeft: 18, width: '100%' }}>
-                          {test.questions.map((q, i) => (
-                            <li key={q._id || i} style={{ marginBottom: 10 }}>
-                              <div style={{ fontWeight: 500 }}>{q.statement || q.text}</div>
-                              {Array.isArray(q.options) && q.options.length > 0 && (
-                                <ul style={{ margin: '4px 0 0 12px', padding: 0 }}>
-                                  {q.options.map((opt, j) => (
-                                    <li key={j} style={{ listStyle: 'circle', fontWeight: 400 }}>{opt}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                        {/* Miniatura de previsualización */}
+                        <div style={{ width: '100%', maxWidth: 300, maxHeight: 120, overflow: 'hidden', borderRadius: 6, border: '1px solid #e0e0e0', background: '#f8f9fa', pointerEvents: 'none', opacity: 0.95 }}>
+                          <TestPreviewThumbnail test={test} blockLabel={blockLabel} />
+                        </div>
+                        <div style={{ marginTop: 8, color: '#1976d2', fontSize: 13, fontWeight: 500, textAlign: 'center', width: '100%' }}>
+                          Click para vista previa
+                        </div>
                       </div>
                     );
                   })}
@@ -545,6 +600,26 @@ function TestPreviewModal({ test, userName, onClose }) {
           ))}
         </ol>
       </div>
+    </div>
+  );
+}
+
+// Miniatura de previsualización (versión reducida, no interactiva)
+function TestPreviewThumbnail({ test, blockLabel }) {
+  // Solo muestra el nombre, descripción y primer bloque de preguntas, sin interacción
+  return (
+    <div style={{ padding: 8, fontSize: 13 }}>
+      <div style={{ fontWeight: 700, color: '#1976d2', marginBottom: 2, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{test.name || 'Test sin nombre'}</div>
+      {test.description && <div style={{ color: '#444', fontSize: 12, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{test.description}</div>}
+      {blockLabel && <div style={{ color: '#1976d2', fontWeight: 500, fontSize: 12, marginBottom: 2 }}>{blockLabel}</div>}
+      <ol style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: '#333', maxHeight: 60, overflow: 'hidden' }}>
+        {test.questions.slice(0, 2).map((q, idx) => (
+          <li key={q._id || idx} style={{ marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {q.statement || q.text}
+          </li>
+        ))}
+        {test.questions.length > 2 && <li style={{ color: '#888' }}>...y más</li>}
+      </ol>
     </div>
   );
 }

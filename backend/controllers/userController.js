@@ -42,16 +42,28 @@ async function updateUserRole(req, res) {
 }
 
 // Listar usuarios por sucursal
-async function getUsersByBranch(req, res) { // Asegúrate de que esta función esté definida
+async function getUsersByBranch(req, res) {
   try {
     const { branchId } = req.params;
     console.log("Branch ID recibido:", branchId);
-
     if (!branchId) {
       return res.status(400).json({ message: "Branch ID is required" });
     }
-
-    const users = await User.find({ place: branchId });
+    let users = [];
+    const Branch = require('../models/branch');
+    // Si branchId es un ObjectId válido, busca el nombre del branch
+    if (mongoose.Types.ObjectId.isValid(branchId)) {
+      const branch = await Branch.findById(branchId);
+      if (branch) {
+        users = await User.find({ place: branch.name });
+      } else {
+        // Si no existe el branch, intenta buscar usuarios por place igual al branchId (por compatibilidad)
+        users = await User.find({ place: branchId });
+      }
+    } else {
+      // Si no es ObjectId, úsalo directamente como nombre del branch
+      users = await User.find({ place: branchId });
+    }
     console.log("Usuarios encontrados:", users);
     res.status(200).json(users);
   } catch (error) {
