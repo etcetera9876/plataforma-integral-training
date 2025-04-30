@@ -145,14 +145,24 @@ const TestEditPage = () => {
         } else {
           setScheduled(false);
         }
-        // Si tienes formularios en el backend, también puedes cargarlos aquí
-        // if (data.forms) setForms(data.forms);
         // Cargar bloques disponibles para la sucursal
         if (data.branch) {
           const blocksRes = await axios.get(`${API_URL}/api/assessments/blocks/${data.branch}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           setBlocks(blocksRes.data);
+        }
+        // Cargar subtests guardados
+        const subtestsRes = await axios.get(`${API_URL}/api/assessments/${id}/subtests`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (Array.isArray(subtestsRes.data) && subtestsRes.data.length > 0) {
+          setMultiPreview(subtestsRes.data);
+        }
+        // Precargar filtros si existen en el assessment
+        if (data.filters) {
+          setQuestionFilters(data.filters.questionFilters || questionFilters);
+          setMaxRepeats(data.filters.maxRepeats || 1);
         }
       } catch (err) {
         setError("Error al cargar el test");
@@ -210,16 +220,16 @@ const TestEditPage = () => {
 
   // Cargar usuarios del branch cuando assignedMode o branchId cambian
   useEffect(() => {
-    console.log('DEBUG assignedMode:', assignedMode, 'branchId:', branchId);
+    
     if (assignedMode === "select" && branchId) {
       axios
         .get(`${API_URL}/api/users/branch/${branchId}/users`)
         .then((response) => {
-          console.log('DEBUG branchUsers response:', response.data);
+        
           setBranchUsers(response.data);
         })
         .catch((err) => {
-          console.error('DEBUG error fetching branchUsers:', err);
+       
           setBranchUsers([]);
         });
     } else if (assignedMode !== "select") {
@@ -314,7 +324,7 @@ const TestEditPage = () => {
     }
   };
 
-  // Al guardar en BD, limpia el borrador
+  // Al guardar en BD, limpia el borrador y guarda subtests si existen
   const handleSave = async (publish = false) => {
     try {
       setError("");
@@ -329,17 +339,26 @@ const TestEditPage = () => {
         assignedTo,
         publicationDate: scheduled && publicationDate ? new Date(publicationDate).toISOString() : null,
         expirationDate: scheduled && expirationDate ? new Date(expirationDate).toISOString() : null,
+        filters: { questionFilters, maxRepeats },
       };
       await axios.put(`/api/assessments/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // Si hay subtests generados, guárdalos
+      if (multiPreview && Array.isArray(multiPreview) && multiPreview.length > 0) {
+        await axios.post(`/api/assessments/${id}/subtests`, { subtests: multiPreview }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
       setSuccess("Se actualizó el test con éxito");
       setError("");
       setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 2000);
+      setTimeout(() => setShowAlert(false), 1000);
       localStorage.removeItem(draftKey);
       setHasDraft(false);
       setShowingDraft(false);
+      // Navegar al dashboard de trainer con el branch seleccionado
+      navigate('/courses-assessments', { state: { branchId } });
     } catch (err) {
       setError("Error al guardar el test");
       setSuccess("");
@@ -659,7 +678,7 @@ function TestPreviewModal({ test, userName, onClose }) {
               {q.type === 'single' && Array.isArray(q.options) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginLeft: 0 }}>
                   {q.options.map((opt, i) => (
-                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0, marginBottom: 6, marginRight: 570 }}>
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0, marginBottom: 6, marginRight: 670 }}>
                       <input type="radio" name={`q${idx}`} checked={answers[idx] === opt} onChange={() => handleChange(idx, opt)} style={{ marginRight: 8 }} />
                       <span>{opt}</span>
                     </label>
@@ -670,7 +689,7 @@ function TestPreviewModal({ test, userName, onClose }) {
               {q.type === 'multiple' && Array.isArray(q.options) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginLeft: 0 }}>
                   {q.options.map((opt, i) => (
-                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0, marginBottom: 6, marginRight: 570 }}>
+                    <label key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', fontWeight: 400, gap: 0, marginBottom: 6, marginRight: 670 }}>
                       <input type="checkbox" name={`q${idx}`} checked={Array.isArray(answers[idx]) && answers[idx].includes(opt)} onChange={() => handleCheckbox(idx, opt)} style={{ marginRight: 8 }} />
                       <span>{opt}</span>
                     </label>

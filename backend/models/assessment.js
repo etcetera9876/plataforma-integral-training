@@ -39,6 +39,10 @@ const AssessmentSchema = new mongoose.Schema({
     enum: ['multiple-choice', 'single-choice', 'true-false', 'open', 'case'],
     default: 'multiple-choice',
   },
+  filters: {
+    type: Object,
+    default: null
+  }, // Filtros y repeticiones usados para generar subtests
   questions: [QuestionSchema],
 });
 

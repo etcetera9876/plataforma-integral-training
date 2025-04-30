@@ -34,6 +34,12 @@ router.put('/:id', authMiddleware, assessmentController.updateAssessment);
 router.delete('/:id', authMiddleware, assessmentController.deleteAssessment);
 router.patch('/:id/toggle-lock', authMiddleware, assessmentController.toggleLockAssessment);
 
+// Guardar subtests personalizados para un assessment
+router.post('/:id/subtests', authMiddleware, assessmentController.saveSubtests);
+
+// Obtener subtests de un assessment
+router.get('/:id/subtests', authMiddleware, assessmentController.getSubtests);
+
 // Generar tests personalizados para múltiples usuarios
 router.post('/generate-multi', authMiddleware, assessmentController.generateMultiAssessments);
 

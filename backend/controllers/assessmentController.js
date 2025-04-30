@@ -4,6 +4,7 @@ const Block = require('../models/block');
 const { exec } = require("child_process");
 const path = require("path");
 const multer = require("multer");
+const Subtest = require('../models/subtest');
 
 // Configuración de multer para guardar archivos en /uploads
 const storage = multer.diskStorage({
@@ -120,7 +121,7 @@ exports.getAssessmentById = async (req, res) => {
 exports.updateAssessment = async (req, res) => {
   try {
     const { id } = req.params;
-    let { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType } = req.body;
+    let { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType, filters } = req.body;
     // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
     let adaptedComponents = components;
     if (Array.isArray(components) && (typeof components[0] === 'string' || typeof components[0] === 'number')) {
@@ -139,7 +140,7 @@ exports.updateAssessment = async (req, res) => {
     }));
     const updated = await Assessment.findByIdAndUpdate(
       id,
-      { name, description, branch, components: componentsWithLabels, block, publicationDate, expirationDate, assignedTo, questions, evaluationType },
+      { name, description, branch, components: componentsWithLabels, block, publicationDate, expirationDate, assignedTo, questions, evaluationType, filters },
       { new: true }
     );
     if (!updated) {
@@ -154,6 +155,9 @@ exports.updateAssessment = async (req, res) => {
 exports.deleteAssessment = async (req, res) => {
   try {
     const { id } = req.params;
+    // Eliminar subtests relacionados antes de eliminar el assessment principal
+    const Subtest = require('../models/subtest');
+    await Subtest.deleteMany({ assessment: id });
     const deleted = await Assessment.findByIdAndDelete(id);
     if (!deleted) {
       return res.status(404).json({ message: 'Evaluación no encontrada' });
@@ -255,6 +259,52 @@ exports.generateMultiAssessments = async (req, res) => {
     res.json({ tests, missing });
   } catch (error) {
     res.status(500).json({ message: 'Error al generar tests personalizados', error: error.message });
+  }
+};
+
+// Guardar subtests personalizados para un assessment
+exports.saveSubtests = async (req, res) => {
+  try {
+    const { id } = req.params; // assessmentId
+    const { subtests } = req.body;
+    if (!Array.isArray(subtests) || subtests.length === 0) {
+      return res.status(400).json({ message: 'No se enviaron subtests' });
+    }
+    // Validar que el assessment existe
+    const assessment = await Assessment.findById(id);
+    if (!assessment) {
+      return res.status(404).json({ message: 'Assessment no encontrado' });
+    }
+    // Guardar cada subtest
+    const created = [];
+    for (const st of subtests) {
+      if (!st.userId || !st.questions || !Array.isArray(st.questions)) continue;
+      const subtest = new Subtest({
+        assessment: id,
+        userId: st.userId,
+        name: st.name || assessment.name,
+        description: st.description || assessment.description,
+        block: st.block || (assessment.components && assessment.components[0]?.block),
+        questions: st.questions,
+      });
+      await subtest.save();
+      created.push(subtest);
+    }
+    res.status(201).json({ message: 'Subtests guardados', subtests: created });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al guardar subtests', error: error.message });
+  }
+};
+
+// Obtener subtests de un assessment
+exports.getSubtests = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Subtest = require('../models/subtest');
+    const subtests = await Subtest.find({ assessment: id });
+    res.json(subtests);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener subtests', error: error.message });
   }
 };
 
