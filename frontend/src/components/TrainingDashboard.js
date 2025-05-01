@@ -9,6 +9,7 @@ const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
   const [allCourses, setAllCourses] = useState([]); // Guardar todos los cursos del backend
   const [courses, setCourses] = useState([]); // Cursos filtrados
+  const [assessments, setAssessments] = useState([]); // Evaluaciones asignadas
   const [socket, setSocket] = useState(null); // Estado para almacenar la instancia de socket
   const [now, setNow] = useState(new Date()); // Estado para actualización automática
 
@@ -95,6 +96,27 @@ const TrainingDashboard = ({ setUser, user }) => {
       });
   }, [user]);
 
+  // Obtener las evaluaciones asignadas desde el backend
+  useEffect(() => {
+    if (!user) return;
+    axios
+      .get('/api/assessments/assigned', {
+        params: {
+          userId: user.id,
+          branchId: user.branchId,
+        },
+        headers: {
+          Authorization: localStorage.getItem('token')
+        }
+      })
+      .then((response) => {
+        setAssessments(response.data);
+      })
+      .catch((error) => {
+        console.error("Error al obtener las evaluaciones:", error);
+      });
+  }, [user]);
+
   // Filtrar cursos en el frontend cada vez que cambian allCourses, user o now
   useEffect(() => {
     if (!user) return;
@@ -145,6 +167,45 @@ const TrainingDashboard = ({ setUser, user }) => {
             </div>
           ) : (
             <p className="training-empty-message">No tienes cursos creados aún.</p>
+          )}
+        </section>
+
+        <section className="training-assessments-section">
+          <h2>Tus Evaluaciones</h2>
+          {assessments.length > 0 ? (
+            <div className="training-course-list scrollable-container">
+              {assessments.map((assessment) => (
+                <div
+                  key={assessment._id}
+                  className="training-course-item"
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    minWidth: 260,
+                    maxWidth: 320,
+                    margin: '0 16px 24px 0',
+                    background: '#fff',
+                    borderRadius: 10,
+                    boxShadow: '0 2px 8px #e0e0e0',
+                    padding: 18,
+                    display: 'inline-block',
+                    verticalAlign: 'top'
+                  }}
+                >
+                  <h3 className="training-course-title">{assessment.name}</h3>
+                  <p className="training-course-info">{assessment.description}</p>
+                  <button
+                    className="confirm-button"
+                    style={{ marginTop: 12 }}
+                    onClick={() => navigate(`/assessment/${assessment._id}`)}
+                  >
+                    Resolver evaluación
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="training-empty-message">No tienes evaluaciones asignadas aún.</p>
           )}
         </section>
 

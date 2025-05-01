@@ -32,7 +32,7 @@ exports.getAssessments = async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(branchId)) {
         return res.status(400).json({ message: 'branchId inválido' });
       }
-      filter.branch = branchId;
+      filter.branch = new mongoose.Types.ObjectId(branchId);
     } else if (branchId === 'Global') {
       filter.branch = 'Global';
     }
@@ -307,6 +307,34 @@ exports.getSubtests = async (req, res) => {
     res.json(subtests);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener subtests', error: error.message });
+  }
+};
+
+// Obtener evaluaciones asignadas a un usuario y branch
+exports.getAssignedAssessments = async (req, res) => {
+  try {
+    console.log('--- getAssignedAssessments called ---');
+    const { userId, branchId } = req.query;
+    console.log('Params:', { userId, branchId });
+    if (!userId || !branchId) {
+      console.log('Faltan parámetros');
+      return res.status(400).json({ message: 'Faltan parámetros userId o branchId' });
+    }
+    const branchObjectId = mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : branchId;
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+    console.log('Mongo filter:', {
+      branch: branchObjectId,
+      assignedTo: { $in: [userId, userObjectId, "All recruiters"] }
+    });
+    const assessments = await Assessment.find({
+      branch: branchObjectId,
+      assignedTo: { $in: [userId, userObjectId, "All recruiters"] }
+    }).sort({ createdAt: -1 });
+    console.log('Assessments found:', assessments.length);
+    res.json(assessments);
+  } catch (error) {
+    console.error("Error en getAssignedAssessments:", error);
+    res.status(500).json({ message: 'Error al obtener evaluaciones asignadas', error: error.message, stack: error.stack });
   }
 };
 

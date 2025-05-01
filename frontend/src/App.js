@@ -11,6 +11,7 @@ import ManagerDashboard from './components/Manager/ManagerDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import CourseDetail from './components/CourseDetail';
 import TestEditPage from './pages/TestEditPage';
+import AssessmentResolvePage from "./pages/AssessmentResolvePage";
 
 import API_URL from './config';
 import axios from 'axios';
@@ -216,6 +217,10 @@ function App() {
   <Route 
     path="/tests/:id/edit" 
     element={user ? <TestEditPage /> : <Navigate to="/" />} 
+  />
+  <Route 
+    path="/assessment/:id" 
+    element={<AssessmentResolvePage />} 
   />
 </Routes>
 

@@ -29,6 +29,10 @@ router.delete('/blocks/:id', authMiddleware, blockController.deleteBlock);
 // Evaluaciones (assessments)
 router.post('/', authMiddleware, assessmentController.createAssessment);
 router.get('/', authMiddleware, assessmentController.getAssessments);
+
+// Evaluaciones asignadas a un usuario y branch
+router.get('/assigned', authMiddleware, assessmentController.getAssignedAssessments);
+
 router.get('/:id', authMiddleware, assessmentController.getAssessmentById);
 router.put('/:id', authMiddleware, assessmentController.updateAssessment);
 router.delete('/:id', authMiddleware, assessmentController.deleteAssessment);
