@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
 import Sidebar from './Sidebar';
+import AlertMessage from './Trainer/AlertMessage';
 import './TrainingDashboard.css';
 
 const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'info' });
   const [allCourses, setAllCourses] = useState([]); // Guardar todos los cursos del backend
   const [courses, setCourses] = useState([]); // Cursos filtrados
   const [assessments, setAssessments] = useState([]); // Evaluaciones asignadas
@@ -140,6 +143,14 @@ const TrainingDashboard = ({ setUser, user }) => {
     setCourses(sortedCourses);
   }, [allCourses, user, now]);
 
+  // Mostrar snackbar de éxito tras enviar el test
+  useEffect(() => {
+    if (location.state && location.state.successMessage) {
+      setSnackbar({ open: true, message: location.state.successMessage, type: 'success' });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   return (
     <div className="dashboard-container">
       <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
@@ -198,8 +209,9 @@ const TrainingDashboard = ({ setUser, user }) => {
                     className="confirm-button"
                     style={{ marginTop: 12 }}
                     onClick={() => navigate(`/assessment/${assessment._id}`)}
+                    disabled={assessment.submittedAt}
                   >
-                    Resolver evaluación
+                    {assessment.submittedAt ? 'Ya respondido' : 'Resolver evaluación'}
                   </button>
                 </div>
               ))}
@@ -225,6 +237,14 @@ const TrainingDashboard = ({ setUser, user }) => {
             </div>
           </div>
         )}
+
+        {/* Snackbar de éxito */}
+        <AlertMessage
+          open={snackbar.open}
+          message={snackbar.message}
+          type={snackbar.type}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        />
       </main>
     </div>
   );

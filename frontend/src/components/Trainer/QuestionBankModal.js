@@ -398,6 +398,45 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
               )}
             </div>
           )}
+          {/* --- ADAPTACIÓN: Permitir definir correctAnswer en cada field de forms (solo para form-dynamic) --- */}
+          {/* Si el tipo es form-dynamic, muestra inputs para correctAnswer en cada field */}
+          {form.type === 'form-dynamic' && forms.length > 0 && (
+            <div style={{ margin: '18px 0', background: '#f1f8e9', borderRadius: 10, padding: 12, border: '1.5px solid #c5e1a5' }}>
+              <h4 style={{ marginTop: 0, marginBottom: 8, color: '#388e3c' }}>Respuestas correctas para cada campo del formulario</h4>
+              {forms.map((f, fidx) => (
+                <div key={fidx} style={{ marginBottom: 18, padding: 10, background: '#fff', borderRadius: 8, border: '1px solid #e0e0e0' }}>
+                  <div style={{ fontWeight: 500, marginBottom: 6 }}>Formulario #{fidx + 1}</div>
+                  {Array.isArray(f.fields) && f.fields.length > 0 ? (
+                    f.fields.map((field, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <span style={{ minWidth: 120, fontWeight: 400 }}>{field.label || field.name || `Campo ${idx + 1}`}</span>
+                        <input
+                          type="text"
+                          placeholder="Respuesta correcta"
+                          value={field.correctAnswer || ''}
+                          onChange={e => {
+                            const newForms = forms.map((ff, ffidx) => {
+                              if (ffidx !== fidx) return ff;
+                              return {
+                                ...ff,
+                                fields: ff.fields.map((fld, fidx2) =>
+                                  fidx2 === idx ? { ...fld, correctAnswer: e.target.value } : fld
+                                )
+                              };
+                            });
+                            setForms(newForms);
+                          }}
+                          style={{ flex: 1, borderRadius: 6, border: '1px solid #ccc', padding: 6 }}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ color: '#888', fontSize: 14 }}>No hay campos en este formulario.</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           {/* Opciones solo para multiple y single */}
           {(form.type === 'multiple' || form.type === 'single') && (
             <div className="modal-field">
@@ -556,7 +595,13 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{q.difficulty}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee' }}>{q.topic}</td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'form-dynamic' ? '-' : (Array.isArray(q.options) && q.options.length > 0 ? q.options.join(', ') : '-')}</td>
-                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.type === 'open' ? '-' : (Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer || '-')}</td>
+                        <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {q.type === 'form-dynamic' && q.forms && q.forms.length > 0
+                            ? q.forms[0].fields && q.forms[0].fields.length > 0
+                              ? q.forms[0].fields.map(fld => fld.correctAnswer || '-').join(', ')
+                              : '-'
+                            : (q.type === 'open' ? '-' : (Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer || '-'))}
+                        </td>
                         <td style={{ padding: '10px 16px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
                           {q.type === 'form-dynamic' && q.forms && q.forms.length > 0 ? (
                             <button

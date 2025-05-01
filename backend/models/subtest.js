@@ -7,6 +7,8 @@ const SubtestSchema = new mongoose.Schema({
   description: String,
   block: { type: mongoose.Schema.Types.ObjectId, ref: 'Block' },
   questions: [mongoose.Schema.Types.Mixed], // Flexible para distintos tipos de preguntas
+  submittedAt: { type: Date },
+  submittedAnswers: { type: mongoose.Schema.Types.Mixed },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

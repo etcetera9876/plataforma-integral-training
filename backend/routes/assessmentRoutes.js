@@ -53,4 +53,7 @@ router.post('/convert-pdf-to-image', assessmentController.convertPdfToImage);
 // Endpoint para subir archivos PDF a /uploads
 router.post("/upload", upload.single("file"), assessmentController.uploadPdf);
 
+// Guardar respuestas de un usuario para un assessment
+router.post('/:id/submit', authMiddleware, assessmentController.submitAssessment);
+
 module.exports = router;

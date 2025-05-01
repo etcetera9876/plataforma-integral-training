@@ -310,7 +310,7 @@ exports.getSubtests = async (req, res) => {
   }
 };
 
-// Obtener evaluaciones asignadas a un usuario y branch
+// Obtener evaluaciones asignadas a un usuario y branch (con estado de subtest)
 exports.getAssignedAssessments = async (req, res) => {
   try {
     console.log('--- getAssignedAssessments called ---');
@@ -322,19 +322,63 @@ exports.getAssignedAssessments = async (req, res) => {
     }
     const branchObjectId = mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : branchId;
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
-    console.log('Mongo filter:', {
-      branch: branchObjectId,
-      assignedTo: { $in: [userId, userObjectId, "All recruiters"] }
-    });
     const assessments = await Assessment.find({
       branch: branchObjectId,
       assignedTo: { $in: [userId, userObjectId, "All recruiters"] }
     }).sort({ createdAt: -1 });
-    console.log('Assessments found:', assessments.length);
-    res.json(assessments);
+    // Buscar subtest para cada assessment y userId
+    const Subtest = require('../models/subtest');
+    const assessmentsWithStatus = await Promise.all(assessments.map(async (a) => {
+      const subtest = await Subtest.findOne({ assessment: a._id, userId });
+      return {
+        ...a.toObject(),
+        submittedAt: subtest?.submittedAt || null,
+        submittedAnswers: subtest?.submittedAnswers || null
+      };
+    }));
+    res.json(assessmentsWithStatus);
   } catch (error) {
     console.error("Error en getAssignedAssessments:", error);
     res.status(500).json({ message: 'Error al obtener evaluaciones asignadas', error: error.message, stack: error.stack });
+  }
+};
+
+// Guardar respuestas de un usuario para un assessment
+exports.submitAssessment = async (req, res) => {
+  try {
+    const { id } = req.params; // assessmentId
+    const { userId, answers } = req.body;
+    if (!userId || !answers) {
+      return res.status(400).json({ message: 'Faltan userId o answers' });
+    }
+    // Busca el subtest correspondiente
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+    const Subtest = require('../models/subtest');
+    const subtest = await Subtest.findOne({ assessment: id, userId: userObjectId });
+    if (!subtest) {
+      return res.status(404).json({ message: 'No se encontró el subtest para este usuario' });
+    }
+    // Guarda las respuestas en el subtest
+    subtest.submittedAnswers = answers;
+    subtest.submittedAt = new Date();
+    await subtest.save();
+    // Notificar por correo al trainer (placeholder, integrar nodemailer)
+    try {
+      const User = require('../models/user');
+      const assessment = await Assessment.findById(id);
+      const recruiter = await User.findById(userId);
+      const trainer = await User.findById(assessment.createdBy?.id);
+      if (trainer && trainer.email) {
+        // Aquí deberías integrar nodemailer o tu sistema de correo
+        console.log(`[NOTIFICACIÓN] El reclutador ${recruiter?.name || userId} ha realizado el test "${assessment.name}". Notificar a: ${trainer.email}`);
+        // await sendMail(trainer.email, ...)
+      }
+    } catch (notifyErr) {
+      console.error('Error al notificar al trainer:', notifyErr);
+    }
+    res.json({ message: 'Respuestas guardadas correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al guardar respuestas', error: error.message });
   }
 };
 

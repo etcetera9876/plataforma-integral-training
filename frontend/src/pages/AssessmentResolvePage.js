@@ -59,17 +59,21 @@ const AssessmentResolvePage = () => {
   };
 
   const handleSubmit = async () => {
+    let userId = localStorage.getItem("userId");
+    if (!userId) {
+      const userObj = JSON.parse(localStorage.getItem("user"));
+      userId = userObj?.id;
+    }
+    console.log('Enviando respuestas:', { userId, answers }); // <-- LOG para depuración
     try {
       const token = localStorage.getItem("token");
-      const userId = localStorage.getItem("userId");
       await axios.post(`/api/assessments/${id}/submit`, {
         userId,
         answers,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('¡Respuestas enviadas correctamente!');
-      navigate(-1);
+      navigate('/training-dashboard', { state: { successMessage: '¡Respuestas enviadas correctamente!' } });
     } catch (err) {
       alert('Error al enviar las respuestas.');
     }
