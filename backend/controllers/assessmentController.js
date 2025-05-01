@@ -275,6 +275,8 @@ exports.saveSubtests = async (req, res) => {
     if (!assessment) {
       return res.status(404).json({ message: 'Assessment no encontrado' });
     }
+    // Eliminar subtests anteriores antes de guardar los nuevos
+    await Subtest.deleteMany({ assessment: id });
     // Guardar cada subtest
     const created = [];
     for (const st of subtests) {
