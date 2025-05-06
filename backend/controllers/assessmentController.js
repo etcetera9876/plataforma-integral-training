@@ -5,6 +5,25 @@ const { exec } = require("child_process");
 const path = require("path");
 const multer = require("multer");
 const Subtest = require('../models/subtest');
+const nodemailer = require('nodemailer');
+
+// Configuración nodemailer
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // Cambia según tu proveedor
+  auth: {
+    user: process.env.NOTIFY_EMAIL_USER || 'tucorreo@gmail.com',
+    pass: process.env.NOTIFY_EMAIL_PASS || 'tu_contraseña_de_aplicacion'
+  }
+});
+
+async function sendNotificationEmail(to, subject, text) {
+  await transporter.sendMail({
+    from: process.env.NOTIFY_EMAIL_USER || 'tucorreo@gmail.com',
+    to,
+    subject,
+    text
+  });
+}
 
 // Configuración de multer para guardar archivos en /uploads
 const storage = multer.diskStorage({
@@ -362,17 +381,16 @@ exports.submitAssessment = async (req, res) => {
     subtest.submittedAnswers = answers;
     subtest.submittedAt = new Date();
     await subtest.save();
-    // Notificar por correo al trainer (placeholder, integrar nodemailer)
+    // Notificar por correo al trainer (nodemailer)
     try {
       const User = require('../models/user');
       const assessment = await Assessment.findById(id);
       const recruiter = await User.findById(userId);
       const trainer = await User.findById(assessment.createdBy?.id);
-      if (trainer && trainer.email) {
-        // Aquí deberías integrar nodemailer o tu sistema de correo
-        console.log(`[NOTIFICACIÓN] El reclutador ${recruiter?.name || userId} ha realizado el test "${assessment.name}". Notificar a: ${trainer.email}`);
-        // await sendMail(trainer.email, ...)
-      }
+      // ENVÍO DE CORREO DE PRUEBA: siempre a chriscervantesdelacruz@jcsfamily.com
+      const subject = `El reclutador ${recruiter?.name || userId} ha realizado el test "${assessment.name}"`;
+      const text = `Hola Trainer,\n\nEl reclutador ${recruiter?.name || userId} ha completado el test "${assessment.name}" el día ${new Date().toLocaleString()}.\n\nPuedes revisar las respuestas en la plataforma.`;
+      await sendNotificationEmail('chriscervantesdelacruz@jcsfamily.com', subject, text);
     } catch (notifyErr) {
       console.error('Error al notificar al trainer:', notifyErr);
     }

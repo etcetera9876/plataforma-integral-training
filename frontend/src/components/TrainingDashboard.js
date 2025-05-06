@@ -29,6 +29,14 @@ const TrainingDashboard = ({ setUser, user }) => {
     }
   };
 
+  const handleAssessmentClick = (assessment) => {
+    if (assessment.submittedAt) {
+      setSnackbar({ open: true, message: 'Ya se tomó el test.', type: 'info' });
+      return;
+    }
+    navigate(`/assessment/${assessment._id}`);
+  };
+
   const handleLogout = () => {
     // Desconecta el socket actual
     if (socket) {
@@ -151,6 +159,16 @@ const TrainingDashboard = ({ setUser, user }) => {
     }
   }, [location.state]);
 
+  // Cierre automático del snackbar después de 1.5s
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar(s => ({ ...s, open: false }));
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
+
   return (
     <div className="dashboard-container">
       <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
@@ -191,24 +209,27 @@ const TrainingDashboard = ({ setUser, user }) => {
                   className="training-course-item"
                   style={{
                     position: 'relative',
-                    cursor: 'pointer',
+                    cursor: assessment.submittedAt ? 'not-allowed' : 'pointer',
                     minWidth: 260,
                     maxWidth: 320,
                     margin: '0 16px 24px 0',
-                    background: '#fff',
+                    background: assessment.submittedAt ? '#f5f5f5' : '#fff',
                     borderRadius: 10,
                     boxShadow: '0 2px 8px #e0e0e0',
                     padding: 18,
                     display: 'inline-block',
-                    verticalAlign: 'top'
+                    verticalAlign: 'top',
+                    opacity: assessment.submittedAt ? 0.6 : 1,
+                    pointerEvents: assessment.submittedAt ? 'auto' : 'auto'
                   }}
+                  onClick={() => handleAssessmentClick(assessment)}
                 >
                   <h3 className="training-course-title">{assessment.name}</h3>
                   <p className="training-course-info">{assessment.description}</p>
                   <button
                     className="confirm-button"
                     style={{ marginTop: 12 }}
-                    onClick={() => navigate(`/assessment/${assessment._id}`)}
+                    onClick={e => { e.stopPropagation(); handleAssessmentClick(assessment); }}
                     disabled={assessment.submittedAt}
                   >
                     {assessment.submittedAt ? 'Ya respondido' : 'Resolver evaluación'}
