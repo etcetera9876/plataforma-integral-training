@@ -74,7 +74,6 @@ exports.getCoursesForRecruiter = async (req, res) => {
         .json({ message: "Se requieren recruiterId y branchId" });
     }
 
-    const branchObjectId = new mongoose.Types.ObjectId(branchId);
     const recruiterObjectId = mongoose.Types.ObjectId.isValid(recruiterId)
       ? new mongoose.Types.ObjectId(recruiterId)
       : recruiterId;
@@ -82,8 +81,8 @@ exports.getCoursesForRecruiter = async (req, res) => {
     const currentDate = new Date();
     console.log('[DEBUG] currentDate (UTC):', currentDate.toISOString());
 
-    const courses = await Course.find({
-      branchId: branchObjectId,
+    // Si branchId es 'Global', no filtrar por branchId
+    let filter = {
       $and: [
         {
           $or: [
@@ -98,7 +97,13 @@ exports.getCoursesForRecruiter = async (req, res) => {
           ],
         },
       ],
-    }).sort({ createdAt: -1 });
+    };
+    if (branchId !== 'Global') {
+      const branchObjectId = new mongoose.Types.ObjectId(branchId);
+      filter.branchId = branchObjectId;
+    }
+
+    const courses = await Course.find(filter).sort({ createdAt: -1 });
 
     // Log para depuración de fechas de publicación
     courses.forEach(c => {
@@ -274,6 +279,11 @@ exports.signCourse = async (req, res) => {
     if (exists) return res.status(409).json({ message: 'Ya firmado' });
     const signature = new CourseSignature({ courseId: id, userId: userObjectId, name });
     await signature.save();
+    // Emitir evento de firma por socket.io
+    const { ioInstance } = require('../socket');
+    if (ioInstance) {
+      ioInstance.emit('courseSigned', { courseId: id, userId });
+    }
     res.json({ message: 'Firma guardada', signature });
   } catch (err) {
     res.status(500).json({ message: 'Error al guardar firma', error: err.message });

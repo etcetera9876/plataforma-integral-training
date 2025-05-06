@@ -7,7 +7,7 @@ import CourseModal from "./CourseModal"; // Asegúrate de importar CourseModal
 import "./TrainerDashboard.css";
 import io from "socket.io-client"; // Importación de Socket.IO
 import { useNavigate, useLocation } from "react-router-dom";
-import { ConfirmModal, SuccessModal } from "./ConfirmModal"; // Importa el modal de confirmación
+import { ConfirmModal } from "./ConfirmModal"; // Importa el modal de confirmación
 import CourseEditModal from "./CourseEditModal"; // Importa el nuevo modal de edición
 import { getCourseStatus } from '../../utils/courseStatus'; // Importa la función centralizada
 import AssessmentModal from "./AssessmentModal"; // Importa el modal de evaluación
@@ -36,8 +36,6 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState(null);
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
   const [now, setNow] = useState(new Date()); // Para forzar re-render periódico
 
   // Estado y lógica para evaluaciones
@@ -83,18 +81,15 @@ const TrainerDashboard = ({ setUser, user }) => {
       const response = await fetch(`http://localhost:3000/api/courses/${courseToDelete}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${user.token}`, // Asegúrate de enviar el token si es necesario
+          Authorization: `Bearer ${user.token}`,
         },
       });
-  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Error al eliminar el curso");
       }
-  
-      setSuccessMessage("Curso eliminado correctamente");
-      setIsSuccessModalOpen(true); // Abre el modal de éxito
-      fetchCourses(); // Actualizar la lista de cursos
+      setSnackbar({ open: true, message: "Curso eliminado correctamente", type: "success" });
+      fetchCourses();
     } catch (error) {
       console.error("Error al eliminar el curso:", error);
       alert(error.message || "Hubo un error al eliminar el curso");
@@ -330,7 +325,7 @@ const TrainerDashboard = ({ setUser, user }) => {
   const currentBranchName = branches.find((b) => b._id === selectedBranch)?.name || "";
 
   // Determina si hay algún modal abierto
-  const isAnyModalOpen = showCourseModal || isModalOpen || isConfirmModalOpen || isSuccessModalOpen;
+  const isAnyModalOpen = showCourseModal || isModalOpen || isConfirmModalOpen;
 
   // Estado para el modal de banco de preguntas
   const [showQuestionBankModal, setShowQuestionBankModal] = useState(false);
@@ -575,13 +570,6 @@ const TrainerDashboard = ({ setUser, user }) => {
       </div>
 
       {/* Modales fuera del dashboard-container para evitar el blur */}
-      {isSuccessModalOpen && false && (
-        <SuccessModal
-          message={successMessage}
-          onClose={() => setIsSuccessModalOpen(false)}
-        />
-      )}
-
       {isConfirmModalOpen && (
         <ConfirmModal
           message="¿Estás seguro de que deseas eliminar este curso?"

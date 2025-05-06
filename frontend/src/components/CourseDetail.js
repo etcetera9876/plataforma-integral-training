@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../config';
 import './CourseDetail.css';
+import { useDashboard } from './DashboardContext';
 
 import pdfIcon from '../assets/pdf-icon.png';
 import wordIcon from '../assets/word-icon.png';
@@ -41,6 +42,7 @@ function getFileIcon(filename) {
 
 const CourseDetail = () => {
   const { id } = useParams();
+  const { courses, signedCourses, addSignedCourse } = useDashboard();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [linkPreview, setLinkPreview] = useState({});
@@ -51,27 +53,45 @@ const CourseDetail = () => {
   const [user, setUser] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'success' });
 
+  // Buscar el curso en el contexto global antes de pedirlo al backend
   useEffect(() => {
-    axios.get(`/api/courses/byid/${id}`)
-      .then(res => {
-        setCourse(res.data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [id]);
+    const found = courses.find(c => String(c._id) === String(id));
+    if (found) {
+      setCourse(found);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      axios.get(`/api/courses/byid/${id}`)
+        .then(res => {
+          setCourse(res.data);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [id, courses]);
 
+  // Vista previa de enlaces con cache en localStorage
   useEffect(() => {
     if (!course || !course.resources) return;
-    course.resources.forEach((res, idx) => {
+    course.resources.forEach((res) => {
       const isLink = res.type === 'link' || (res.url && res.url.startsWith('http'));
-      if (isLink && res.url && !linkPreview[res.url]) {
-        axios.post(`${API_URL}/api/courses/link-preview`, { url: res.url })
-          .then(response => {
-            setLinkPreview(prev => ({ ...prev, [res.url]: response.data }));
-          })
-          .catch(() => {
-            setLinkPreview(prev => ({ ...prev, [res.url]: null }));
-          });
+      if (isLink && res.url) {
+        // Intenta obtener del cache localStorage
+        const cacheKey = `linkPreview_${res.url}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          setLinkPreview(prev => ({ ...prev, [res.url]: JSON.parse(cached) }));
+        } else {
+          axios.post(`${API_URL}/api/courses/link-preview`, { url: res.url })
+            .then(response => {
+              setLinkPreview(prev => ({ ...prev, [res.url]: response.data }));
+              localStorage.setItem(cacheKey, JSON.stringify(response.data));
+            })
+            .catch(() => {
+              setLinkPreview(prev => ({ ...prev, [res.url]: null }));
+              localStorage.setItem(cacheKey, JSON.stringify(null));
+            });
+        }
       }
     });
     // eslint-disable-next-line
@@ -83,17 +103,24 @@ const CourseDetail = () => {
     if (userObj) setUser(JSON.parse(userObj));
   }, []);
 
+  // Usar el contexto global para la firma si está disponible
   useEffect(() => {
-    if (!user) return;
-    // Consultar si el usuario ya firmó este curso
-    const token = localStorage.getItem('token');
-    axios.get(`/api/courses/${id}/signature`, {
-      params: { userId: user.id },
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => setSigned(res.data.signed))
-      .catch(() => setSigned(false));
-  }, [user, id]);
+    if (signedCourses && signedCourses.some(cid => String(cid) === String(id))) {
+      setSigned(true);
+    } else {
+      // Fallback: consulta al backend solo si no está en contexto
+      const userObj = localStorage.getItem('user');
+      if (!userObj) return;
+      const user = JSON.parse(userObj);
+      const token = localStorage.getItem('token');
+      axios.get(`/api/courses/${id}/signature`, {
+        params: { userId: user.id },
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setSigned(res.data.signed))
+        .catch(() => setSigned(false));
+    }
+  }, [id, signedCourses]);
 
   // Cierre automático del snackbar después de 1.5s
   useEffect(() => {
@@ -142,7 +169,6 @@ const CourseDetail = () => {
                 onClick={async () => {
                   if (signature.trim() !== user.name) {
                     setSnackbar({ open: true, message: 'El nombre debe coincidir exactamente con el registrado en el sistema.', type: 'error' });
-                    // No cerrar el modal si hay error de nombre
                     return;
                   }
                   setSigning(true);
@@ -156,6 +182,7 @@ const CourseDetail = () => {
                     });
                     setShowSignModal(false);
                     setSigned(true);
+                    addSignedCourse(id); // Actualiza el contexto global
                     setSnackbar({ open: true, message: '¡Curso firmado con éxito!', type: 'success' });
                     setTimeout(() => window.history.back(), 1200);
                   } catch {

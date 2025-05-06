@@ -180,12 +180,17 @@ const TestEditPage = () => {
     fetchTest();
   }, [id]);
 
-  // Obtener todos los cursos para el multiselect
+  // Obtener todos los cursos activos del branch para el multiselect
   useEffect(() => {
-    axios.get('/api/courses', { params: { recruiterId: '', branchId: '' } })
-      .then(res => setCourses(res.data))
+    if (!branchId) return;
+    axios.get(`/api/courses/${branchId}`)
+      .then(res => {
+        const now = new Date();
+        const activos = res.data.filter(c => !c.expirationDate || new Date(c.expirationDate) > now);
+        setCourses(activos);
+      })
       .catch(() => setCourses([]));
-  }, []);
+  }, [branchId]);
 
   // Sincroniza assignedMode y selectedUsers SOLO cuando assignedTo cambia por la carga del test
   useEffect(() => {
@@ -422,21 +427,36 @@ const TestEditPage = () => {
               ))}
             </select>
           </div>
+       
           <div className="modal-field" style={{ marginBottom: 16 }}>
             <label>Cursos relacionados (opcional)</label>
-            <select
-              multiple
-              value={relatedCourses}
-              onChange={e => {
-                const selected = Array.from(e.target.selectedOptions, opt => opt.value);
-                setRelatedCourses(selected);
-              }}
-              style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15, minHeight: 80 }}
-            >
-              {courses.map(c => (
-                <option key={c._id} value={c._id}>{c.name}</option>
-              ))}
-            </select>
+            <div style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {courses.map((c) => (
+                  <li key={c._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                    <div style={{ width: 28, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        value={c._id}
+                        checked={relatedCourses.map(String).includes(String(c._id))}
+                        onChange={e => {
+                          const isChecked = e.target.checked;
+                          setRelatedCourses(prev => {
+                            const prevStr = prev.map(String);
+                            if (isChecked) {
+                              return prevStr.includes(String(c._id)) ? prevStr : [...prevStr, String(c._id)];
+                            } else {
+                              return prevStr.filter(id => id !== String(c._id));
+                            }
+                          });
+                        }}
+                      />
+                    </div>
+                    <span style={{ fontSize: 15, textAlign: 'left', flex: 1, paddingLeft: 4 }}>{c.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
           {/* Selector de asignados (igual a los modales de curso, alineado a la izquierda) */}
           <div className="modal-field" style={{ maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', width: '100%', marginTop: 25, marginBottom: 26 }}>

@@ -55,11 +55,17 @@ const AssessmentModal = ({
   }, [assignedMode, branchName]);
 
   useEffect(() => {
-    // Obtener todos los cursos para el multiselect
-    axios.get('/api/courses', { params: { recruiterId: '', branchId: '' } })
-      .then(res => setCourses(res.data))
+    // Obtener solo los cursos activos del branch seleccionado
+    if (!branchId) return;
+    axios.get(`/api/courses/${branchId}`)
+      .then(res => {
+        // Filtrar solo cursos activos (sin fecha de expiración o expiración en el futuro)
+        const now = new Date();
+        const activos = res.data.filter(c => !c.expirationDate || new Date(c.expirationDate) > now);
+        setCourses(activos);
+      })
       .catch(() => setCourses([]));
-  }, []);
+  }, [branchId]);
 
   const [evaluationType, setEvaluationType] = useState(initialData.evaluationType || "multiple-choice");
   const [questions, setQuestions] = useState(initialData.questions || []);
@@ -175,42 +181,58 @@ const AssessmentModal = ({
               </div>
               <div className="modal-field">
                 <label>Cursos relacionados (opcional)</label>
-                <select
-                  multiple
-                  value={relatedCourses}
-                  onChange={e => {
-                    const selected = Array.from(e.target.selectedOptions, opt => opt.value);
-                    setRelatedCourses(selected);
-                  }}
-                  style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15, minHeight: 80 }}
-                >
-                  {courses.map(c => (
-                    <option key={c._id} value={c._id}>{c.name}</option>
-                  ))}
-                </select>
+                <div style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
+                  <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                    {courses.map((c) => (
+                      <li key={c._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                        <div style={{ width: 28, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                          <input
+                            type="checkbox"
+                            value={c._id}
+                            checked={relatedCourses.includes(c._id)}
+                            onChange={e => {
+                              const isChecked = e.target.checked;
+                              setRelatedCourses(prev =>
+                                isChecked
+                                  ? [...prev, c._id]
+                                  : prev.filter(id => id !== c._id)
+                              );
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: 15, textAlign: 'left', flex: 1, paddingLeft: 4 }}>{c.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               <section className="checklist-section" style={{ marginBottom: 0 }}>
-                <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 6 }}>
-                  <label className="radio-row" style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="radio-label">All recruiters</span>
-                    <input
-                      type="radio"
-                      name="assignedMode"
-                      value="all"
-                      checked={assignedMode === "all"}
-                      onChange={() => setAssignedMode("all")}
-                    />
-                  </label>
-                  <label className="radio-row" style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="radio-label">Select recruiters</span>
-                    <input
-                      type="radio"
-                      name="assignedMode"
-                      value="select"
-                      checked={assignedMode === "select"}
-                      onChange={() => setAssignedMode("select")}
-                    />
-                  </label>
+                <div style={{ marginBottom: 6 }}>
+                  <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>Asignado a</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label className="radio-row" style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
+                      <span className="radio-label">All recruiters</span>
+                      <input
+                        type="radio"
+                        name="assignedMode"
+                        value="all"
+                        checked={assignedMode === "all"}
+                        onChange={() => setAssignedMode("all")}
+                        style={{ marginLeft: 8 }}
+                      />
+                    </label>
+                    <label className="radio-row" style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
+                      <span className="radio-label">Select recruiters</span>
+                      <input
+                        type="radio"
+                        name="assignedMode"
+                        value="select"
+                        checked={assignedMode === "select"}
+                        onChange={() => setAssignedMode("select")}
+                        style={{ marginLeft: 8 }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </section>
               <section className="checklist-section">
@@ -241,7 +263,7 @@ const AssessmentModal = ({
                   )}
                 </div>
               </section>
-              <div className="modal-actions" style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
                 {!isSchedule && (
                   <>
                     <button

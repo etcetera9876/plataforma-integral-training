@@ -8,4 +8,5 @@ async function emitDbChange() {
   // Solo emite la señal, sin enviar cursos
   ioInstance.emit("dbChange");
 }
-module.exports = { setSocketInstance, emitDbChange };
+// Exportar también ioInstance para acceso directo
+module.exports = { setSocketInstance, emitDbChange, ioInstance };

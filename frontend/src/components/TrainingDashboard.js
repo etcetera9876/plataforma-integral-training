@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import io from 'socket.io-client';
+import { useDashboard } from './DashboardContext';
 import Sidebar from './Sidebar';
 import AlertMessage from './Trainer/AlertMessage';
 import './TrainingDashboard.css';
@@ -11,16 +10,12 @@ const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'info' });
-  const [allCourses, setAllCourses] = useState([]); // Guardar todos los cursos del backend
-  const [courses, setCourses] = useState([]); // Cursos filtrados
-  const [assessments, setAssessments] = useState([]); // Evaluaciones asignadas
-  const [socket, setSocket] = useState(null); // Estado para almacenar la instancia de socket
-  const [now, setNow] = useState(new Date()); // Estado para actualización automática
-  const [signedCourses, setSignedCourses] = useState([]); // Cursos firmados por el usuario
-
-  // Modal para curso bloqueado
+  const [now, setNow] = useState(new Date());
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [lockedCourseName, setLockedCourseName] = useState("");
+
+  // Usar datos del contexto global
+  const { courses, signedCourses, assessments, loading, refetchAll } = useDashboard();
 
   const handleCourseClick = (course) => {
     if (course.isLocked) {
@@ -45,48 +40,12 @@ const TrainingDashboard = ({ setUser, user }) => {
   };
 
   const handleLogout = () => {
-    // Desconecta el socket actual
-    if (socket) {
-      socket.disconnect();
-      setSocket(null); // Limpia el socket del estado
-    }
-
     // Limpia el almacenamiento local y redirige al inicio de sesión
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
     navigate('/');
   };
-
-  // Socket: solo actualiza los cursos del backend, no el filtrado
-  useEffect(() => {
-    const newSocket = io("http://localhost:5000", {
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-  
-    newSocket.on("dbChange", () => {
-      if (!user) return;
-      axios
-        .get('/api/courses', {
-          params: {
-            recruiterId: user.id,
-            branchId: user.branchId,
-          },
-        })
-        .then((response) => {
-          setAllCourses(response.data);
-        })
-        .catch((error) => {
-          console.error("[SOCKET] Error al obtener los cursos:", error);
-        });
-    });
-
-    setSocket(newSocket);
-    return () => newSocket.disconnect();
-  }, [user]);
 
   // Actualización automática de 'now' cada segundo
   useEffect(() => {
@@ -95,78 +54,6 @@ const TrainingDashboard = ({ setUser, user }) => {
     }, 1000); // 1 segundo
     return () => clearInterval(interval);
   }, []);
-
-  // Obtener los cursos creados desde el backend SOLO cuando cambia el usuario o llega un evento de socket
-  useEffect(() => {
-    if (!user) return;
-    // Obtener cursos y cursos firmados en paralelo
-    const token = localStorage.getItem('token');
-    axios.get('/api/courses', {
-      params: {
-        recruiterId: user.id,
-        branchId: user.branchId,
-      },
-    })
-      .then((response) => {
-        setAllCourses(response.data);
-      })
-      .catch((error) => {
-        console.error("Error al obtener los cursos:", error);
-      });
-    // Obtener todos los cursos firmados en una sola petición
-    axios.get('/api/courses/signed', {
-      params: { userId: user.id },
-      headers: { Authorization: token }
-    })
-      .then(res => {
-        setSignedCourses(res.data.signedCourseIds || []);
-      })
-      .catch(() => setSignedCourses([]));
-  }, [user]);
-
-  // Obtener las evaluaciones asignadas desde el backend
-  useEffect(() => {
-    if (!user) return;
-    axios
-      .get('/api/assessments/assigned', {
-        params: {
-          userId: user.id,
-          branchId: user.branchId,
-        },
-        headers: {
-          Authorization: localStorage.getItem('token')
-        }
-      })
-      .then((response) => {
-        setAssessments(response.data);
-      })
-      .catch((error) => {
-        console.error("Error al obtener las evaluaciones:", error);
-      });
-  }, [user]);
-
-  // Filtrar cursos en el frontend cada vez que cambian allCourses, user o now
-  useEffect(() => {
-    if (!user) return;
-    const validCourses = allCourses.filter((course) => {
-      const assignedToArr = Array.isArray(course.assignedTo)
-        ? course.assignedTo.map(id => (typeof id === 'object' && id !== null && id.toString) ? id.toString() : id)
-        : [];
-      const isAssignedToAll = assignedToArr.includes("All recruiters");
-      const isAssignedToUser = assignedToArr.includes(user.id) || assignedToArr.includes(String(user.id));
-      const notExpired = !course.expirationDate || new Date(course.expirationDate) > now;
-      let isPublished = false;
-      if (!course.publicationDate) {
-        isPublished = true;
-      } else {
-        const pubDate = new Date(course.publicationDate);
-        isPublished = pubDate <= now;
-      }
-      return notExpired && isPublished && (isAssignedToAll || isAssignedToUser);
-    });
-    const sortedCourses = validCourses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    setCourses(sortedCourses);
-  }, [allCourses, user, now]);
 
   // Mostrar snackbar de éxito tras enviar el test
   useEffect(() => {

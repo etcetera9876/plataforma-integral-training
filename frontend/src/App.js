@@ -12,6 +12,7 @@ import AdminDashboard from './components/Admin/AdminDashboard';
 import CourseDetail from './components/CourseDetail';
 import TestEditPage from './pages/TestEditPage';
 import AssessmentResolvePage from "./pages/AssessmentResolvePage";
+import { DashboardProvider } from './components/DashboardContext';
 
 import API_URL from './config';
 import axios from 'axios';
@@ -136,96 +137,75 @@ function App() {
     return <LoadingScreen />;
   }
 
-  const getDashboardForRole = (role) => {
-    switch (role) {
-      case 'Trainer':
-        return <Navigate to="/courses-assessments" />;
-      case 'Recruiter':
-        return <Navigate to="/training-dashboard" />;
-      case 'Supervisor':
-        return <Navigate to="/supervisor-dashboard" />;
-      case 'Manager':
-        return <Navigate to="/manager-dashboard" />;
-      case 'Admin':
-        return <Navigate to="/admin-dashboard" />;
-      default:
-        return <Navigate to="/" />;
-    }
-  };
-  
-  <Route
-    path="/dashboard"
-    element={user ? getDashboardForRole(user.role) : <Navigate to="/" />}
-  />
-  
   return (
-    <>
-      <Routes>
-  <Route 
-    path="/" 
-    element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} 
-  />
-  <Route 
-    path="/dashboard" 
-    element={
-      user ? (
-        <Navigate
-          to={
-            // Redirige según el rol del usuario
-            user.role === 'Trainer'
-              ? '/courses-assessments'
-              : user.role === 'Recruiter'
-              ? '/training-dashboard'
-              : user.role === 'Supervisor'
-              ? '/supervisor-dashboard'
-              : user.role === 'Manager'
-              ? '/manager-dashboard'
-              : user.role === 'Admin'
-              ? '/admin-dashboard'
-              : '/'
-          }
-        />
-      ) : (
-        <Navigate to="/" />
-      )
-    }
-  />
-  <Route 
-    path="/courses-assessments" 
-    element={user ? <TrainerDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
-  />
-  <Route 
-    path="/training-dashboard" 
-    element={user ? <TrainingDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
-  />
-  <Route 
-    path="/supervisor-dashboard" 
-    element={user ? <SupervisorDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
-  />
-  <Route 
-    path="/manager-dashboard" 
-    element={user ? <ManagerDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
-  />
-  <Route 
-    path="/admin-dashboard" 
-    element={user ? <AdminDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
-  />
-  <Route 
-    path="/course/:id" 
-    element={user ? <CourseDetail /> : <Navigate to="/" />} 
-  />
-  <Route 
-    path="/tests/:id/edit" 
-    element={user ? <TestEditPage /> : <Navigate to="/" />} 
-  />
-  <Route 
-    path="/assessment/:id" 
-    element={<AssessmentResolvePage />} 
-  />
-</Routes>
-
-      {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}
-    </>
+    <DashboardProvider user={user}>
+      <>
+        <Routes>
+          <Route 
+            path="/" 
+            element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} 
+          />
+          <Route 
+            path="/dashboard" 
+            element={
+              user ? (
+                <Navigate
+                  to={
+                    // Redirige según el rol del usuario
+                    user.role === 'Trainer'
+                      ? '/courses-assessments'
+                      : user.role === 'Recruiter'
+                      ? '/training-dashboard'
+                      : user.role === 'Supervisor'
+                      ? '/supervisor-dashboard'
+                      : user.role === 'Manager'
+                      ? '/manager-dashboard'
+                      : user.role === 'Admin'
+                      ? '/admin-dashboard'
+                      : '/'
+                  }
+                />
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route 
+            path="/courses-assessments" 
+            element={user ? <TrainerDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+          />
+          <Route 
+            path="/training-dashboard" 
+            element={user ? <TrainingDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+          />
+          <Route 
+            path="/supervisor-dashboard" 
+            element={user ? <SupervisorDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+          />
+          <Route 
+            path="/manager-dashboard" 
+            element={user ? <ManagerDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+          />
+          <Route 
+            path="/admin-dashboard" 
+            element={user ? <AdminDashboard setUser={setUser} user={user} /> : <Navigate to="/" />}
+          />
+          <Route 
+            path="/course/:id" 
+            element={user ? <CourseDetail /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/tests/:id/edit" 
+            element={user ? <TestEditPage /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/assessment/:id" 
+            element={<AssessmentResolvePage />} 
+          />
+        </Routes>
+        {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}
+      </>
+    </DashboardProvider>
   );
 }
 

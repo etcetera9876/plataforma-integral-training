@@ -65,7 +65,7 @@ exports.getAssessments = async (req, res) => {
 exports.createAssessment = async (req, res) => {
   try {
     console.log("REQ.BODY ASSESSMENT:", req.body); // <-- LOG PARA DEPURAR
-    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo } = req.body;
+    const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, relatedCourses } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: 'El campo "name" es obligatorio.' });
@@ -83,6 +83,7 @@ exports.createAssessment = async (req, res) => {
       block: typeof block,
       components,
       assignedTo,
+      relatedCourses,
     });
 
     // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
@@ -115,6 +116,7 @@ exports.createAssessment = async (req, res) => {
       expirationDate,
       assignedTo,
       createdBy: req.body.createdBy,
+      relatedCourses: Array.isArray(relatedCourses) ? relatedCourses : [],
     });
     await assessment.save();
     res.status(201).json({ message: 'Evaluación creada con éxito', assessment });
@@ -140,7 +142,7 @@ exports.getAssessmentById = async (req, res) => {
 exports.updateAssessment = async (req, res) => {
   try {
     const { id } = req.params;
-    let { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType, filters } = req.body;
+    let { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, questions, evaluationType, filters, relatedCourses } = req.body;
     // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
     let adaptedComponents = components;
     if (Array.isArray(components) && (typeof components[0] === 'string' || typeof components[0] === 'number')) {
@@ -159,7 +161,7 @@ exports.updateAssessment = async (req, res) => {
     }));
     const updated = await Assessment.findByIdAndUpdate(
       id,
-      { name, description, branch, components: componentsWithLabels, block, publicationDate, expirationDate, assignedTo, questions, evaluationType, filters },
+      { name, description, branch, components: componentsWithLabels, block, publicationDate, expirationDate, assignedTo, questions, evaluationType, filters, relatedCourses: Array.isArray(relatedCourses) ? relatedCourses : [] },
       { new: true }
     );
     if (!updated) {
@@ -339,12 +341,16 @@ exports.getAssignedAssessments = async (req, res) => {
       console.log('Faltan parámetros');
       return res.status(400).json({ message: 'Faltan parámetros userId o branchId' });
     }
-    const branchObjectId = mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : branchId;
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
-    const assessments = await Assessment.find({
-      branch: branchObjectId,
+    // Si branchId es 'Global', no filtrar por branch
+    let filter = {
       assignedTo: { $in: [userId, userObjectId, "All recruiters"] }
-    }).sort({ createdAt: -1 });
+    };
+    if (branchId !== 'Global') {
+      const branchObjectId = mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : branchId;
+      filter.branch = branchObjectId;
+    }
+    const assessments = await Assessment.find(filter).sort({ createdAt: -1 });
     // Buscar subtest para cada assessment y userId
     const Subtest = require('../models/subtest');
     const CourseSignature = require('../models/courseSignature');
