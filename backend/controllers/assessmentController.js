@@ -347,12 +347,30 @@ exports.getAssignedAssessments = async (req, res) => {
     }).sort({ createdAt: -1 });
     // Buscar subtest para cada assessment y userId
     const Subtest = require('../models/subtest');
+    const CourseSignature = require('../models/courseSignature');
+    const Course = require('../models/course');
     const assessmentsWithStatus = await Promise.all(assessments.map(async (a) => {
       const subtest = await Subtest.findOne({ assessment: a._id, userId });
+      // Lógica de desbloqueo: si no hay cursos relacionados, canTakeTest = true
+      let canTakeTest = true;
+      let relatedCourseNames = [];
+      if (Array.isArray(a.relatedCourses) && a.relatedCourses.length > 0) {
+        // Verifica si el usuario ha firmado todos los cursos relacionados
+        const signedCount = await CourseSignature.countDocuments({
+          userId,
+          courseId: { $in: a.relatedCourses }
+        });
+        canTakeTest = signedCount === a.relatedCourses.length;
+        // Obtener nombres de los cursos relacionados
+        const courses = await Course.find({ _id: { $in: a.relatedCourses } });
+        relatedCourseNames = courses.map(c => c.name);
+      }
       return {
         ...a.toObject(),
         submittedAt: subtest?.submittedAt || null,
-        submittedAnswers: subtest?.submittedAnswers || null
+        submittedAnswers: subtest?.submittedAnswers || null,
+        canTakeTest,
+        relatedCourseNames
       };
     }));
     res.json(assessmentsWithStatus);

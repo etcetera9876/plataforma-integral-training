@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const courseController = require('../controllers/courseController');
 const {
   createCourse,
   getCoursesByBranch,
@@ -28,8 +29,10 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Rutas para los cursos
-router.get("/", getCoursesForRecruiter); // Obtener cursos para reclutador (publicados)
+router.get("/", getCoursesForRecruiter); // Obtener cursos para reclutador (publicados)SI
 router.post("/", createCourse); // Crear un curso
+// Endpoint para obtener todos los IDs de cursos firmados por un usuario (debe ir antes de :branchId)
+router.get('/signed', require('../middlewares/authMiddleware'), courseController.getSignedCourses);
 router.get("/:branchId", getCoursesByBranch); // Obtener cursos por sucursal
 router.get("/byid/:id", getCourseById); // Obtener curso por ID (sin conflicto con branchId)
 router.delete("/:courseId", deleteCourse); // Eliminar un curso por ID
@@ -37,5 +40,8 @@ router.patch("/:courseId/toggle-lock", toggleLockCourse); // Ruta para bloquear/
 router.put("/:courseId", updateCourse); // Ruta para actualizar curso
 router.post('/upload', upload.single('file'), uploadResource); // Endpoint para subir archivos de recursos
 router.post('/link-preview', linkPreview); // Endpoint para obtener metadatos de un enlace
+// Firma de curso
+router.get('/:id/signature', require('../middlewares/authMiddleware'), courseController.getCourseSignature);
+router.post('/:id/signature', require('../middlewares/authMiddleware'), courseController.signCourse);
 
 module.exports = router;

@@ -56,6 +56,8 @@ const TestEditPage = () => {
   const [userNamesMap, setUserNamesMap] = useState({});
   const [previewTest, setPreviewTest] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [relatedCourses, setRelatedCourses] = useState([]);
 
   // --- MERGE AUTOMÁTICO DE CAMPOS PARA FORM-DYNAMIC EN MULTIPREVIEW ---
   // Guarda el banco de preguntas para mergear datos de imagen en form-dynamic
@@ -164,6 +166,10 @@ const TestEditPage = () => {
           setQuestionFilters(data.filters.questionFilters || questionFilters);
           setMaxRepeats(data.filters.maxRepeats || 1);
         }
+        // Setear cursos relacionados
+        if (data.relatedCourses) {
+          setRelatedCourses(data.relatedCourses.map(String));
+        }
       } catch (err) {
         setError("Error al cargar el test");
         setShowAlert(true);
@@ -173,6 +179,13 @@ const TestEditPage = () => {
     };
     fetchTest();
   }, [id]);
+
+  // Obtener todos los cursos para el multiselect
+  useEffect(() => {
+    axios.get('/api/courses', { params: { recruiterId: '', branchId: '' } })
+      .then(res => setCourses(res.data))
+      .catch(() => setCourses([]));
+  }, []);
 
   // Sincroniza assignedMode y selectedUsers SOLO cuando assignedTo cambia por la carga del test
   useEffect(() => {
@@ -288,7 +301,8 @@ const TestEditPage = () => {
         questionFilters,
         maxRepeats,
         multiPreview,
-        multiMissing
+        multiMissing,
+        relatedCourses
       };
       localStorage.setItem(draftKey, JSON.stringify(draft));
       setHasDraft(true);
@@ -320,6 +334,7 @@ const TestEditPage = () => {
       setMaxRepeats(draft.maxRepeats || 1);
       setMultiPreview(draft.multiPreview || null);
       setMultiMissing(draft.multiMissing || []);
+      setRelatedCourses(draft.relatedCourses || []);
       setShowingDraft(true);
     }
   };
@@ -340,6 +355,7 @@ const TestEditPage = () => {
         publicationDate: scheduled && publicationDate ? new Date(publicationDate).toISOString() : null,
         expirationDate: scheduled && expirationDate ? new Date(expirationDate).toISOString() : null,
         filters: { questionFilters, maxRepeats },
+        relatedCourses
       };
       await axios.put(`/api/assessments/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
@@ -403,6 +419,22 @@ const TestEditPage = () => {
               <option value="">Selecciona un bloque</option>
               {blocks.map(b => (
                 <option key={b._id} value={b._id}>{b.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="modal-field" style={{ marginBottom: 16 }}>
+            <label>Cursos relacionados (opcional)</label>
+            <select
+              multiple
+              value={relatedCourses}
+              onChange={e => {
+                const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                setRelatedCourses(selected);
+              }}
+              style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15, minHeight: 80 }}
+            >
+              {courses.map(c => (
+                <option key={c._id} value={c._id}>{c.name}</option>
               ))}
             </select>
           </div>

@@ -42,6 +42,9 @@ const AssessmentModal = ({
       : []
   );
 
+  const [courses, setCourses] = useState([]);
+  const [relatedCourses, setRelatedCourses] = useState([]);
+
   useEffect(() => {
     if (assignedMode === "select" && branchName) {
       axios
@@ -50,6 +53,13 @@ const AssessmentModal = ({
         .catch(() => setBranchUsers([]));
     }
   }, [assignedMode, branchName]);
+
+  useEffect(() => {
+    // Obtener todos los cursos para el multiselect
+    axios.get('/api/courses', { params: { recruiterId: '', branchId: '' } })
+      .then(res => setCourses(res.data))
+      .catch(() => setCourses([]));
+  }, []);
 
   const [evaluationType, setEvaluationType] = useState(initialData.evaluationType || "multiple-choice");
   const [questions, setQuestions] = useState(initialData.questions || []);
@@ -103,6 +113,7 @@ const AssessmentModal = ({
         assignedTo,
         evaluationType,
         questions,
+        relatedCourses,
         publicationDate: options.publishNow
           ? null
           : isSchedule && scheduledDate
@@ -159,6 +170,22 @@ const AssessmentModal = ({
                     <option key={block._id} value={block._id}>
                       {block.label}
                     </option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-field">
+                <label>Cursos relacionados (opcional)</label>
+                <select
+                  multiple
+                  value={relatedCourses}
+                  onChange={e => {
+                    const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                    setRelatedCourses(selected);
+                  }}
+                  style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15, minHeight: 80 }}
+                >
+                  {courses.map(c => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
                   ))}
                 </select>
               </div>

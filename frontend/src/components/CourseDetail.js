@@ -12,6 +12,7 @@ import pngIcon from '../assets/png-icon.png';
 import jpgIcon from '../assets/jpg-icon.png';
 import mp4Icon from '../assets/mp4-icon.png';
 import mp3Icon from '../assets/mp3-icon.png';
+import checkIcon from '../assets/check-icon.png';
 
 const FILE_ICONS = {
   pdf: pdfIcon,
@@ -43,6 +44,12 @@ const CourseDetail = () => {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [linkPreview, setLinkPreview] = useState({});
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [signature, setSignature] = useState('');
+  const [signing, setSigning] = useState(false);
+  const [signed, setSigned] = useState(false);
+  const [user, setUser] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'success' });
 
   useEffect(() => {
     axios.get(`/api/courses/byid/${id}`)
@@ -70,19 +77,104 @@ const CourseDetail = () => {
     // eslint-disable-next-line
   }, [course]);
 
+  useEffect(() => {
+    // Obtener usuario logueado
+    const userObj = localStorage.getItem('user');
+    if (userObj) setUser(JSON.parse(userObj));
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    // Consultar si el usuario ya firmó este curso
+    const token = localStorage.getItem('token');
+    axios.get(`/api/courses/${id}/signature`, {
+      params: { userId: user.id },
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => setSigned(res.data.signed))
+      .catch(() => setSigned(false));
+  }, [user, id]);
+
+  // Cierre automático del snackbar después de 1.5s
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar(s => ({ ...s, open: false }));
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
+
   if (loading) return <div className="course-detail-loading">Cargando...</div>;
   if (!course) return <div className="course-detail-error">No se encontró el curso.</div>;
 
   return (
     <div className="course-detail-outer">
-      <div className="course-detail-card">
+      <div className="course-detail-card" style={{ position: 'relative', paddingBottom: 60 }}>
         <div className="course-detail-header">
           <h2 className="course-detail-title">{course.name}</h2>
           <div className="course-detail-actions">
+            {signed && (
+              <img src={checkIcon} alt="Curso firmado" title="Curso firmado" style={{ width: 32, height: 32, marginRight: 12, marginTop: 2 }} />
+            )}
             <button className="course-detail-btn" onClick={() => window.history.back()}>Regresar</button>
-            {/* <button className="course-detail-btn edit">Editar</button> */}
           </div>
         </div>
+        {/* Modal de firma */}
+        {showSignModal && (
+          <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowSignModal(false)}>
+            <div className="modal" style={{ minWidth: 340, maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
+              <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setShowSignModal(false)}>✕</button>
+              <h3 style={{ marginTop: 0 }}>Firma de compromiso</h3>
+              <p>Por favor, escribe tu nombre completo para confirmar que has revisado y comprendido a consciencia el curso de <b>{course.name}</b>.</p>
+              <input
+                type="text"
+                value={signature}
+                onChange={e => setSignature(e.target.value)}
+                placeholder="Nombre completo"
+                style={{ width: '100%', borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 16, marginBottom: 18 }}
+                disabled={signing}
+              />
+              <button
+                className="confirm-button"
+                style={{ minWidth: 120, fontSize: 16 }}
+                disabled={signing || !signature.trim()}
+                onClick={async () => {
+                  if (signature.trim() !== user.name) {
+                    setSnackbar({ open: true, message: 'El nombre debe coincidir exactamente con el registrado en el sistema.', type: 'error' });
+                    // No cerrar el modal si hay error de nombre
+                    return;
+                  }
+                  setSigning(true);
+                  try {
+                    const token = localStorage.getItem('token');
+                    await axios.post(`/api/courses/${id}/signature`, {
+                      userId: user.id,
+                      name: signature.trim()
+                    }, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setShowSignModal(false);
+                    setSigned(true);
+                    setSnackbar({ open: true, message: '¡Curso firmado con éxito!', type: 'success' });
+                    setTimeout(() => window.history.back(), 1200);
+                  } catch {
+                    setSnackbar({ open: true, message: 'Error al firmar el curso', type: 'error' });
+                    setTimeout(() => setSnackbar({ open: false, message: '', type: 'error' }), 1500);
+                  } finally {
+                    setSigning(false);
+                  }
+                }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Snackbar */}
+        {snackbar.open && (
+          <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: snackbar.type === 'success' ? '#43a047' : '#d32f2f', color: '#fff', fontWeight: 600, fontSize: 17, borderRadius: 10, boxShadow: '0 4px 24px #2224', padding: '16px 32px', textAlign: 'center', opacity: 0.98, letterSpacing: 0.2, pointerEvents: 'auto', transition: 'all 0.3s' }}>{snackbar.message}</div>
+        )}
         <div className="course-detail-section">
           <h4>Descripción</h4>
           <div className="course-detail-description-box">{course.description || 'Sin descripción.'}</div>
@@ -160,6 +252,16 @@ const CourseDetail = () => {
             <p className="course-detail-no-resources">No hay recursos adjuntos.</p>
           )}
         </div>
+        {/* Botón de firma si no está firmado */}
+        {!signed && user && (
+          <button
+            className="confirm-button"
+            style={{ position: 'absolute', bottom: 18, right: 18, zIndex: 1000 }}
+            onClick={() => setShowSignModal(true)}
+          >
+            He revisado el curso
+          </button>
+        )}
       </div>
     </div>
   );

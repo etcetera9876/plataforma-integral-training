@@ -5,6 +5,7 @@ import io from 'socket.io-client';
 import Sidebar from './Sidebar';
 import AlertMessage from './Trainer/AlertMessage';
 import './TrainingDashboard.css';
+import checkIcon from '../assets/check-icon.png';
 
 const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const TrainingDashboard = ({ setUser, user }) => {
   const [assessments, setAssessments] = useState([]); // Evaluaciones asignadas
   const [socket, setSocket] = useState(null); // Estado para almacenar la instancia de socket
   const [now, setNow] = useState(new Date()); // Estado para actualización automática
+  const [signedCourses, setSignedCourses] = useState([]); // Cursos firmados por el usuario
 
   // Modal para curso bloqueado
   const [showLockedModal, setShowLockedModal] = useState(false);
@@ -32,6 +34,11 @@ const TrainingDashboard = ({ setUser, user }) => {
   const handleAssessmentClick = (assessment) => {
     if (assessment.submittedAt) {
       setSnackbar({ open: true, message: 'Ya se tomó el test.', type: 'info' });
+      return;
+    }
+    if (!assessment.canTakeTest && Array.isArray(assessment.relatedCourses) && assessment.relatedCourses.length > 0) {
+      const courseNames = (assessment.relatedCourseNames || []).join(', ');
+      setSnackbar({ open: true, message: `Debes firmar los cursos: ${courseNames}`, type: 'info' });
       return;
     }
     navigate(`/assessment/${assessment._id}`);
@@ -92,19 +99,29 @@ const TrainingDashboard = ({ setUser, user }) => {
   // Obtener los cursos creados desde el backend SOLO cuando cambia el usuario o llega un evento de socket
   useEffect(() => {
     if (!user) return;
-    axios
-      .get('/api/courses', {
-        params: {
-          recruiterId: user.id,
-          branchId: user.branchId,
-        },
-      })
+    // Obtener cursos y cursos firmados en paralelo
+    const token = localStorage.getItem('token');
+    axios.get('/api/courses', {
+      params: {
+        recruiterId: user.id,
+        branchId: user.branchId,
+      },
+    })
       .then((response) => {
         setAllCourses(response.data);
       })
       .catch((error) => {
         console.error("Error al obtener los cursos:", error);
       });
+    // Obtener todos los cursos firmados en una sola petición
+    axios.get('/api/courses/signed', {
+      params: { userId: user.id },
+      headers: { Authorization: token }
+    })
+      .then(res => {
+        setSignedCourses(res.data.signedCourseIds || []);
+      })
+      .catch(() => setSignedCourses([]));
   }, [user]);
 
   // Obtener las evaluaciones asignadas desde el backend
@@ -182,11 +199,18 @@ const TrainingDashboard = ({ setUser, user }) => {
             <div className="training-course-list scrollable-container"> {/* Clase para scroll horizontal */}
               {courses.map((course) => (
                 <div key={course._id} className="training-course-item" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => handleCourseClick(course)}>
-                  {/* Icono de candado si el curso está bloqueado */}
-                  {course.isLocked && (
-                    <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 22, color: '#ff9800' }} title="Curso bloqueado">🔒</span>
+                  {/* Icono de check si el curso está firmado */}
+                  {signedCourses.some(id => String(id) === String(course._id)) && (
+                    <img src={checkIcon} alt="Curso firmado" title="Curso firmado" style={{ position: 'absolute', top: 8, right: 8, width: 34, height: 34, zIndex: 3 }} />
                   )}
-                  <h3 className="training-course-title">{course.name}</h3>
+                  {/* Icono de candado si el curso está bloqueado, debajo del check-icon */}
+                  {course.isLocked && (
+                    <span style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 22, color: '#ff9800', zIndex: 2 }} title="Curso bloqueado">🔒</span>
+                  )}
+                  {/* Nombre del curso y check-icon alineados en extremos */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 }}>
+                    <h3 className="training-course-title" style={{ margin: 0 }}>{course.name}</h3>
+                  </div>
                   <p className="training-course-info">
                     Creado el: {new Date(course.createdAt).toLocaleDateString()}
                   </p>
@@ -230,9 +254,13 @@ const TrainingDashboard = ({ setUser, user }) => {
                     className="confirm-button"
                     style={{ marginTop: 12 }}
                     onClick={e => { e.stopPropagation(); handleAssessmentClick(assessment); }}
-                    disabled={assessment.submittedAt}
+                    disabled={assessment.submittedAt || !assessment.canTakeTest}
                   >
-                    {assessment.submittedAt ? 'Ya respondido' : 'Resolver evaluación'}
+                    {assessment.submittedAt
+                      ? 'Ya respondido'
+                      : assessment.canTakeTest
+                        ? 'Resolver evaluación'
+                        : 'Debes firmar todos los cursos relacionados'}
                   </button>
                 </div>
               ))}

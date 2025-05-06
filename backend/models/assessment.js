@@ -44,6 +44,7 @@ const AssessmentSchema = new mongoose.Schema({
     default: null
   }, // Filtros y repeticiones usados para generar subtests
   questions: [QuestionSchema],
+  relatedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
 });
 
 module.exports = mongoose.model('Assessment', AssessmentSchema);

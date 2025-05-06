@@ -245,3 +245,57 @@ exports.linkPreview = async (req, res) => {
     res.status(500).json({ error: 'No se pudo obtener la vista previa del enlace', details: error.message });
   }
 };
+
+// Firma de curso: consultar si el usuario ya firmó
+exports.getCourseSignature = async (req, res) => {
+  try {
+    const { id } = req.params; // courseId
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ signed: false, message: 'Falta userId' });
+    const CourseSignature = require('../models/courseSignature');
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+    const exists = await CourseSignature.findOne({ courseId: id, userId: userObjectId });
+    res.json({ signed: !!exists });
+  } catch (err) {
+    res.status(500).json({ signed: false, message: 'Error al consultar firma', error: err.message });
+  }
+};
+
+// Firma de curso: guardar firma
+exports.signCourse = async (req, res) => {
+  try {
+    const { id } = req.params; // courseId
+    const { userId, name } = req.body;
+    if (!userId || !name) return res.status(400).json({ message: 'Faltan datos' });
+    const CourseSignature = require('../models/courseSignature');
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+    // Evitar firmas duplicadas
+    const exists = await CourseSignature.findOne({ courseId: id, userId: userObjectId });
+    if (exists) return res.status(409).json({ message: 'Ya firmado' });
+    const signature = new CourseSignature({ courseId: id, userId: userObjectId, name });
+    await signature.save();
+    res.json({ message: 'Firma guardada', signature });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al guardar firma', error: err.message });
+  }
+};
+
+// Obtener todos los IDs de cursos firmados por un usuario
+exports.getSignedCourses = async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ message: 'Falta userId' });
+    const CourseSignature = require('../models/courseSignature');
+    // DEBUG: Log para ver si el modelo se carga correctamente
+    console.log('[DEBUG] Buscando firmas para userId:', userId);
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+    const signatures = await CourseSignature.find({ userId: userObjectId }, 'courseId');
+    // DEBUG: Log resultado de la consulta
+    console.log('[DEBUG] Firmas encontradas:', signatures);
+    const signedCourseIds = signatures.map(sig => String(sig.courseId));
+    res.json({ signedCourseIds });
+  } catch (err) {
+    console.error('[ERROR] getSignedCourses:', err);
+    res.status(500).json({ message: 'Error al obtener cursos firmados', error: err.message });
+  }
+};
