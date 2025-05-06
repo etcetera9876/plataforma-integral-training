@@ -6,6 +6,7 @@ const path = require("path");
 const multer = require("multer");
 const Subtest = require('../models/subtest');
 const nodemailer = require('nodemailer');
+const { emitDbChange } = require('../socket');
 
 // Configuración nodemailer
 const transporter = nodemailer.createTransport({
@@ -119,7 +120,8 @@ exports.createAssessment = async (req, res) => {
       relatedCourses: Array.isArray(relatedCourses) ? relatedCourses : [],
     });
     await assessment.save();
-    res.status(201).json({ message: 'Evaluación creada con éxito', assessment });
+    await emitDbChange(); // <--- Notifica a los clientes en tiempo real
+    res.status(201).json({ message: 'Evaluación creada correctamente', assessment });
   } catch (error) {
     console.error("ERROR AL CREAR ASSESSMENT:", error); // <-- LOG PARA DEPURAR
     res.status(500).json({ message: 'Error al crear la evaluación', error: error.message });
