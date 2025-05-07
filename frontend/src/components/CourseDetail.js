@@ -52,6 +52,7 @@ const CourseDetail = () => {
   const [signed, setSigned] = useState(false);
   const [user, setUser] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'success' });
+  const [signedPdfFile, setSignedPdfFile] = useState(null);
 
   // Buscar el curso en el contexto global antes de pedirlo al backend
   useEffect(() => {
@@ -153,7 +154,38 @@ const CourseDetail = () => {
             <div className="modal" style={{ minWidth: 340, maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
               <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setShowSignModal(false)}>✕</button>
               <h3 style={{ marginTop: 0 }}>Firma de compromiso</h3>
-              <p>Por favor, escribe tu nombre completo para confirmar que has revisado y comprendido a consciencia el curso de <b>{course.name}</b>.</p>
+              <p>Descargue, imprima y firme el archivo. Con esto usted está reconociendo que ha recibido una capacitación del curso: <b>{course.name}</b>.</p>
+              <a
+                href={`/api/certificates/template/${course._id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, textDecoration: 'none', color: '#1976d2', fontWeight: 600 }}
+              >
+                <img src={pdfIcon} alt="PDF" style={{ width: 28, height: 28 }} />
+                Descargar plantilla PDF
+              </a>
+              <div style={{ margin: '16px 0 8px 0', fontWeight: 500 }}>Suba su archivo firmado aquí</div>
+              <input
+                type="file"
+                accept="application/pdf"
+                id="signed-pdf-upload"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    setSignedPdfFile(e.target.files[0]);
+                  }
+                }}
+                disabled={signing}
+              />
+              <label htmlFor="signed-pdf-upload" style={{ display: 'inline-block', background: '#1976d2', color: '#fff', borderRadius: 6, padding: '8px 18px', cursor: signing ? 'not-allowed' : 'pointer', fontWeight: 600, marginBottom: 8 }}>
+                {signedPdfFile ? 'Reemplazar PDF firmado' : 'Seleccionar PDF firmado'}
+              </label>
+              {signedPdfFile && (
+                <div style={{ fontSize: 14, color: '#333', marginBottom: 8 }}>
+                  Archivo seleccionado: {signedPdfFile.name}
+                </div>
+              )}
+              <p style={{ marginTop: 18 }}>Por favor, escribe tu nombre completo para confirmar que has revisado y comprendido a consciencia el curso de <b>{course.name}</b>.</p>
               <input
                 type="text"
                 value={signature}
@@ -165,7 +197,7 @@ const CourseDetail = () => {
               <button
                 className="confirm-button"
                 style={{ minWidth: 120, fontSize: 16 }}
-                disabled={signing || !signature.trim()}
+                disabled={signing || !signature.trim() || !signedPdfFile}
                 onClick={async () => {
                   if (signature.trim() !== user.name) {
                     setSnackbar({ open: true, message: 'El nombre debe coincidir exactamente con el registrado en el sistema.', type: 'error' });
@@ -174,19 +206,37 @@ const CourseDetail = () => {
                   setSigning(true);
                   try {
                     const token = localStorage.getItem('token');
-                    await axios.post(`/api/courses/${id}/signature`, {
+                    // 1. Firmar el curso
+                    const signRes = await axios.post(`/api/courses/${id}/signature`, {
                       userId: user.id,
                       name: signature.trim()
                     }, {
                       headers: { Authorization: `Bearer ${token}` }
                     });
+                    // 2. Subir el PDF firmado
+                    if (signedPdfFile) {
+                      const formData = new FormData();
+                      formData.append('signedFile', signedPdfFile);
+                      await axios.post(`/api/certificates/${signRes.data.signature._id}/upload-signed`, formData, {
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      // Emitir evento certificateSigned para actualización en tiempo real
+                      try {
+                        await axios.post(`/api/certificates/${signRes.data.signature._id}/emit-signed-event`, {}, {
+                          headers: { Authorization: `Bearer ${token}` }
+                        });
+                      } catch (emitErr) {
+                        // No es crítico si falla, solo para tiempo real
+                        console.warn('No se pudo emitir evento de archivo firmado:', emitErr);
+                      }
+                    }
                     setShowSignModal(false);
                     setSigned(true);
                     addSignedCourse(id); // Actualiza el contexto global
-                    setSnackbar({ open: true, message: '¡Curso firmado con éxito!', type: 'success' });
+                    setSnackbar({ open: true, message: '¡Curso firmado y archivo subido con éxito!', type: 'success' });
                     setTimeout(() => window.history.back(), 1200);
-                  } catch {
-                    setSnackbar({ open: true, message: 'Error al firmar el curso', type: 'error' });
+                  } catch (err) {
+                    setSnackbar({ open: true, message: 'Error al firmar el curso o subir el archivo', type: 'error' });
                     setTimeout(() => setSnackbar({ open: false, message: '', type: 'error' }), 1500);
                   } finally {
                     setSigning(false);

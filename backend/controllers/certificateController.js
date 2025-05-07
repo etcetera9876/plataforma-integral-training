@@ -4,6 +4,7 @@ const User = require('../models/user');
 const path = require('path');
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
+const multer = require('multer');
 
 // Utilidad para generar el PDF de certificado
 async function generateCertificatePDF({ signature, user, course, outputPath }) {
@@ -66,7 +67,8 @@ exports.getCertificatesByBranch = async (req, res) => {
         userName: user.name,
         courseName: course.name,
         signedAt: sig.signedAt,
-        pdfUrl: `/api/certificates/${sig._id}/download`
+        pdfUrl: `/api/certificates/${sig._id}/download`,
+        signedFileUrl: sig.signedFileUrl // Incluye el archivo firmado si existe
       };
     }));
     res.json(certificates.filter(Boolean));
@@ -95,8 +97,72 @@ exports.downloadCertificate = async (req, res) => {
   }
 };
 
+// GET /api/certificates/template/:courseId
+// Genera y envía una plantilla PDF personalizada con el nombre del curso
+exports.getCertificateTemplate = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ message: 'Curso no encontrado' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="template-${courseId}.pdf"`);
+    const doc = new PDFDocument();
+    doc.pipe(res);
+    doc.fontSize(22).text('Reconocimiento de Capacitación', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(16).text('Yo, ____________________________, reconozco que he recibido la capacitación correspondiente al curso:', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(18).text(course.name, { align: 'center', underline: true });
+    doc.moveDown(2);
+    doc.fontSize(14).text('Firma: ____________________________', { align: 'left' });
+    doc.moveDown();
+    doc.fontSize(14).text('Fecha: ____/____/______', { align: 'left' });
+    doc.end();
+  } catch (err) {
+    res.status(500).json({ message: 'Error al generar plantilla', error: err.message });
+  }
+};
+
+// POST /api/certificates/:signatureId/upload-signed
+// Sube un PDF firmado y lo asocia al CourseSignature correspondiente
+const upload = multer({
+  dest: path.join(__dirname, '../uploads'),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      return cb(new Error('Solo se permiten archivos PDF'));
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB máximo
+});
+
+exports.uploadSignedCertificate = [
+  upload.single('signedFile'),
+  async (req, res) => {
+    try {
+      const { signatureId } = req.params;
+      if (!req.file) return res.status(400).json({ message: 'No se subió ningún archivo' });
+      // Validar que sea PDF
+      if (req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({ message: 'El archivo debe ser PDF' });
+      }
+      // Guardar la ruta en el CourseSignature
+      const signature = await CourseSignature.findById(signatureId);
+      if (!signature) return res.status(404).json({ message: 'Firma no encontrada' });
+      // Si ya había un archivo, puedes eliminarlo si lo deseas
+      signature.signedFileUrl = `/uploads/${req.file.filename}`;
+      await signature.save();
+      res.json({ message: 'Archivo subido correctamente', signedFileUrl: signature.signedFileUrl });
+    } catch (err) {
+      res.status(500).json({ message: 'Error al subir archivo firmado', error: err.message });
+    }
+  }
+];
+
 module.exports = {
   generateCertificatePDF,
   getCertificatesByBranch: exports.getCertificatesByBranch,
-  downloadCertificate: exports.downloadCertificate
+  downloadCertificate: exports.downloadCertificate,
+  getCertificateTemplate: exports.getCertificateTemplate,
+  uploadSignedCertificate: exports.uploadSignedCertificate
 };
