@@ -3,10 +3,16 @@ let ioInstance = null;
 function setSocketInstance(io) {
   ioInstance = io;
 }
-async function emitDbChange() {
-  if (!ioInstance) return;
-  // Solo emite la señal, sin enviar cursos
+function emitDbChange() {
+  if (!ioInstance) {
+    console.log('[emitDbChange] No ioInstance disponible, no se emite evento.');
+    return;
+  }
+  console.log('[emitDbChange] Emite evento "dbChange" sin payload');
   ioInstance.emit("dbChange");
 }
-// Exportar también ioInstance para acceso directo
-module.exports = { setSocketInstance, emitDbChange, ioInstance };
+module.exports = {
+  setSocketInstance,
+  emitDbChange,
+  get ioInstance() { return ioInstance; }
+};

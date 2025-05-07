@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
 
@@ -17,6 +17,7 @@ export function DashboardProvider({ user, children }) {
   const [branches, setBranches] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const selectedBranchRef = useRef("");
 
   // Cargar datos iniciales
   const fetchAllData = useCallback(async () => {
@@ -35,7 +36,7 @@ export function DashboardProvider({ user, children }) {
         axios.get('/api/assessments/assigned', {
           params: { userId: user.id, branchId: user.branchId },
           headers: { Authorization: token },
-        }),
+        })
       ]);
       setCourses(coursesRes.data);
       setSignedCourses(signedRes.data.signedCourseIds || []);
@@ -47,7 +48,7 @@ export function DashboardProvider({ user, children }) {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.branchId]);
+  }, [user, user?.id, user?.branchId]);
 
   // Cargar sucursales al iniciar
   useEffect(() => {
@@ -67,8 +68,11 @@ export function DashboardProvider({ user, children }) {
       const res = await axios.get(`/api/certificates?branch=${branchId}`, {
         headers: { Authorization: token || localStorage.getItem('token') }
       });
+      console.log('[DEBUG][DashboardContext] fetchCertificates branchId:', branchId, 'token:', token);
+      console.log('[DEBUG][DashboardContext] fetchCertificates response:', res.data);
       setCertificates(res.data);
     } catch (err) {
+      console.error('[DEBUG][DashboardContext] fetchCertificates error:', err);
       setCertificates([]);
     } finally {
       setLoading(false);
@@ -85,25 +89,38 @@ export function DashboardProvider({ user, children }) {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     });
-    newSocket.on('dbChange', () => {
-      fetchAllData();
+    newSocket.on('connect', () => {
+      console.log('[SOCKET][CTX] Conectado a socket.io');
     });
-    // NUEVO: escuchar evento de firma de curso
-    newSocket.on('courseSigned', (data) => {
-      if (data && String(data.userId) === String(user.id)) {
-        fetchAllData();
+    newSocket.on('disconnect', (reason) => {
+      console.warn('[SOCKET][CTX] Desconectado de socket.io:', reason);
+    });
+    newSocket.on('connect_error', (err) => {
+      console.error('[SOCKET][CTX] Error de conexión socket.io:', err.message);
+    });
+    // SOLO UNA escucha para certificateSigned: recarga certificados del branch seleccionado SOLO si el usuario es Trainer
+    // Solo recargar si el usuario es recruiter
+    if (user?.role === 'Recruiter') {
+      newSocket.on('dbChange', fetchAllData);
+    }
+
+    const certificateHandler = (data) => {
+      console.log('[SOCKET][CTX] certificateSigned recibido:', data, 'user.branchId:', user.branchId, 'selectedBranchRef:', selectedBranchRef.current, 'token:', user?.token, 'role:', user?.role);
+      // Solo recargar si el usuario es trainer y el branch del certificado coincide con el branch seleccionado
+      if (user?.role === 'Trainer' && data && String(data.branchId) === String(selectedBranchRef.current)) {
+        fetchCertificates(selectedBranchRef.current, user?.token);
       }
-    });
-    // NUEVO: escuchar evento de certificado firmado (para tiempo real en certificados)
-    newSocket.on('certificateSigned', (data) => {
-      console.log('[SOCKET][CTX] certificateSigned recibido:', data, 'user.branchId:', user.branchId);
-      if (data && String(data.branchId) === String(user.branchId)) {
-        fetchAllData();
-      }
-    });
+    };
+    newSocket.on('certificateSigned', certificateHandler);
     setSocket(newSocket);
-    return () => newSocket.disconnect();
-  }, [user?.id, user?.branchId, fetchAllData]);
+    return () => {
+      newSocket.off('certificateSigned', certificateHandler);
+      if (user?.role === 'Recruiter') {
+        newSocket.off('dbChange', fetchAllData);
+      }
+      newSocket.disconnect();
+    };
+  }, [user, user?.id, user?.branchId, fetchAllData, fetchCertificates]);
 
   // Cargar datos al montar o cambiar usuario
   useEffect(() => {
@@ -112,20 +129,8 @@ export function DashboardProvider({ user, children }) {
 
   // Recargar certificados en tiempo real por socket
   useEffect(() => {
-    if (!selectedBranch) return;
-    if (!socket) return;
-    const handler = (data) => {
-      if (data && String(data.branchId) === String(selectedBranch)) {
-        // Agregar el certificado recibido directamente al estado si no existe
-        setCertificates(prev => {
-          if (prev.some(cert => cert.id === data.id || cert._id === data._id)) return prev;
-          return [...prev, data];
-        });
-      }
-    };
-    socket.on('certificateSigned', handler);
-    return () => socket.off('certificateSigned', handler);
-  }, [selectedBranch, socket, fetchCertificates]);
+    selectedBranchRef.current = selectedBranch;
+  }, [selectedBranch]);
 
   // Métodos para actualizar datos localmente tras acciones del usuario
   const addSignedCourse = (courseId) => {
@@ -135,6 +140,7 @@ export function DashboardProvider({ user, children }) {
   const updateAssessments = (newAssessments) => setAssessments(newAssessments);
   const handleSelectBranch = (branchId, token) => {
     setSelectedBranch(branchId);
+    selectedBranchRef.current = branchId;
     fetchCertificates(branchId, token);
   };
 

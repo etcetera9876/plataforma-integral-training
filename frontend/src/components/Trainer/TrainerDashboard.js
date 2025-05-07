@@ -5,7 +5,7 @@ import Sidebar from "../Sidebar";
 import useBranches from "../../hooks/useBranches";
 import CourseModal from "./CourseModal"; // Asegúrate de importar CourseModal
 import "./TrainerDashboard.css";
-import io from "socket.io-client"; // Importación de Socket.IO
+import socket from '../../socket';
 import { useNavigate, useLocation } from "react-router-dom";
 import { ConfirmModal } from "./ConfirmModal"; // Importa el modal de confirmación
 import CourseEditModal from "./CourseEditModal"; // Importa el nuevo modal de edición
@@ -15,15 +15,6 @@ import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregi
 import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
 import QuestionBankModal from './QuestionBankModal';
 import { FaLock, FaLockOpen } from "react-icons/fa";
-
-// Configuración de Socket.IO
-const socketUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-const socket = io(socketUrl, {
-  transports: ["websocket"],
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-});
 
 const TrainerDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();

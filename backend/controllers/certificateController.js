@@ -34,12 +34,15 @@ async function generateCertificatePDF({ signature, user, course, outputPath }) {
 exports.getCertificatesByBranch = async (req, res) => {
   try {
     const { branch } = req.query;
+    console.log('[DEBUG][getCertificatesByBranch] branch recibido:', branch);
     if (!branch) return res.status(400).json({ message: 'Falta branch' });
     // Buscar cursos de la sucursal
     const courses = await Course.find({ branchId: branch });
+    console.log('[DEBUG][getCertificatesByBranch] cursos encontrados:', courses.map(c => ({_id: c._id, name: c.name, branchId: c.branchId})));
     const courseIds = courses.map(c => c._id);
     // Buscar firmas de esos cursos
     const signatures = await CourseSignature.find({ courseId: { $in: courseIds } });
+    console.log('[DEBUG][getCertificatesByBranch] firmas encontradas:', signatures.map(s => ({_id: s._id, userId: s.userId, courseId: s.courseId, name: s.name, signedAt: s.signedAt})));
     // Buscar usuarios y cursos relacionados
     const userIds = signatures.map(s => s.userId);
     const users = await User.find({ _id: { $in: userIds } });

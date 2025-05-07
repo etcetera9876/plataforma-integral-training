@@ -18,6 +18,7 @@ const TrainerCertificates = ({ setUser, user }) => {
       <Sidebar setUser={setUser} userName={user.name} userId={user.id} />
       <main className="training-main-content">
         <h1>Training certificates</h1>
+        {console.log('[DEBUG][TrainerCertificates] certificates:', certificates)}
         <div style={{ margin: '24px 0' }}>
           <label htmlFor="branch-select"><b>Select the branch:</b></label>
           <select

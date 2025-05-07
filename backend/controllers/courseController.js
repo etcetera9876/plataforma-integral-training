@@ -295,6 +295,15 @@ exports.signCourse = async (req, res) => {
       await generateCertificatePDF({ signature, user, course, outputPath: pdfPath });
     }
 
+    // Log detallado antes de emitir el evento
+    console.log('[signCourse] Firma guardada:', {
+      signatureId: signature._id,
+      userId: user ? user._id : userId,
+      userName: user ? user.name : name,
+      courseId: course ? course._id : id,
+      courseName: course ? course.name : undefined
+    });
+
     // Construir objeto certificado
     const certificado = {
       id: signature._id,
@@ -306,10 +315,16 @@ exports.signCourse = async (req, res) => {
 
     // Emitir evento de firma por socket.io (certificateSigned con datos completos)
     const { ioInstance } = require('../socket');
+    const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
+    console.log('[DEBUG][signCourse] ioInstance:', !!ioInstance, 'branchIdStr:', branchIdStr, 'certificado:', certificado);
     if (ioInstance) {
-      const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
+      console.log('[SOCKET][BACKEND] Emite certificateSigned:', { ...certificado, branchId: branchIdStr });
       ioInstance.emit('certificateSigned', { ...certificado, branchId: branchIdStr });
     }
+    // Emitir evento de cambio en la base de datos
+    const { emitDbChange } = require('../socket');
+    await emitDbChange();
+    console.log('[signCourse] emitDbChange llamado tras firma de curso.');
     res.json({ message: 'Firma guardada', signature });
   } catch (err) {
     console.error('[ERROR][signCourse]', err); // Log detallado del error
