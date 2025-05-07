@@ -159,10 +159,40 @@ exports.uploadSignedCertificate = [
   }
 ];
 
+// POST /api/certificates/:signatureId/emit-signed-event
+// Emite el evento certificateSigned para actualización en tiempo real tras subir el archivo firmado
+exports.emitSignedEvent = async (req, res) => {
+  try {
+    const { signatureId } = req.params;
+    const signature = await CourseSignature.findById(signatureId);
+    if (!signature) return res.status(404).json({ message: 'Firma no encontrada' });
+    const user = await User.findById(signature.userId);
+    const course = await Course.findById(signature.courseId);
+    if (!user || !course) return res.status(404).json({ message: 'Datos incompletos' });
+    const certificado = {
+      id: signature._id,
+      userName: user.name,
+      courseName: course.name,
+      signedAt: signature.signedAt,
+      pdfUrl: `/api/certificates/${signature._id}/download`,
+      signedFileUrl: signature.signedFileUrl
+    };
+    const { ioInstance } = require('../socket');
+    const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
+    if (ioInstance) {
+      ioInstance.emit('certificateSigned', { ...certificado, branchId: branchIdStr });
+    }
+    res.json({ message: 'Evento emitido' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al emitir evento', error: err.message });
+  }
+};
+
 module.exports = {
   generateCertificatePDF,
   getCertificatesByBranch: exports.getCertificatesByBranch,
   downloadCertificate: exports.downloadCertificate,
   getCertificateTemplate: exports.getCertificateTemplate,
-  uploadSignedCertificate: exports.uploadSignedCertificate
+  uploadSignedCertificate: exports.uploadSignedCertificate,
+  emitSignedEvent: exports.emitSignedEvent
 };
