@@ -13,6 +13,8 @@ const TrainingDashboard = ({ setUser, user }) => {
   const [now, setNow] = useState(new Date());
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [lockedCourseName, setLockedCourseName] = useState("");
+  const [showLockedAssessmentModal, setShowLockedAssessmentModal] = useState(false);
+  const [lockedAssessmentName, setLockedAssessmentName] = useState("");
 
   // Usar datos del contexto global
   const { courses, signedCourses, assessments, loading, refetchAll } = useDashboard();
@@ -27,6 +29,11 @@ const TrainingDashboard = ({ setUser, user }) => {
   };
 
   const handleAssessmentClick = (assessment) => {
+    if (assessment.isLocked) {
+      setLockedAssessmentName(assessment.name);
+      setShowLockedAssessmentModal(true);
+      return;
+    }
     if (assessment.submittedAt) {
       setSnackbar({ open: true, message: 'Ya se tomó el test.', type: 'info' });
       return;
@@ -73,6 +80,16 @@ const TrainingDashboard = ({ setUser, user }) => {
     }
   }, [snackbar.open]);
 
+  // Filtrar assessments según fecha de publicación y expiración
+  const visibleAssessments = assessments.filter((assessment) => {
+    const pub = assessment.publicationDate ? new Date(assessment.publicationDate) : null;
+    const exp = assessment.expirationDate ? new Date(assessment.expirationDate) : null;
+    // Solo mostrar si:
+    // - No hay fecha de publicación o ya pasó
+    // - No hay fecha de expiración o aún no ha pasado
+    return (!pub || now >= pub) && (!exp || now < exp);
+  });
+
   return (
     <div className="dashboard-container">
       <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
@@ -112,15 +129,15 @@ const TrainingDashboard = ({ setUser, user }) => {
 
         <section className="training-assessments-section">
           <h2>Tus Evaluaciones</h2>
-          {assessments.length > 0 ? (
+          {visibleAssessments.length > 0 ? (
             <div className="training-course-list scrollable-container">
-              {assessments.map((assessment) => (
+              {visibleAssessments.map((assessment) => (
                 <div
                   key={assessment._id}
                   className="training-course-item"
                   style={{
                     position: 'relative',
-                    cursor: assessment.submittedAt ? 'not-allowed' : 'pointer',
+                    cursor: assessment.submittedAt || assessment.isLocked ? 'not-allowed' : 'pointer',
                     minWidth: 260,
                     maxWidth: 320,
                     margin: '0 16px 24px 0',
@@ -130,24 +147,30 @@ const TrainingDashboard = ({ setUser, user }) => {
                     padding: 18,
                     display: 'inline-block',
                     verticalAlign: 'top',
-                    opacity: assessment.submittedAt ? 0.6 : 1,
-                    pointerEvents: assessment.submittedAt ? 'auto' : 'auto'
+                    opacity: assessment.submittedAt || assessment.isLocked ? 0.6 : 1,
+                    pointerEvents: assessment.submittedAt || assessment.isLocked ? 'auto' : 'auto'
                   }}
                   onClick={() => handleAssessmentClick(assessment)}
                 >
+                  {/* Icono de candado si la evaluación está bloqueada */}
+                  {assessment.isLocked && (
+                    <span style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 22, color: '#ff9800', zIndex: 2 }} title="Evaluación bloqueada">🔒</span>
+                  )}
                   <h3 className="training-course-title">{assessment.name}</h3>
                   <p className="training-course-info">{assessment.description}</p>
                   <button
                     className="confirm-button"
                     style={{ marginTop: 12 }}
                     onClick={e => { e.stopPropagation(); handleAssessmentClick(assessment); }}
-                    disabled={assessment.submittedAt || !assessment.canTakeTest}
+                    disabled={assessment.submittedAt || !assessment.canTakeTest || assessment.isLocked}
                   >
-                    {assessment.submittedAt
-                      ? 'Ya respondido'
-                      : assessment.canTakeTest
-                        ? 'Resolver evaluación'
-                        : 'Debes firmar todos los cursos relacionados'}
+                    {assessment.isLocked
+                      ? 'Evaluación bloqueada'
+                      : assessment.submittedAt
+                        ? 'Ya respondido'
+                        : assessment.canTakeTest
+                          ? 'Resolver evaluación'
+                          : 'Debes firmar todos los cursos relacionados'}
                   </button>
                 </div>
               ))}
@@ -167,6 +190,23 @@ const TrainingDashboard = ({ setUser, user }) => {
               </p>
               <div className="modal-actions" style={{ justifyContent: 'center' }}>
                 <button className="confirm-button" onClick={() => setShowLockedModal(false)}>
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de evaluación bloqueada */}
+        {showLockedAssessmentModal && (
+          <div className="modal-overlay" onClick={() => setShowLockedAssessmentModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h3 style={{ textAlign: 'center', marginBottom: 16 }}>Evaluación bloqueada</h3>
+              <p style={{ textAlign: 'center', marginBottom: 24 }}>
+                La evaluación <b>"{lockedAssessmentName}"</b> está bloqueada por el trainer.<br />No puedes acceder hasta que sea desbloqueada.
+              </p>
+              <div className="modal-actions" style={{ justifyContent: 'center' }}>
+                <button className="confirm-button" onClick={() => setShowLockedAssessmentModal(false)}>
                   Entendido
                 </button>
               </div>

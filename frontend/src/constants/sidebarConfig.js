@@ -57,7 +57,6 @@ export const SIDEBAR_MODULES = [
     route: '/settings',
     order: 7
   },
-
   {
     key: 'results',
     label: 'Evaluation results',
@@ -65,5 +64,13 @@ export const SIDEBAR_MODULES = [
     roles: ['Trainer'],
     route: '/results',
     order: 7
+  },
+  {
+    key: 'certificates',
+    label: 'Training certificates',
+    icon: require('../assets/pdf-icon.png'),
+    roles: ['Trainer'],
+    route: '/certificates',
+    order: 8
   }
 ];

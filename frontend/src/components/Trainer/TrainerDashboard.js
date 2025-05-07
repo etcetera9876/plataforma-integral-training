@@ -14,10 +14,11 @@ import AssessmentModal from "./AssessmentModal"; // Importa el modal de evaluaci
 import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregida
 import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
 import QuestionBankModal from './QuestionBankModal';
-
+import { FaLock, FaLockOpen } from "react-icons/fa";
 
 // Configuración de Socket.IO
-const socket = io(API_URL, {
+const socketUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+const socket = io(socketUrl, {
   transports: ["websocket"],
   reconnection: true,
   reconnectionAttempts: 5,
@@ -78,7 +79,7 @@ const TrainerDashboard = ({ setUser, user }) => {
 
   const handleConfirmDelete = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/courses/${courseToDelete}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseToDelete}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -545,7 +546,8 @@ const TrainerDashboard = ({ setUser, user }) => {
                                 }}
                                 title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
                               >
-                                {assessment.isLocked ? "Unlock" : "Lock"}
+                                {assessment.isLocked ? <FaLock style={{ marginRight: 6 }} /> : <FaLockOpen style={{ marginRight: 6 }} />}
+                                {assessment.isLocked ? "Desbloquear" : "Bloquear"}
                               </button>
                             </div>
                           </div>

@@ -279,13 +279,40 @@ exports.signCourse = async (req, res) => {
     if (exists) return res.status(409).json({ message: 'Ya firmado' });
     const signature = new CourseSignature({ courseId: id, userId: userObjectId, name });
     await signature.save();
-    // Emitir evento de firma por socket.io
+
+    // Obtener usuario y curso
+    const User = require('../models/user');
+    const user = await User.findById(userObjectId);
+    const course = await require('../models/course').findById(id);
+
+    // Generar PDF si no existe
+    const path = require('path');
+    const fs = require('fs');
+    const pdfFileName = `certificate-${signature._id}.pdf`;
+    const pdfPath = path.join(__dirname, '../uploads', pdfFileName);
+    if (!fs.existsSync(pdfPath)) {
+      const { generateCertificatePDF } = require('./certificateController');
+      await generateCertificatePDF({ signature, user, course, outputPath: pdfPath });
+    }
+
+    // Construir objeto certificado
+    const certificado = {
+      id: signature._id,
+      userName: user.name,
+      courseName: course.name,
+      signedAt: signature.signedAt,
+      pdfUrl: `/api/certificates/${signature._id}/download`
+    };
+
+    // Emitir evento de firma por socket.io (certificateSigned con datos completos)
     const { ioInstance } = require('../socket');
     if (ioInstance) {
-      ioInstance.emit('courseSigned', { courseId: id, userId });
+      const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
+      ioInstance.emit('certificateSigned', { ...certificado, branchId: branchIdStr });
     }
     res.json({ message: 'Firma guardada', signature });
   } catch (err) {
+    console.error('[ERROR][signCourse]', err); // Log detallado del error
     res.status(500).json({ message: 'Error al guardar firma', error: err.message });
   }
 };

@@ -13,6 +13,7 @@ import CourseDetail from './components/CourseDetail';
 import TestEditPage from './pages/TestEditPage';
 import AssessmentResolvePage from "./pages/AssessmentResolvePage";
 import { DashboardProvider } from './components/DashboardContext';
+import TrainerCertificates from './components/Trainer/TrainerCertificates';
 
 import API_URL from './config';
 import axios from 'axios';
@@ -201,6 +202,10 @@ function App() {
           <Route 
             path="/assessment/:id" 
             element={<AssessmentResolvePage />} 
+          />
+          <Route 
+            path="/certificates" 
+            element={user ? <TrainerCertificates setUser={setUser} user={user} /> : <Navigate to="/" />} 
           />
         </Routes>
         {showPopup && <WelcomePopup onClose={() => setShowPopup(false)} />}

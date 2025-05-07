@@ -186,6 +186,7 @@ exports.deleteAssessment = async (req, res) => {
       return res.status(404).json({ message: 'Evaluación no encontrada' });
     }
     res.json({ message: 'Evaluación eliminada' });
+    await emitDbChange(); // <--- Notifica a los clientes en tiempo real
   } catch (error) {
     res.status(500).json({ message: 'Error al eliminar la evaluación', error: error.message });
   }
@@ -200,6 +201,7 @@ exports.toggleLockAssessment = async (req, res) => {
     }
     assessment.isLocked = !assessment.isLocked;
     await assessment.save();
+    await emitDbChange(); // Notifica a los clientes en tiempo real
     res.json({ message: 'Estado de bloqueo actualizado', assessment });
   } catch (error) {
     res.status(500).json({ message: 'Error al actualizar el estado de bloqueo', error: error.message });

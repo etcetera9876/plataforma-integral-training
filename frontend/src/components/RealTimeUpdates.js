@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
 // Conecta al backend (asegúrate de que la URL coincide con la de tu servidor)
-const socket = io("http://localhost:5000");
+const socketUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+const socket = io(socketUrl);
 
 const RealTimeUpdates = () => {
   const [updates, setUpdates] = useState([]);

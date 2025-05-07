@@ -1,0 +1,102 @@
+import React from 'react';
+import Sidebar from '../Sidebar';
+import pdfIcon from '../../assets/pdf-icon.png';
+import './TrainerDashboard.css';
+import { useDashboard } from '../DashboardContext';
+
+const TrainerCertificates = ({ setUser, user }) => {
+  const {
+    branches,
+    certificates,
+    selectedBranch,
+    selectBranch,
+    loading,
+  } = useDashboard();
+
+  return (
+    <div className="dashboard-container">
+      <Sidebar setUser={setUser} userName={user.name} userId={user.id} />
+      <main className="training-main-content">
+        <h1>Training certificates</h1>
+        <div style={{ margin: '24px 0' }}>
+          <label htmlFor="branch-select"><b>Select the branch:</b></label>
+          <select
+            id="branch-select"
+            value={selectedBranch}
+            onChange={e => selectBranch(e.target.value, user.token)}
+            style={{ marginLeft: 12, padding: 6, borderRadius: 6 }}
+          >
+            <option value="">-- Select --</option>
+            {branches.map(branch => (
+              <option key={branch._id} value={branch._id}>{branch.name}</option>
+            ))}
+          </select>
+        </div>
+        {loading && <p>Loading certificates...</p>}
+        {!loading && selectedBranch && certificates.length === 0 && (
+          <>
+            <p>No certificates found for this branch.</p>
+            <p style={{color: 'gray', fontSize: 13}}>¿Esperabas ver certificados aquí? Revisa la consola del navegador para detalles de depuración.</p>
+          </>
+        )}
+        {!loading && certificates.length > 0 && (
+          <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', padding: 32, marginTop: 24, maxWidth: 900 }}>
+            <table className="training-table" style={{ minWidth: 400, width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '10px 16px', minWidth: 180 }}>Recruiter/Manager</th>
+                  <th style={{ textAlign: 'left', padding: '10px 16px', minWidth: 180 }}>Course</th>
+                  <th style={{ textAlign: 'left', padding: '10px 16px', minWidth: 120 }}>Date signed</th>
+                  <th style={{ textAlign: 'center', padding: '10px 16px', minWidth: 60 }}>PDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan="4" style={{ padding: 0 }}>
+                    <div style={{ borderBottom: '2px solid #e0e0e0', width: '100%' }}></div>
+                  </td>
+                </tr>
+                {certificates.map(cert => (
+                  <tr key={cert.id}>
+                    <td style={{ textAlign: 'left', padding: '10px 16px' }}>{cert.userName}</td>
+                    <td style={{ textAlign: 'left', padding: '10px 16px' }}>{cert.courseName}</td>
+                    <td style={{ textAlign: 'left', padding: '10px 16px' }}>{new Date(cert.signedAt).toLocaleDateString()}</td>
+                    <td style={{ textAlign: 'center', padding: '10px 16px' }}>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}${cert.pdfUrl}`, {
+                              headers: { Authorization: user.token },
+                            });
+                            if (!response.ok) throw new Error('Error downloading PDF');
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${cert.userName}-${cert.courseName}-certificate.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            window.URL.revokeObjectURL(url);
+                          } catch (err) {
+                            alert('Error downloading PDF');
+                          }
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="Download PDF"
+                      >
+                        <img src={pdfIcon} alt="PDF" style={{ width: 28, height: 28 }} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default TrainerCertificates;

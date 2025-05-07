@@ -29,6 +29,7 @@ const branchRoutes = require("./routes/branchRoutes");
 const courseRoutes = require("./routes/courseRoutes");
 const assessmentRoutes = require('./routes/assessmentRoutes');
 const questionRoutes = require('./routes/questionRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -36,6 +37,7 @@ app.use("/api/branches", branchRoutes);
 app.use("/api/courses", courseRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/questions', questionRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
