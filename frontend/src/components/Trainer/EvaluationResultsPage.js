@@ -6,6 +6,7 @@ const EvaluationResultsPage = ({ user, branchId }) => {
   const [tests, setTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [subtests, setSubtests] = useState([]);
+  const [userNamesMap, setUserNamesMap] = useState({});
 
   // Obtener token
   const token = user?.token || localStorage.getItem('token');
@@ -29,6 +30,23 @@ const EvaluationResultsPage = ({ user, branchId }) => {
     if (!selectedTest) return;
     axios.get(`/api/assessments/${selectedTest._id}/subtests`, axiosConfig).then(res => setSubtests(res.data));
   }, [selectedTest]);
+
+  // Obtener nombres de usuario por ID (solo para los que no están en userNamesMap)
+  useEffect(() => {
+    if (!subtests || subtests.length === 0) return;
+    const ids = subtests
+      .map(st => {
+        if (typeof st.userId === 'string') return st.userId;
+        if (typeof st.userId === 'object' && st.userId?._id) return st.userId._id;
+        return null;
+      })
+      .filter(id => id && /^[a-f\d]{24}$/i.test(id) && !userNamesMap[id]);
+    if (ids.length > 0) {
+      axios.post('/api/users/names', { userIds: ids }, axiosConfig)
+        .then(res => setUserNamesMap(prev => ({ ...prev, ...res.data })))
+        .catch(() => {});
+    }
+  }, [subtests, userNamesMap]);
 
   return (
     <div style={{ display: 'flex', gap: 32 }}>
@@ -64,7 +82,17 @@ const EvaluationResultsPage = ({ user, branchId }) => {
                 )}
                 {subtests.map(st => (
                   <tr key={st._id}>
-                    <td style={{ padding: 10 }}>{st.userId?.name || st.userId?.email || st.userId}</td>
+                    <td style={{ padding: 10 }}>
+                      {(() => {
+                        if (typeof st.userId === 'object') {
+                          return st.userId.name || st.userId.email || st.userId._id || JSON.stringify(st.userId);
+                        } else if (/^[a-f\d]{24}$/i.test(st.userId) && userNamesMap[st.userId]) {
+                          return userNamesMap[st.userId];
+                        } else {
+                          return st.userId;
+                        }
+                      })()}
+                    </td>
                     <td style={{ padding: 10 }}>{st.submittedAt ? 'Completado' : 'Pendiente'}</td>
                     <td style={{ padding: 10 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
                     <td style={{ padding: 10 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>

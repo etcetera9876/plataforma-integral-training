@@ -260,7 +260,7 @@ const TestEditPage = () => {
     if (!multiPreview) return;
     const missingIds = multiPreview
       .map(t => String(t.userId))
-      .filter(id => !userNamesMap[id]);
+      .filter(id => /^[a-f\d]{24}$/i.test(id) && !userNamesMap[id]);
     if (missingIds.length > 0) {
       axios.post(`${API_URL}/api/users/names`, { userIds: missingIds })
         .then(res => {
@@ -602,7 +602,7 @@ const TestEditPage = () => {
                 {multiMissing.length > 0 && (
                   <div style={{ color: "#d32f2f", marginBottom: 8 }}>
                     {multiMissing.map((m, i) => {
-                      const userName = userNamesMap[String(m.userId)] || m.userId;
+                      const userName = userNamesMap[String(m.userId)] || (typeof m.userId === 'object' ? (m.userId.name || m.userId.email || m.userId._id) : undefined) || String(m.userId);
                       const typeLabel = (QUESTION_TYPES.find(t => t.value === m.type)?.label) || m.type;
                       const diffLabel = (DIFFICULTY_OPTIONS.find(d => d.value === questionFilters.difficulty)?.label) || questionFilters.difficulty;
                       return (
@@ -615,7 +615,10 @@ const TestEditPage = () => {
                 )}
                 <div style={{ display: 'flex', gap: 18, overflowX: 'auto', border: "1px solid #eee", borderRadius: 8, background: "#fafbfc", padding: 8, minHeight: 180 }}>
                   {multiPreview.map((test, idx) => {
-                    const userName = userNamesMap[String(test.userId)] || test.userId;
+                    const userName =
+                      userNamesMap[String(test.userId)] ||
+                      (typeof test.userId === 'object' ? (test.userId.name || test.userId.email || test.userId._id) : undefined) ||
+                      String(test.userId);
                     const blockLabel = (blocks.find(b => b._id === (test.block || test.components?.[0]?.block))?.label) || '';
                     return (
                       <div key={idx} style={{ minWidth: 260, maxWidth: 340, flex: '0 0 260px', background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0', padding: 14, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }}
@@ -637,7 +640,15 @@ const TestEditPage = () => {
                 </div>
                 {/* Modal de previsualización reutilizable */}
                 {showPreview && previewTest && (
-                  <TestPreviewModal test={previewTest} userName={userNamesMap[String(previewTest.userId)] || previewTest.userId} onClose={() => setShowPreview(false)} />
+                  <TestPreviewModal
+                    test={previewTest}
+                    userName={
+                      userNamesMap[String(previewTest.userId)] ||
+                      (typeof previewTest.userId === 'object' ? (previewTest.userId.name || previewTest.userId.email || previewTest.userId._id) : undefined) ||
+                      String(previewTest.userId)
+                    }
+                    onClose={() => setShowPreview(false)}
+                  />
                 )}
               </div>
             )}
