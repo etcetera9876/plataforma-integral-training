@@ -7,7 +7,7 @@ import './Sidebar.css';
 import API_URL from '../config';
 import { SIDEBAR_MODULES } from '../constants/sidebarConfig';
 
-const Sidebar = ({ onLogout, userName, userId }) => {
+const Sidebar = ({ onLogout, userName, userId, onShowResults }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [role, setRole] = useState('');
   const [place, setPlace] = useState('');
@@ -35,12 +35,12 @@ const Sidebar = ({ onLogout, userName, userId }) => {
 
   const toggleSidebar = () => setCollapsed(prev => !prev);
 
-  const handleNavigate = (route) => {
-    if (route === '/results') {
-      setShowPopup(true); // Mostrar popup para "Evaluation results"
-    } else {
-      navigate(route); // Navegar a la ruta especificada
+  const handleNavigate = (route, mod) => {
+    if (mod.key === 'results' && typeof onShowResults === 'function') {
+      onShowResults();
+      return;
     }
+    navigate(route);
   };
 
   // Filtrar módulos según el rol del usuario
@@ -68,8 +68,9 @@ const Sidebar = ({ onLogout, userName, userId }) => {
       <nav className="sidebar-menu">
         <ul>
           {filteredModules.map(mod => (
-            <li key={mod.key}  className={location.pathname === mod.route ? 'active' : ''} //Resalta el menú activo
-             onClick={() => handleNavigate(mod.route)}>
+            <li key={mod.key}
+                className={mod.key === 'results' && typeof onShowResults === 'function' ? (window.location.pathname === '/courses-assessments' && onShowResults ? 'active' : '') : (location.pathname === mod.route ? 'active' : '')}
+                onClick={() => handleNavigate(mod.route, mod)}>
               <img src={mod.icon} alt={mod.label} className="menu-icon" />
               {!collapsed && <span>{mod.label}</span>}
             </li>
