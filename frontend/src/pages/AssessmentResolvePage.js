@@ -106,7 +106,7 @@ const AssessmentResolvePage = () => {
   return (
     <div style={{ maxWidth: 900, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #e0e0e0", padding: 32, textAlign: 'left' }}>
       <h2 style={{ color: '#1976d2', fontWeight: 700, textAlign: 'center' }}>{test.name}</h2>
-      <p style={{ color: '#444', textAlign: 'center', marginBottom: 36 }}>{test.description}</p>
+      <p style={{ color: '#444', textAlign: 'center', marginBottom: 50 }}>{test.description}</p>
       <ol style={{ paddingLeft: 24, listStylePosition: 'decimal' }}>
         {test.questions && test.questions.map((q, idx) => {
           console.log(`Tipo de pregunta #${idx + 1}:`, q.type);
