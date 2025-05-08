@@ -15,8 +15,8 @@ import BlocksConfigModal from "./ComponentsConfigModal"; // Importación corregi
 import AlertMessage from "./AlertMessage"; // Importa el componente AlertMessage
 import QuestionBankModal from './QuestionBankModal';
 import { FaLock, FaLockOpen } from "react-icons/fa";
-import EvaluationResultsPage from './EvaluationResultsPage';
-import TrainerCertificates from './TrainerCertificates';
+import EvaluationResultsPage from "./EvaluationResultsPage";
+import TrainerCertificates from "./TrainerCertificates";
 
 const TrainerDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
@@ -343,6 +343,7 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [branches]);
 
+  // Obtén la sección activa del dashboard según la ruta actual
   const getActiveSection = () => {
     if (location.pathname === '/results') return 'results';
     if (location.pathname === '/certificates') return 'certificates';
@@ -363,229 +364,227 @@ const TrainerDashboard = ({ setUser, user }) => {
           <h1 className="title">Trainer Dashboard</h1>
           <p className="subtitle">Welcome! Here you can create courses and assessments. You can also review assessments completed by recruiters and managers, as well as signed training receipts. All of this management is done by branch.</p>
 
+          {/* Selector de branch global, siempre visible */}
+          <section className="branch-selector" style={{marginBottom: 32}}>
+            <label htmlFor="branch-select">Select the branch:</label>
+            {loading ? (
+              <p>Loading branches...</p>
+            ) : branches.length > 0 ? (
+              <select id="branch-select" value={selectedBranch ? String(selectedBranch) : ""} onChange={handleBranchChange}>
+                <option value="">-- Selecciona una sucursal --</option>
+                {branches.map((branch) => (
+                  <option key={branch._id} value={String(branch._id)}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p>Selecciona una sucursal...</p>
+            )}
+          </section>
+
           {/* Contenido según sección activa */}
           {activeSection === 'courses' && (
-            <>
-              {/* Mostrar el selector solo cuando branches y selectedBranch estén listos */}
-              <section className="branch-selector">
-                <label htmlFor="branch-select">Select the branch:</label>
-                {loading ? (
-                  <p>Loading branches...</p>
-                ) : branches.length > 0 ? (
-                  <select id="branch-select" value={selectedBranch ? String(selectedBranch) : ""} onChange={handleBranchChange}>
-                    <option value="">-- Selecciona una sucursal --</option>
-                    {branches.map((branch) => (
-                      <option key={branch._id} value={String(branch._id)}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p>Selecciona una sucursal...</p>
-                )}
-              </section>
+            selectedBranch && (
+              <>
+                {/* Sección de cursos */}
+                <section className="courses-section">
+                  <div className="section-header">
+                    <h2 className="section-title">{currentBranchName} Courses</h2>
+                    <button
+                      className="add-button"
+                      onClick={() => setShowCourseModal(true)}
+                      title="Agregar curso"
+                    >
+                      ＋
+                    </button>
+                  </div>
 
-              {selectedBranch && (
-                <>
-                  {/* Sección de cursos */}
-                  <section className="courses-section">
-                    <div className="section-header">
-                      <h2 className="section-title">{currentBranchName} Courses</h2>
+                  <ul className="course-list">
+                    {courses.length > 0 ? (
+                      courses.map((course, index) => {
+                        const isNew =
+                          !course.description &&
+                          (!course.resources || course.resources.length === 0);
+                        const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
+                        return (
+                          <li
+                            key={course._id || index}
+                            className={`course-item${isNew ? " new-course-alert" : ""}`}
+                          >
+                            <div className="course-main-row">
+                              <span className="course-name">
+                                📘 {course.name}
+                              </span>
+                              <span className="course-status" title={status.tooltip}>
+                                {status.icon} {status.text}
+                              </span>
+                              <div className="course-actions">
+                                <button
+                                  className="update-button"
+                                  onClick={() => handleUpdate(course)}
+                                  title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                                >
+                                  {isNew ? "New" : "Update"}
+                                </button>
+                                <button
+                                  className="delete-button"
+                                  onClick={() => handleDeleteClick(course._id)}
+                                  title="Eliminar curso"
+                                >
+                                  Delete
+                                </button>
+                                <button
+                                  className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
+                                  onClick={() => handleToggleLock(course._id, course.isLocked)}
+                                  title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                                >
+                                  {course.isLocked ? "Unlock" : "Lock"}
+                                </button>
+                              </div>
+                            </div>
+                            {isNew && (
+                              <div className="incomplete-course-row">
+                                <span className="incomplete-course-text">
+                                  Curso incompleto: agrega descripción o recursos.
+                                </span>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })
+                    ) : (
+                      <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
+                    )}
+                  </ul>
+                </section>
+
+                {/* Sección de evaluaciones */}
+                <section className="assessments-section">
+                  <div className="section-header">
+                    <h2 className="section-title">{currentBranchName} Evaluaciones</h2>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {/* Botón de banco de preguntas */}
                       <button
                         className="add-button"
-                        onClick={() => setShowCourseModal(true)}
-                        title="Agregar curso"
+                        style={{ background: 'white', border: '1px solid #ccc', padding: 4, marginRight: 4 }}
+                        onClick={() => setShowQuestionBankModal(true)}
+                        title="Banco de preguntas"
+                      >
+                        <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 24, height: 24 }} />
+                      </button>
+                      {/* Botón para crear evaluación */}
+                      <button
+                        className="add-button"
+                        onClick={() => setShowAssessmentModal(true)}
+                        title="Agregar evaluación"
                       >
                         ＋
                       </button>
+                      <button
+                        className="add-button"
+                        style={{ background: '#43a047' }}
+                        onClick={() => setShowComponentsConfigModal(true)}
+                        title="Configurar bloques/componentes"
+                      >
+                        ⚙️
+                      </button>
                     </div>
-
-                    <ul className="course-list">
-                      {courses.length > 0 ? (
-                        courses.map((course, index) => {
-                          const isNew =
-                            !course.description &&
-                            (!course.resources || course.resources.length === 0);
-                          const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
-                          return (
-                            <li
-                              key={course._id || index}
-                              className={`course-item${isNew ? " new-course-alert" : ""}`}
-                            >
-                              <div className="course-main-row">
-                                <span className="course-name">
-                                  📘 {course.name}
-                                </span>
-                                <span className="course-status" title={status.tooltip}>
-                                  {status.icon} {status.text}
-                                </span>
-                                <div className="course-actions">
-                                  <button
-                                    className="update-button"
-                                    onClick={() => handleUpdate(course)}
-                                    title={isNew ? "Agregar información al curso" : "Actualizar curso"}
-                                  >
-                                    {isNew ? "New" : "Update"}
-                                  </button>
-                                  <button
-                                    className="delete-button"
-                                    onClick={() => handleDeleteClick(course._id)}
-                                    title="Eliminar curso"
-                                  >
-                                    Delete
-                                  </button>
-                                  <button
-                                    className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
-                                    onClick={() => handleToggleLock(course._id, course.isLocked)}
-                                    title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
-                                  >
-                                    {course.isLocked ? "Unlock" : "Lock"}
-                                  </button>
-                                </div>
-                              </div>
-                              {isNew && (
-                                <div className="incomplete-course-row">
-                                  <span className="incomplete-course-text">
-                                    Curso incompleto: agrega descripción o recursos.
-                                  </span>
-                                </div>
-                              )}
-                            </li>
-                          );
-                        })
-                      ) : (
-                        <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
-                      )}
-                    </ul>
-                  </section>
-
-                  {/* Sección de evaluaciones */}
-                  <section className="assessments-section">
-                    <div className="section-header">
-                      <h2 className="section-title">{currentBranchName} Evaluaciones</h2>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {/* Botón de banco de preguntas */}
-                        <button
-                          className="add-button"
-                          style={{ background: 'white', border: '1px solid #ccc', padding: 4, marginRight: 4 }}
-                          onClick={() => setShowQuestionBankModal(true)}
-                          title="Banco de preguntas"
-                        >
-                          <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 24, height: 24 }} />
-                        </button>
-                        {/* Botón para crear evaluación */}
-                        <button
-                          className="add-button"
-                          onClick={() => setShowAssessmentModal(true)}
-                          title="Agregar evaluación"
-                        >
-                          ＋
-                        </button>
-                        <button
-                          className="add-button"
-                          style={{ background: '#43a047' }}
-                          onClick={() => setShowComponentsConfigModal(true)}
-                          title="Configurar bloques/componentes"
-                        >
-                          ⚙️
-                        </button>
-                      </div>
-                    </div>
-                    <ul className="course-list">
-                      {assessments.length > 0 ? (
-                        assessments.filter(a => a && a.name).map((assessment, index) => {
-                          // Considera incompleto si no tiene filtros
-                          const isNewAssessment = !assessment.filters;
-                          return (
-                            <li
-                              key={assessment._id || index}
-                              className={`course-item${isNewAssessment ? " new-course-alert" : ""}`}
-                            >
-                              <div className="course-main-row">
-                                <span className="course-name">📝 {assessment.name}</span>
-                                <span className="course-status">
-                                  {assessment.isLocked ? '🔒 Bloqueado' : '🟢 Activo'}
-                                </span>
-                                <div className="course-actions">
-                                  <button
-                                    className="update-button"
-                                    onClick={() => {
-                                      if (assessment && assessment._id) {
-                                        navigate(`/tests/${assessment._id}/edit`);
+                  </div>
+                  <ul className="course-list">
+                    {assessments.length > 0 ? (
+                      assessments.filter(a => a && a.name).map((assessment, index) => {
+                        // Considera incompleto si no tiene filtros
+                        const isNewAssessment = !assessment.filters;
+                        return (
+                          <li
+                            key={assessment._id || index}
+                            className={`course-item${isNewAssessment ? " new-course-alert" : ""}`}
+                          >
+                            <div className="course-main-row">
+                              <span className="course-name">📝 {assessment.name}</span>
+                              <span className="course-status">
+                                {assessment.isLocked ? '🔒 Bloqueado' : '🟢 Activo'}
+                              </span>
+                              <div className="course-actions">
+                                <button
+                                  className="update-button"
+                                  onClick={() => {
+                                    if (assessment && assessment._id) {
+                                      navigate(`/tests/${assessment._id}/edit`);
+                                    } else {
+                                      setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
+                                    }
+                                  }}
+                                  title={isNewAssessment ? "Agregar preguntas a la evaluación" : "Actualizar evaluación"}
+                                >
+                                  {isNewAssessment ? "New" : "Editar"}
+                                </button>
+                                <button
+                                  className="delete-button"
+                                  onClick={() => { if (assessment && assessment._id) { setAssessmentToDelete(assessment._id); setIsAssessmentConfirmModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
+                                  title="Eliminar evaluación"
+                                >
+                                  Eliminar
+                                </button>
+                                <button
+                                  className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
+                                  onClick={async () => {
+                                    if (!assessment || !assessment._id) {
+                                      setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
+                                      return;
+                                    }
+                                    try {
+                                      const token = user.token || localStorage.getItem("token");
+                                      const response = await axios.patch(
+                                        `${API_URL}/api/assessments/${assessment._id}/toggle-lock`,
+                                        {},
+                                        { headers: { Authorization: `Bearer ${token}` } }
+                                      );
+                                      const updatedAssessment = response.data.assessment || response.data;
+                                      if (updatedAssessment && updatedAssessment._id) {
+                                        setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
+                                        setSnackbar({ open: true, message: updatedAssessment.isLocked ? "Evaluación bloqueada" : "Evaluación desbloqueada", type: "success" });
                                       } else {
-                                        setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
+                                        setSnackbar({ open: true, message: "Error: la evaluación bloqueada no tiene ID", type: "error" });
                                       }
-                                    }}
-                                    title={isNewAssessment ? "Agregar preguntas a la evaluación" : "Actualizar evaluación"}
-                                  >
-                                    {isNewAssessment ? "New" : "Editar"}
-                                  </button>
-                                  <button
-                                    className="delete-button"
-                                    onClick={() => { if (assessment && assessment._id) { setAssessmentToDelete(assessment._id); setIsAssessmentConfirmModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
-                                    title="Eliminar evaluación"
-                                  >
-                                    Eliminar
-                                  </button>
-                                  <button
-                                    className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
-                                    onClick={async () => {
-                                      if (!assessment || !assessment._id) {
-                                        setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
-                                        return;
-                                      }
-                                      try {
-                                        const token = user.token || localStorage.getItem("token");
-                                        const response = await axios.patch(
-                                          `${API_URL}/api/assessments/${assessment._id}/toggle-lock`,
-                                          {},
-                                          { headers: { Authorization: `Bearer ${token}` } }
-                                        );
-                                        const updatedAssessment = response.data.assessment || response.data;
-                                        if (updatedAssessment && updatedAssessment._id) {
-                                          setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
-                                          setSnackbar({ open: true, message: updatedAssessment.isLocked ? "Evaluación bloqueada" : "Evaluación desbloqueada", type: "success" });
-                                        } else {
-                                          setSnackbar({ open: true, message: "Error: la evaluación bloqueada no tiene ID", type: "error" });
-                                        }
-                                      } catch (error) {
-                                        setSnackbar({ open: true, message: "Error al bloquear/desbloquear evaluación", type: "error" });
-                                      }
-                                    }}
-                                    title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
-                                  >
-                                    {assessment.isLocked ? <FaLock style={{ marginRight: 6 }} /> : <FaLockOpen style={{ marginRight: 6 }} />}
-                                    {assessment.isLocked ? "Desbloquear" : "Bloquear"}
-                                  </button>
-                                </div>
+                                    } catch (error) {
+                                      setSnackbar({ open: true, message: "Error al bloquear/desbloquear evaluación", type: "error" });
+                                    }
+                                  }}
+                                  title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
+                                >
+                                  {assessment.isLocked ? <FaLock style={{ marginRight: 6 }} /> : <FaLockOpen style={{ marginRight: 6 }} />}
+                                  {assessment.isLocked ? "Desbloquear" : "Bloquear"}
+                                </button>
                               </div>
-                              {isNewAssessment && (
-                                <div className="incomplete-course-row">
-                                  <span className="incomplete-course-text">
-                                    Evaluación incompleta: configura los filtros y genera tests personalizados.
-                                  </span>
-                                </div>
-                              )}
-                            </li>
-                          );
-                        })
-                      ) : (
-                        <li className="empty-message">No hay evaluaciones registradas en esta sucursal.</li>
-                      )}
-                    </ul>
-                  </section>
-                </>
-              )}
-            </>
+                            </div>
+                            {isNewAssessment && (
+                              <div className="incomplete-course-row">
+                                <span className="incomplete-course-text">
+                                  Evaluación incompleta: configura los filtros y genera tests personalizados.
+                                </span>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })
+                    ) : (
+                      <li className="empty-message">No hay evaluaciones registradas en esta sucursal.</li>
+                    )}
+                  </ul>
+                </section>
+              </>
+            )
           )}
           {activeSection === 'results' && (
             <div className="dashboard-section-container">
-              <EvaluationResultsPage user={user} />
+              <EvaluationResultsPage user={user} branchId={selectedBranch} />
             </div>
           )}
           {activeSection === 'certificates' && (
             <div className="dashboard-section-container">
-              <TrainerCertificates setUser={setUser} user={user} />
+              <TrainerCertificates setUser={setUser} user={user} branchId={selectedBranch} />
             </div>
           )}
         </main>
