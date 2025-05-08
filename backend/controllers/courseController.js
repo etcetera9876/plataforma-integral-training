@@ -208,10 +208,14 @@ exports.deleteCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
 
+    // No eliminar las firmas relacionadas (CourseSignature), solo el curso
     const deletedCourse = await Course.findByIdAndDelete(courseId);
     if (!deletedCourse) {
       return res.status(404).json({ message: "Curso no encontrado" });
     }
+
+    // No eliminar CourseSignature: se mantienen como registro histórico
+    // Si quieres hacer un soft delete, puedes agregar un campo deleted: true en CourseSignature
 
     res.status(200).json({ message: "Curso eliminado correctamente" });
     await emitDbChange();
@@ -277,13 +281,19 @@ exports.signCourse = async (req, res) => {
     // Evitar firmas duplicadas
     const exists = await CourseSignature.findOne({ courseId: id, userId: userObjectId });
     if (exists) return res.status(409).json({ message: 'Ya firmado' });
-    const signature = new CourseSignature({ courseId: id, userId: userObjectId, name });
-    await signature.save();
-
-    // Obtener usuario y curso
+    // Obtener usuario y curso antes de crear la firma
     const User = require('../models/user');
     const user = await User.findById(userObjectId);
     const course = await require('../models/course').findById(id);
+    // Crear la firma guardando también courseName y userName
+    const signature = new CourseSignature({
+      courseId: id,
+      userId: userObjectId,
+      name,
+      courseName: course ? course.name : null,
+      userName: user ? user.name : null
+    });
+    await signature.save();
 
     // Generar PDF si no existe
     const path = require('path');

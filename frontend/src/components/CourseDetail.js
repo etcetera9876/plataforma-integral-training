@@ -155,15 +155,36 @@ const CourseDetail = () => {
               <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setShowSignModal(false)}>✕</button>
               <h3 style={{ marginTop: 0 }}>Firma de compromiso</h3>
               <p>Descargue, imprima y firme el archivo. Con esto usted está reconociendo que ha recibido una capacitación del curso: <b>{course.name}</b>.</p>
-              <a
-                href={`/api/certificates/template/${course._id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, textDecoration: 'none', color: '#1976d2', fontWeight: 600 }}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const apiBase = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+                    console.log('[PLANTILLA] Descargando desde:', `${apiBase}/api/certificates/template/${course._id}?userId=${user?.id}`);
+                    const res = await fetch(`${apiBase}/api/certificates/template/${course._id}?userId=${user?.id}`);
+                    console.log('[PLANTILLA] Respuesta fetch:', res);
+                    if (!res.ok) throw new Error('No se pudo descargar la plantilla PDF');
+                    const blob = await res.blob();
+                    console.log('[PLANTILLA] Blob generado:', blob);
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `plantilla-${course.name}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    console.log('[PLANTILLA] Descarga completada');
+                  } catch (err) {
+                    console.error('[PLANTILLA] Error al descargar la plantilla PDF:', err);
+                    alert('Error al descargar la plantilla PDF');
+                  }
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, textDecoration: 'none', color: '#1976d2', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 <img src={pdfIcon} alt="PDF" style={{ width: 28, height: 28 }} />
                 Descargar plantilla PDF
-              </a>
+              </button>
               <div style={{ margin: '16px 0 8px 0', fontWeight: 500 }}>Suba su archivo firmado aquí</div>
               <input
                 type="file"
@@ -207,9 +228,14 @@ const CourseDetail = () => {
                   try {
                     const token = localStorage.getItem('token');
                     // 1. Firmar el curso
+                    // Obtener datos del curso y usuario para guardar en la firma
+                    const courseRes = await axios.get(`/api/courses/byid/${id}`);
+                    const courseData = courseRes.data;
                     const signRes = await axios.post(`/api/courses/${id}/signature`, {
                       userId: user.id,
-                      name: signature.trim()
+                      name: signature.trim(),
+                      courseName: courseData.name, // Nuevo campo
+                      userName: user.name // Nuevo campo
                     }, {
                       headers: { Authorization: `Bearer ${token}` }
                     });
@@ -220,15 +246,6 @@ const CourseDetail = () => {
                       await axios.post(`/api/certificates/${signRes.data.signature._id}/upload-signed`, formData, {
                         headers: { Authorization: `Bearer ${token}` }
                       });
-                      // Emitir evento certificateSigned para actualización en tiempo real
-                      try {
-                        await axios.post(`/api/certificates/${signRes.data.signature._id}/emit-signed-event`, {}, {
-                          headers: { Authorization: `Bearer ${token}` }
-                        });
-                      } catch (emitErr) {
-                        // No es crítico si falla, solo para tiempo real
-                        console.warn('No se pudo emitir evento de archivo firmado:', emitErr);
-                      }
                     }
                     setShowSignModal(false);
                     setSigned(true);

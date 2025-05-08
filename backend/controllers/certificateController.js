@@ -52,20 +52,22 @@ exports.getCertificatesByBranch = async (req, res) => {
     const courseMap = Object.fromEntries(courses.map(c => [String(c._id), c]));
     // Construir lista de certificados
     const certificates = await Promise.all(signatures.map(async (sig) => {
+      // Usar los datos guardados en la firma si el usuario o curso ya no existen
       const user = userMap[String(sig.userId)];
       const course = courseMap[String(sig.courseId)];
-      if (!user || !course) return null;
+      const userName = user ? user.name : sig.userName || sig.name;
+      const courseName = course ? course.name : sig.courseName;
       // Ruta del PDF
       const pdfFileName = `certificate-${sig._id}.pdf`;
       const pdfPath = path.join(__dirname, '../uploads', pdfFileName);
       // Si no existe, generar el PDF
-      if (!fs.existsSync(pdfPath)) {
+      if (!fs.existsSync(pdfPath) && user && course) {
         await generateCertificatePDF({ signature: sig, user, course, outputPath: pdfPath });
       }
       return {
         id: sig._id,
-        userName: user.name,
-        courseName: course.name,
+        userName,
+        courseName,
         signedAt: sig.signedAt,
         pdfUrl: `/api/certificates/${sig._id}/download`,
         signedFileUrl: sig.signedFileUrl // Incluye el archivo firmado si existe
@@ -98,25 +100,88 @@ exports.downloadCertificate = async (req, res) => {
 };
 
 // GET /api/certificates/template/:courseId
-// Genera y envía una plantilla PDF personalizada con el nombre del curso
+// Genera y envía una plantilla PDF personalizada con el nombre del curso y formato profesional
 exports.getCertificateTemplate = async (req, res) => {
   try {
     const { courseId } = req.params;
+    const userId = req.query.userId; // Permitir pasar userId por query
+    console.log('[TEMPLATE] courseId:', courseId, 'userId:', userId);
+    const Course = require('../models/course');
+    const User = require('../models/user');
     const course = await Course.findById(courseId);
-    if (!course) return res.status(404).json({ message: 'Curso no encontrado' });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="template-${courseId}.pdf"`);
-    const doc = new PDFDocument();
+    if (!course) {
+      console.error('[TEMPLATE] Curso no encontrado:', courseId);
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+    let employeeName = '___________________________________________';
+    let employeeDate = '____________________________';
+    if (userId) {
+      const user = await User.findById(userId);
+      if (user) {
+        employeeName = user.name;
+        console.log('[TEMPLATE] Usuario encontrado:', user.name);
+      } else {
+        console.error('[TEMPLATE] Usuario no encontrado:', userId);
+      }
+      // Fecha de firma: hoy
+      const today = new Date();
+      employeeDate = today.toLocaleDateString();
+    }
+    // Fecha de publicación o creación del curso
+    let trainingDate = '___________________________';
+    if (course.publicationDate) {
+      trainingDate = new Date(course.publicationDate).toLocaleDateString();
+    } else if (course.createdAt) {
+      trainingDate = new Date(course.createdAt).toLocaleDateString();
+    }
+    console.log('[TEMPLATE] Datos plantilla:', { employeeName, trainingDate, employeeDate });
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 50 });
     doc.pipe(res);
-    doc.fontSize(22).text('Reconocimiento de Capacitación', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(16).text('Yo, ____________________________, reconozco que he recibido la capacitación correspondiente al curso:', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(18).text(course.name, { align: 'center', underline: true });
+    // Logo centrado, sin estirar (mantener aspect ratio)
+    try {
+      const logoPath = path.join(__dirname, '../../frontend/src/assets/logo-jcs.png');
+      const pageWidth = doc.page.width;
+      const logoDisplayWidth = 180;
+      const x = (pageWidth - logoDisplayWidth) / 2;
+      doc.image(logoPath, x, 40, { width: logoDisplayWidth });
+      doc.moveDown(10);
+    } catch (e) {
+      console.warn('[TEMPLATE] No se pudo cargar el logo:', e.message);
+    }
+    // Título con fuente BreeSerif
+    const breeSerifFontPath = path.join(__dirname, '../../frontend/fonts/BreeSerif-Regular.ttf');
+    doc.registerFont('BreeSerif', breeSerifFontPath);
+    doc.font('BreeSerif').fontSize(25).text('Training Acknowledgment Form', {
+      align: 'center',
+      underline: true
+    });
+    doc.moveDown(1);
+    // Resto del texto en fuente normal
+    doc.font('Helvetica').fontSize(13).text(`Employee Name: ${employeeName}`, { align: 'left' });
+    doc.moveDown(0.5);
+    doc.text(`Course Title: ${course.name}`, { align: 'left' });
+    doc.moveDown(0.5);
+    doc.text(`Date of Training: ${trainingDate}`, { align: 'left' });
+    doc.moveDown(1.5);
+    doc.fontSize(12).text(`I hereby acknowledge that I have received and understood the materials presented in the "${course.name}" course. I understand it is my responsibility to adhere to JCS Family's policies and procedures as outlined in the training.`, {
+      align: 'left',
+      lineGap: 4
+    });
+    doc.moveDown(1);
+    doc.text(`I also understand that if I have any questions regarding the course content or company policies, I will seek clarification from the Human Resources Department.`, {
+      align: 'left',
+      lineGap: 4
+    });
     doc.moveDown(2);
-    doc.fontSize(14).text('Firma: ____________________________', { align: 'left' });
-    doc.moveDown();
-    doc.fontSize(14).text('Fecha: ____/____/______', { align: 'left' });
+    doc.text(`Employee Signature:  ____________________________`, { align: 'left' });
+    doc.moveDown(0.5);
+    doc.text(`Date:  ${employeeDate}`, { align: 'left' });
+    doc.moveDown(2);
+    doc.fontSize(10).fillColor('gray').text('This form is a simple way to document that an employee has received training and understands the associated expectations.', {
+      align: 'left',
+      lineGap: 2
+    });
     doc.end();
   } catch (err) {
     res.status(500).json({ message: 'Error al generar plantilla', error: err.message });

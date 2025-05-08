@@ -323,12 +323,13 @@ exports.saveSubtests = async (req, res) => {
   }
 };
 
-// Obtener subtests de un assessment
+// Obtener subtests de un assessment con usuario populado
 exports.getSubtests = async (req, res) => {
   try {
     const { id } = req.params;
     const Subtest = require('../models/subtest');
-    const subtests = await Subtest.find({ assessment: id });
+    // Populate userId con nombre y email
+    const subtests = await Subtest.find({ assessment: id }).populate('userId', 'name email');
     res.json(subtests);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener subtests', error: error.message });
