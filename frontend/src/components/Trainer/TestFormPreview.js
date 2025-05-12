@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 
-const TestFormPreview = ({ form }) => {
+const TestFormPreview = ({ form, editable, value = {}, onChange }) => {
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const imgRef = useRef();
   const API_BASE = 'http://localhost:5000'; // Ajusta si tu backend usa otro puerto
@@ -80,16 +80,41 @@ const TestFormPreview = ({ form }) => {
         >
           {/* Solo input, sin etiqueta */}
           {field.type === "text" && (
-            <input type="text" placeholder="Texto" style={{ width: '100%' }} />
+            <input
+              type="text"
+              placeholder="Texto"
+              style={{ width: '100%' }}
+              value={value[field.label] || ''}
+              disabled={!editable}
+              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+            />
           )}
           {field.type === "number" && (
-            <input type="number" placeholder="Número" style={{ width: '100%' }} />
+            <input
+              type="number"
+              placeholder="Número"
+              style={{ width: '100%' }}
+              value={value[field.label] || ''}
+              disabled={!editable}
+              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+            />
           )}
           {field.type === "date" && (
-            <input type="date" style={{ width: '100%' }} />
+            <input
+              type="date"
+              style={{ width: '100%' }}
+              value={value[field.label] || ''}
+              disabled={!editable}
+              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+            />
           )}
           {field.type === "select" && (
-            <select style={{ width: '100%' }}>
+            <select
+              style={{ width: '100%' }}
+              value={value[field.label] || ''}
+              disabled={!editable}
+              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+            >
               <option value="">Selecciona</option>
               {(field.options || '').split(',').map((opt, i) => (
                 <option key={i} value={opt.trim()}>{opt.trim()}</option>

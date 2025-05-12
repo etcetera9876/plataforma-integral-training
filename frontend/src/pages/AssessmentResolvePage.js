@@ -81,7 +81,6 @@ const AssessmentResolvePage = () => {
       const userObj = JSON.parse(localStorage.getItem("user"));
       userId = userObj?.id;
     }
-    console.log('Enviando respuestas:', { userId, answers }); // <-- LOG para depuración
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(`/api/assessments/${id}/submit`, {
@@ -90,10 +89,10 @@ const AssessmentResolvePage = () => {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Actualiza el assessment en el contexto global para bloquear el botón instantáneamente
       if (res.data && res.data.subtest && res.data.subtest.submittedAt) {
         updateAssessmentSubmission(id, res.data.subtest.submittedAt);
       }
+      // Redirige directamente al dashboard, no muestra resultado aquí
       navigate('/training-dashboard', { state: { successMessage: '¡Respuestas enviadas correctamente!' } });
     } catch (err) {
       alert('Error al enviar las respuestas.');
@@ -193,7 +192,12 @@ const AssessmentResolvePage = () => {
               <li key={q._id || idx} style={{ marginBottom: 24 }}>
                 <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 8 }}>{q.statement || q.text}</div>
                 <div style={{ marginTop: 16, marginBottom: 16, border: '1.5px solid #e0e0e0', borderRadius: 10, background: '#f8f9fa', padding: 12 }}>
-                  <TestFormPreview form={q.forms[0]} editable={true} />
+                  <TestFormPreview
+                    form={q.forms[0]}
+                    editable={true}
+                    value={answers[idx] || {}}
+                    onChange={obj => setAnswers(a => ({ ...a, [idx]: obj }))}
+                  />
                 </div>
               </li>
             );

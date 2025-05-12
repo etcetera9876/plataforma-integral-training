@@ -412,6 +412,57 @@ exports.submitAssessment = async (req, res) => {
     // Guarda las respuestas en el subtest
     subtest.submittedAnswers = answers;
     subtest.submittedAt = new Date();
+
+    // --- AUTOCORRECCIÓN AUTOMÁTICA ---
+    // Obtener las preguntas originales del subtest
+    const questions = subtest.questions || [];
+    let correctCount = 0;
+    let totalQuestions = questions.length;
+    let correctMap = {};
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      let userAnswer = answers[i];
+      let correctAnswer = q.correctAnswer;
+      let isCorrect = false;
+      if (q.type === 'single' || q.type === 'single-choice') {
+        isCorrect = String(userAnswer).trim() === String(correctAnswer).trim();
+      } else if (q.type === 'boolean') {
+        const toBool = v => v === true || v === 'Verdadero' || v === 'true';
+        isCorrect = toBool(userAnswer) === toBool(correctAnswer);
+      } else if (q.type === 'multiple' || q.type === 'multiple-choice') {
+        const toArr = v => Array.isArray(v) ? v.map(String).map(s => s.trim()) :
+          typeof v === 'string' ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const arrUser = toArr(userAnswer).sort();
+        const arrCorrect = toArr(correctAnswer).sort();
+        isCorrect = arrUser.length === arrCorrect.length && arrUser.every((val, idx) => val === arrCorrect[idx]);
+      } else if (q.type === 'form-dynamic') {
+        // correctAnswer y userAnswer deben ser objetos { label: valor }
+        if (typeof correctAnswer === 'string') {
+          try { correctAnswer = JSON.parse(correctAnswer); } catch {}
+        }
+        if (typeof userAnswer === 'string') {
+          try { userAnswer = JSON.parse(userAnswer); } catch {}
+        }
+        if (typeof correctAnswer === 'object' && correctAnswer && typeof userAnswer === 'object' && userAnswer) {
+          const correctKeys = Object.keys(correctAnswer);
+          isCorrect = correctKeys.length > 0 && correctKeys.every(
+            key => String(userAnswer[key]).trim() === String(correctAnswer[key]).trim()
+          );
+        } else {
+          isCorrect = false;
+        }
+      } else if (q.type === 'open' || q.type === 'case') {
+        isCorrect = null;
+      }
+      if (isCorrect === true) correctCount++;
+      correctMap[i] = isCorrect;
+    }
+    subtest.correctCount = correctCount;
+    subtest.totalQuestions = totalQuestions;
+    subtest.score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : null;
+    subtest.correctMap = correctMap;
+    // --- FIN AUTOCORRECCIÓN ---
+
     const t3 = Date.now();
     await subtest.save();
     const t4 = Date.now();
@@ -446,7 +497,11 @@ exports.submitAssessment = async (req, res) => {
         submittedAt: subtest.submittedAt,
         submittedAnswers: subtest.submittedAnswers,
         assessment: subtest.assessment,
-        userId: subtest.userId
+        userId: subtest.userId,
+        correctCount: subtest.correctCount,
+        totalQuestions: subtest.totalQuestions,
+        score: subtest.score,
+        correctMap: subtest.correctMap
       }
     });
   } catch (error) {

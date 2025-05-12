@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import AlertMessage from './Trainer/AlertMessage';
 import './TrainingDashboard.css';
 import checkIcon from '../assets/check-icon.png';
+import axios from 'axios';
 
 const TrainingDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
@@ -15,6 +16,9 @@ const TrainingDashboard = ({ setUser, user }) => {
   const [lockedCourseName, setLockedCourseName] = useState("");
   const [showLockedAssessmentModal, setShowLockedAssessmentModal] = useState(false);
   const [lockedAssessmentName, setLockedAssessmentName] = useState("");
+  const [assessmentStates, setAssessmentStates] = useState({}); // { [assessmentId]: { status, result } }
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [modalResult, setModalResult] = useState(null);
 
   // Usar datos del contexto global
   const { courses, signedCourses, assessments, loading, refetchAll } = useDashboard();
@@ -90,6 +94,49 @@ const TrainingDashboard = ({ setUser, user }) => {
     return (!pub || now >= pub) && (!exp || now < exp);
   });
 
+  // Maneja el flujo del botón y resultado
+  const handleAssessmentButtonClick = async (assessment) => {
+    const state = assessmentStates[assessment._id];
+    if (!assessment.submittedAt) {
+      // No debería pasar, pero por seguridad
+      return;
+    }
+    // Si ya tenemos resultado local, mostrar modal
+    if (state && state.result) {
+      setModalResult({ ...state.result, name: assessment.name });
+      setShowResultModal(true);
+      return;
+    }
+    // Si no, consulta el backend para obtener el subtest
+    try {
+      setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'loading' } }));
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId') || (JSON.parse(localStorage.getItem('user'))?.id);
+      const res = await axios.get(`/api/assessments/${assessment._id}/subtests`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const subtest = Array.isArray(res.data)
+        ? res.data.find(st => String(st.userId?._id || st.userId) === String(userId))
+        : null;
+      if (subtest && typeof subtest.score === 'number') {
+        const result = {
+          score: subtest.score,
+          correctCount: subtest.correctCount,
+          totalQuestions: subtest.totalQuestions
+        };
+        setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'done', result } }));
+        setModalResult({ ...result, name: assessment.name });
+        setShowResultModal(true);
+      } else {
+        setSnackbar({ open: true, message: 'No se pudo obtener el resultado.', type: 'error' });
+        setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'error' } }));
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Error al consultar el resultado.', type: 'error' });
+      setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'error' } }));
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <Sidebar onLogout={handleLogout} userName={user.name} userId={user.id} />
@@ -131,49 +178,82 @@ const TrainingDashboard = ({ setUser, user }) => {
           <h2>Tus Evaluaciones</h2>
           {visibleAssessments.length > 0 ? (
             <div className="training-course-list scrollable-container">
-              {visibleAssessments.map((assessment) => (
-                <div
-                  key={assessment._id}
-                  className="training-course-item"
-                  style={{
-                    position: 'relative',
-                    cursor: assessment.submittedAt || assessment.isLocked ? 'not-allowed' : 'pointer',
-                    minWidth: 260,
-                    maxWidth: 320,
-                    margin: '0 16px 24px 0',
-                    background: assessment.submittedAt ? '#f5f5f5' : '#fff',
-                    borderRadius: 10,
-                    boxShadow: '0 2px 8px #e0e0e0',
-                    padding: 18,
-                    display: 'inline-block',
-                    verticalAlign: 'top',
-                    opacity: assessment.submittedAt || assessment.isLocked ? 0.6 : 1,
-                    pointerEvents: assessment.submittedAt || assessment.isLocked ? 'auto' : 'auto'
-                  }}
-                  onClick={() => handleAssessmentClick(assessment)}
-                >
-                  {/* Icono de candado si la evaluación está bloqueada */}
-                  {assessment.isLocked && (
-                    <span style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 22, color: '#ff9800', zIndex: 2 }} title="Evaluación bloqueada">🔒</span>
-                  )}
-                  <h3 className="training-course-title">{assessment.name}</h3>
-                  <p className="training-course-info">{assessment.description}</p>
-                  <button
-                    className="confirm-button"
-                    style={{ marginTop: 12 }}
-                    onClick={e => { e.stopPropagation(); handleAssessmentClick(assessment); }}
-                    disabled={assessment.submittedAt || !assessment.canTakeTest || assessment.isLocked}
+              {visibleAssessments.map((assessment) => {
+                const state = assessmentStates[assessment._id];
+                let buttonText = 'Resolver evaluación';
+                let buttonDisabled = false;
+                if (assessment.isLocked) {
+                  buttonText = 'Evaluación bloqueada';
+                  buttonDisabled = true;
+                } else if (!assessment.canTakeTest) {
+                  buttonText = 'Debes firmar todos los cursos relacionados';
+                  buttonDisabled = true;
+                } else if (state && state.status === 'sending') {
+                  buttonText = 'Corrigiendo...';
+                  buttonDisabled = true;
+                } else if (assessment.submittedAt) {
+                  buttonText = (state && state.result) ? 'Mostrar respuestas' : 'Mostrar Puntaje';
+                  buttonDisabled = false; // Siempre habilitado visualmente
+                }
+                return (
+                  <div
+                    key={assessment._id}
+                    className="training-course-item"
+                    style={{
+                      position: 'relative',
+                      minWidth: 260,
+                      maxWidth: 320,
+                      margin: '0 16px 24px 0',
+                      background: assessment.submittedAt ? '#f5f5f5' : '#fff',
+                      borderRadius: 10,
+                      boxShadow: '0 2px 8px #e0e0e0',
+                      padding: 18,
+                      display: 'inline-block',
+                      verticalAlign: 'top'
+                    }}
                   >
-                    {assessment.isLocked
-                      ? 'Evaluación bloqueada'
-                      : assessment.submittedAt
-                        ? 'Ya respondido'
-                        : assessment.canTakeTest
-                          ? 'Resolver evaluación'
-                          : 'Debes firmar todos los cursos relacionados'}
-                  </button>
-                </div>
-              ))}
+                    {/* Contenido opaco excepto el botón */}
+                    <div
+                      style={{
+                        opacity: (assessment.submittedAt || assessment.isLocked) ? 0.6 : 1,
+                        pointerEvents: (assessment.submittedAt || assessment.isLocked) ? 'none' : 'auto'
+                      }}
+                    >
+                      {/* Icono de candado si la evaluación está bloqueada */}
+                      {assessment.isLocked && (
+                        <span style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 22, color: '#ff9800', zIndex: 2 }} title="Evaluación bloqueada">🔒</span>
+                      )}
+                      <h3 className="training-course-title">{assessment.name}</h3>
+                      <p className="training-course-info">{assessment.description}</p>
+                    </div>
+                    {/* Botón SIEMPRE habilitado */}
+                    <button
+                      className={`confirm-button${buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje' ? ' show-result-active' : ''}`}
+                      style={{
+                        marginTop: 12,
+                        opacity: 1,
+                        cursor: 'pointer',
+                        background: (buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje') ? '#1976d2' : undefined,
+                        color: (buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje') ? '#fff' : undefined,
+                        zIndex: 2,
+                        position: 'relative'
+                      }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (!assessment.submittedAt) {
+                          setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'sending' } }));
+                          handleAssessmentClick(assessment);
+                        } else {
+                          handleAssessmentButtonClick(assessment);
+                        }
+                      }}
+                      disabled={buttonDisabled && !(buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje')}
+                    >
+                      {buttonText}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="training-empty-message">No tienes evaluaciones asignadas aún.</p>
@@ -210,6 +290,22 @@ const TrainingDashboard = ({ setUser, user }) => {
                   Entendido
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de resultado de test */}
+        {showResultModal && modalResult && (
+          <div className="modal-overlay" onClick={() => setShowResultModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
+              <h2 style={{ color: '#1976d2', fontWeight: 700, marginBottom: 18 }}>Resultado de "{modalResult.name}"</h2>
+              <p style={{ fontSize: 20, margin: '32px 0' }}>
+                Puntaje: <b>{modalResult.score}%</b><br />
+                Respuestas correctas: <b>{modalResult.correctCount}</b> de <b>{modalResult.totalQuestions}</b>
+              </p>
+              <button className="confirm-button" style={{ minWidth: 130, fontSize: 17, padding: '6px 24px' }} onClick={() => setShowResultModal(false)}>
+                Cerrar
+              </button>
             </div>
           </div>
         )}

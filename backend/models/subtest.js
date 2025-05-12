@@ -9,6 +9,11 @@ const SubtestSchema = new mongoose.Schema({
   questions: [mongoose.Schema.Types.Mixed], // Flexible para distintos tipos de preguntas
   submittedAt: { type: Date },
   submittedAnswers: { type: mongoose.Schema.Types.Mixed },
+  // Campos para autocorrección y puntaje
+  score: { type: Number },
+  correctCount: { type: Number },
+  totalQuestions: { type: Number },
+  correctMap: { type: mongoose.Schema.Types.Mixed },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

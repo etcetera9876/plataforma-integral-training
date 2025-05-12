@@ -219,6 +219,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
         return;
       }
       let processedForms = forms;
+      let formCorrectAnswers = undefined;
       if (form.type === 'form-dynamic' && forms.length > 0) {
         processedForms = await Promise.all(forms.map(async (f) => {
           if (f.bgImage && typeof f.bgImage !== 'string') {
@@ -258,15 +259,17 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
           } else if (f.bgImage && typeof f.bgImage === 'string') {
             return { ...f, bgImage: f.bgImage };
           } else {
-            return { ...f, bgImage: null };
+            return f;
           }
         }));
-        // Log de depuración: mostrar rutas finales de bgImage
-        processedForms.forEach((f, idx) => {
-          // console.log(`[QuestionBankModal] Formulario #${idx + 1} bgImage final:`, f.bgImage);
+        // --- NUEVO: Resumir correctAnswer de cada field en un objeto ---
+        formCorrectAnswers = {};
+        const fields = forms[0]?.fields || [];
+        fields.forEach(field => {
+          if (field.label && field.correctAnswer !== undefined) {
+            formCorrectAnswers[field.label] = field.correctAnswer;
+          }
         });
-        // ACTUALIZA EL ESTADO PARA QUE EL RENDER USE LA RUTA DE LA IMAGEN Y NO EL FILE
-        setForms(processedForms);
       }
       // Log para depuración
       if (form.type === 'form-dynamic') {
@@ -281,6 +284,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
       });
       if (form.type === 'form-dynamic') {
         data.append('forms', JSON.stringify(processedForms));
+        if (formCorrectAnswers) data.append('correctAnswer', JSON.stringify(formCorrectAnswers));
       }
       let response;
       if (editIndex !== null && questions[editIndex]?._id) {
