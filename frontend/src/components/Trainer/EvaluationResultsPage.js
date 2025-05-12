@@ -2,12 +2,31 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import socket from '../../socket';
 
+function ConfirmModal({ open, onConfirm, onCancel, userName }) {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#fff', borderRadius: 10, padding: 32, minWidth: 320, boxShadow: '0 2px 12px #aaa', textAlign: 'center' }}>
+        <div style={{ fontSize: 18, marginBottom: 18 }}>¿Enviar recordatorio a <b>{userName}</b>?</div>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+          <button onClick={onConfirm} style={{ background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 24px', fontWeight: 600, cursor: 'pointer' }}>Enviar</button>
+          <button onClick={onCancel} style={{ background: '#eee', color: '#222', border: 'none', borderRadius: 6, padding: '8px 24px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const EvaluationResultsPage = ({ user, branchId }) => {
   const [branches, setBranches] = useState([]);
   const [tests, setTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [subtests, setSubtests] = useState([]);
   const [userNamesMap, setUserNamesMap] = useState({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserName, setCurrentUserName] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'info' });
 
   // Obtener token
   const token = user?.token || localStorage.getItem('token');
@@ -59,6 +78,33 @@ const EvaluationResultsPage = ({ user, branchId }) => {
     }
   }, [subtests, userNamesMap]);
 
+  const handleRemindClick = (st) => {
+    setCurrentUserId(typeof st.userId === 'object' ? st.userId._id : st.userId);
+    setCurrentUserName(typeof st.userId === 'object' ? st.userId.name || st.userId.email : st.userId);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
+    setConfirmOpen(false);
+    try {
+      await axios.post(`/api/assessments/${selectedTest._id}/remind`, {
+        userId: currentUserId
+      }, axiosConfig);
+      setSnackbar({ open: true, message: 'Correo de recordatorio enviado', type: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: 'No se pudo enviar el correo de recordatorio', type: 'error' });
+    }
+  };
+
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar(s => ({ ...s, open: false }));
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
+
   return (
     <div style={{ display: 'flex', gap: 32 }}>
       <div style={{ minWidth: 320 }}>
@@ -104,7 +150,27 @@ const EvaluationResultsPage = ({ user, branchId }) => {
                         }
                       })()}
                     </td>
-                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 120 }}>{st.submittedAt ? 'Completado' : 'Pendiente'}</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 120 }}>
+                      {st.submittedAt ? 'Completado' : (
+                        <>
+                          Pendiente
+                          <button
+                            style={{
+                              marginLeft: 8,
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              verticalAlign: 'middle',
+                              padding: 0
+                            }}
+                            title="Enviar recordatorio por correo"
+                            onClick={() => handleRemindClick(st)}
+                          >
+                            <img src={require('../../assets/gmail-icon.png')} alt="Gmail" style={{ width: 20, height: 20, verticalAlign: 'middle' }} />
+                          </button>
+                        </>
+                      )}
+                    </td>
                     <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
                     <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 100 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>
                   </tr>
@@ -114,6 +180,34 @@ const EvaluationResultsPage = ({ user, branchId }) => {
           </>
         )}
       </div>
+      <ConfirmModal
+        open={confirmOpen}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmOpen(false)}
+        userName={currentUserName}
+      />
+      {snackbar.open && (
+        <div style={{
+          position: 'fixed',
+          bottom: 32,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: snackbar.type === 'success' ? '#43a047' : '#d32f2f',
+          color: '#fff',
+          padding: '14px 32px',
+          borderRadius: 8,
+          fontWeight: 600,
+          fontSize: 16,
+          zIndex: 9999,
+          boxShadow: '0 2px 12px #aaa',
+          minWidth: 280,
+          textAlign: 'center',
+        }}
+          onClick={() => setSnackbar(s => ({ ...s, open: false }))}
+        >
+          {snackbar.message}
+        </div>
+      )}
     </div>
   );
 };

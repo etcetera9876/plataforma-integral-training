@@ -170,7 +170,6 @@ exports.updateAssessment = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ message: 'Evaluación no encontrada' });
     }
-    await emitDbChange(); // Notifica a los clientes en tiempo real tras editar
     res.json({ message: 'Evaluación actualizada', assessment: updated });
   } catch (error) {
     res.status(500).json({ message: 'Error al actualizar la evaluación', error: error.message });
@@ -559,6 +558,47 @@ exports.submitAssessment = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error al guardar respuestas', error: error.message });
+  }
+};
+
+// Enviar recordatorio por correo a un usuario para un test pendiente
+exports.sendReminderEmail = async (req, res) => {
+  try {
+    const { id } = req.params; // assessmentId
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'Falta userId' });
+    const assessment = await Assessment.findById(id);
+    if (!assessment) return res.status(404).json({ message: 'Evaluación no encontrada' });
+    const User = require('../models/user');
+    const user = await User.findById(userId);
+    if (!user || !user.email) return res.status(404).json({ message: 'Usuario no encontrado o sin email' });
+
+    // Calcular días restantes
+    let diasRestantes = null;
+    let fechaExp = assessment.expirationDate ? new Date(assessment.expirationDate) : null;
+    let mensaje = '';
+    if (fechaExp) {
+      const hoy = new Date();
+      // Solo cuenta días completos
+      diasRestantes = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
+      if (diasRestantes > 1) {
+        mensaje = `Te quedan ${diasRestantes} días para resolver el test "${assessment.name}".`;
+      } else if (diasRestantes === 1) {
+        mensaje = `Te queda 1 día para resolver el test "${assessment.name}".`;
+      } else if (diasRestantes === 0) {
+        mensaje = `¡Hoy es el último día para resolver el test "${assessment.name}"!`;
+      } else {
+        mensaje = `El test "${assessment.name}" ya expiró.`;
+      }
+    } else {
+      mensaje = `Tienes que resolver el test "${assessment.name}" antes de que se bloquee.`;
+    }
+    const subject = `Recordatorio: test pendiente en la plataforma`;
+    const text = `Hola ${user.name},\n\n${mensaje}\n\nPor favor ingresa a la plataforma para completarlo.\n\nSaludos.`;
+    await sendNotificationEmail(user.email, subject, text);
+    res.json({ message: 'Correo de recordatorio enviado' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al enviar el correo de recordatorio', error: error.message });
   }
 };
 

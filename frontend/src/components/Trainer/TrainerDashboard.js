@@ -569,6 +569,13 @@ const TrainerDashboard = ({ setUser, user }) => {
                           >
                             <div style={{ flex: 2, textAlign: 'left' }}>
                               <span className="course-name">📝 {assessment.name}</span>
+                              {isNewAssessment && (
+                                <div className="incomplete-course-row">
+                                  <span className="incomplete-course-text">
+                                    Evaluación incompleta: configura los filtros y genera tests personalizados.
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div style={{ flex: 1, textAlign: 'center', fontWeight: 500 }}>
                               {respondedCount}/{totalAssigned}
@@ -633,13 +640,6 @@ const TrainerDashboard = ({ setUser, user }) => {
                                 </button>
                               </div>
                             </div>
-                            {isNewAssessment && (
-                              <div className="incomplete-course-row">
-                                <span className="incomplete-course-text">
-                                  Evaluación incompleta: configura los filtros y genera tests personalizados.
-                                </span>
-                              </div>
-                            )}
                           </li>
                         );
                       })

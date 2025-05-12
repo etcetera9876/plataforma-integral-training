@@ -56,4 +56,7 @@ router.post("/upload", upload.single("file"), assessmentController.uploadPdf);
 // Guardar respuestas de un usuario para un assessment
 router.post('/:id/submit', authMiddleware, assessmentController.submitAssessment);
 
+// Enviar recordatorio por correo a un usuario para un test pendiente
+router.post('/:id/remind', authMiddleware, assessmentController.sendReminderEmail);
+
 module.exports = router;
