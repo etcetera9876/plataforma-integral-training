@@ -361,3 +361,14 @@ exports.getSignedCourses = async (req, res) => {
     res.status(500).json({ message: 'Error al obtener cursos firmados', error: err.message });
   }
 };
+
+// Obtener todos los cursos (modo global, sin filtro por branch)
+exports.getAllCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({}).sort({ createdAt: -1 });
+    res.status(200).json(courses);
+  } catch (error) {
+    console.error("Error al obtener todos los cursos:", error);
+    res.status(500).json({ message: "Error al obtener todos los cursos", error });
+  }
+};

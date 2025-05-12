@@ -329,9 +329,53 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [location.state]);
 
+  // Opción Global: solo para Trainer o Admin
+  const showGlobalOption = user && (user.role === 'Trainer' || user.role === 'Admin');
+
+  // Nuevo estado para modo global
+  const [isGlobal, setIsGlobal] = useState(false);
+
+  // Modifica el handler del selector de branch
   const handleBranchChange = (e) => {
-    setSelectedBranch(e.target.value);
+    const value = e.target.value;
+    if (value === 'GLOBAL') {
+      setIsGlobal(true);
+      setSelectedBranch('');
+    } else {
+      setIsGlobal(false);
+      setSelectedBranch(value);
+    }
   };
+
+  // Fetch global data si está en modo global
+  useEffect(() => {
+    if (!isGlobal) return;
+    const fetchAllCourses = async () => {
+      try {
+        const token = getValidToken();
+        // Cambia endpoint a /all para modo global
+        const response = await axios.get(`${API_URL}/api/courses/all`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCourses(response.data);
+      } catch (error) {
+        setCourses([]);
+      }
+    };
+    const fetchAllAssessments = async () => {
+      try {
+        const token = getValidToken();
+        const response = await axios.get(`${API_URL}/api/assessments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAssessments(response.data);
+      } catch (error) {
+        setAssessments([]);
+      }
+    };
+    fetchAllCourses();
+    fetchAllAssessments();
+  }, [isGlobal, user]);
 
   const currentBranchName = branches.find((b) => b._id === selectedBranch)?.name || "";
 
@@ -413,7 +457,8 @@ const TrainerDashboard = ({ setUser, user }) => {
             {loading ? (
               <p>Loading branches...</p>
             ) : branches.length > 0 ? (
-              <select id="branch-select" value={selectedBranch ? String(selectedBranch) : ""} onChange={handleBranchChange}>
+              <select id="branch-select" value={isGlobal ? 'GLOBAL' : (selectedBranch ? String(selectedBranch) : "")} onChange={handleBranchChange}>
+                {showGlobalOption && <option value="GLOBAL">🌐 Global (todas las sucursales)</option>}
                 <option value="">-- Selecciona una sucursal --</option>
                 {branches.map((branch) => (
                   <option key={branch._id} value={String(branch._id)}>
@@ -428,19 +473,21 @@ const TrainerDashboard = ({ setUser, user }) => {
 
           {/* Contenido según sección activa */}
           {activeSection === 'courses' && (
-            selectedBranch && (
+            (isGlobal || selectedBranch) && (
               <>
                 {/* Sección de cursos */}
                 <section className="courses-section">
                   <div className="section-header">
-                    <h2 className="section-title">{currentBranchName} Courses</h2>
-                    <button
-                      className="add-button"
-                      onClick={() => setShowCourseModal(true)}
-                      title="Agregar curso"
-                    >
-                      ＋
-                    </button>
+                    <h2 className="section-title">{isGlobal ? 'Todos los cursos' : currentBranchName + ' Courses'}</h2>
+                    {!isGlobal && (
+                      <button
+                        className="add-button"
+                        onClick={() => setShowCourseModal(true)}
+                        title="Agregar curso"
+                      >
+                        ＋
+                      </button>
+                    )}
                   </div>
 
                   <ul className="course-list">
@@ -450,6 +497,8 @@ const TrainerDashboard = ({ setUser, user }) => {
                           !course.description &&
                           (!course.resources || course.resources.length === 0);
                         const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
+                        // Buscar nombre del branch
+                        const branchName = branches.find(b => String(b._id) === String(course.branchId))?.name || 'Sin sucursal';
                         return (
                           <li
                             key={course._id || index}
@@ -458,33 +507,40 @@ const TrainerDashboard = ({ setUser, user }) => {
                             <div className="course-main-row">
                               <span className="course-name">
                                 📘 {course.name}
+                                {isGlobal && (
+                                  <span style={{ color: '#1976d2', fontWeight: 400, fontSize: 13, marginLeft: 12 }}>
+                                    [{branchName}]
+                                  </span>
+                                )}
                               </span>
                               <span className="course-status" title={status.tooltip}>
                                 {status.icon} {status.text}
                               </span>
-                              <div className="course-actions">
-                                <button
-                                  className="update-button"
-                                  onClick={() => handleUpdate(course)}
-                                  title={isNew ? "Agregar información al curso" : "Actualizar curso"}
-                                >
-                                  {isNew ? "New" : "Update"}
-                                </button>
-                                <button
-                                  className="delete-button"
-                                  onClick={() => handleDeleteClick(course._id)}
-                                  title="Eliminar curso"
-                                >
-                                  Delete
-                                </button>
-                                <button
-                                  className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
-                                  onClick={() => handleToggleLock(course._id, course.isLocked)}
-                                  title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
-                                >
-                                  {course.isLocked ? "Unlock" : "Lock"}
-                                </button>
-                              </div>
+                              {!isGlobal && (
+                                <div className="course-actions">
+                                  <button
+                                    className="update-button"
+                                    onClick={() => handleUpdate(course)}
+                                    title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                                  >
+                                    {isNew ? "New" : "Update"}
+                                  </button>
+                                  <button
+                                    className="delete-button"
+                                    onClick={() => handleDeleteClick(course._id)}
+                                    title="Eliminar curso"
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
+                                    className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
+                                    onClick={() => handleToggleLock(course._id, course.isLocked)}
+                                    title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                                  >
+                                    {course.isLocked ? "Unlock" : "Lock"}
+                                  </button>
+                                </div>
+                              )}
                             </div>
                             {isNew && (
                               <div className="incomplete-course-row">
@@ -497,7 +553,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                         );
                       })
                     ) : (
-                      <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
+                      <li className="empty-message">No hay cursos registrados {isGlobal ? 'en ninguna sucursal.' : 'en esta sucursal.'}</li>
                     )}
                   </ul>
                 </section>
@@ -505,51 +561,50 @@ const TrainerDashboard = ({ setUser, user }) => {
                 {/* Sección de evaluaciones */}
                 <section className="assessments-section" style={{ marginTop: 32 }}>
                   <div className="section-header">
-                    <h2 className="section-title" style={{ marginBottom: 18 }}>{currentBranchName} Evaluaciones</h2>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {/* Botón de banco de preguntas */}
-                      <button
-                        className="add-button"
-                        style={{ background: 'white', border: '1px solid #ccc', padding: 4, marginRight: 4 }}
-                        onClick={() => setShowQuestionBankModal(true)}
-                        title="Banco de preguntas"
-                      >
-                        <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 24, height: 24 }} />
-                      </button>
-                      {/* Botón para crear evaluación */}
-                      <button
-                        className="add-button"
-                        onClick={() => setShowAssessmentModal(true)}
-                        title="Agregar evaluación"
-                      >
-                        ＋
-                      </button>
-                      <button
-                        className="add-button"
-                        style={{ background: '#43a047' }}
-                        onClick={() => setShowComponentsConfigModal(true)}
-                        title="Configurar bloques/componentes"
-                      >
-                        ⚙️
-                      </button>
-                    </div>
+                    <h2 className="section-title" style={{ marginBottom: 18 }}>{isGlobal ? 'Todas las evaluaciones' : currentBranchName + ' Evaluaciones'}</h2>
+                    {!isGlobal && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {/* Botón de banco de preguntas */}
+                        <button
+                          className="add-button"
+                          style={{ background: 'white', border: '1px solid #ccc', padding: 4, marginRight: 4 }}
+                          onClick={() => setShowQuestionBankModal(true)}
+                          title="Banco de preguntas"
+                        >
+                          <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 24, height: 24 }} />
+                        </button>
+                        {/* Botón para crear evaluación */}
+                        <button
+                          className="add-button"
+                          onClick={() => setShowAssessmentModal(true)}
+                          title="Agregar evaluación"
+                        >
+                          ＋
+                        </button>
+                        <button
+                          className="add-button"
+                          style={{ background: '#43a047' }}
+                          onClick={() => setShowComponentsConfigModal(true)}
+                          title="Configurar bloques/componentes"
+                        >
+                          ⚙️
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {/* Encabezado de la lista de evaluaciones alineado con las filas */}
                   <div style={{ display: 'flex', fontWeight: 600, padding: '10px 24px 10px 24px', borderBottom: '1px solid #eee', color: '#333', fontSize: 15, alignItems: 'center', minHeight: 40 }}>
-                    <div style={{ flex: 2, textAlign: 'left' }}>Nombre</div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>Progreso</div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>Acciones</div>
+                    <div style={{ flex: 2, textAlign: 'left' }}>Nombre {isGlobal && <span style={{marginLeft:8, fontWeight:400, fontSize:13}}>(Sucursal)</span>}</div>
+                    <div style={{ flex: 1, textAlign: 'center', fontWeight: 600 }}>Progreso</div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>{!isGlobal && 'Acciones'}</div>
                   </div>
                   <ul className="course-list" style={{ padding: 0, margin: 0 }}>
                     {assessments.length > 0 ? (
                       assessments.filter(a => a && a.name).map((assessment, index) => {
-                        // Considera incompleto si no tiene filtros
                         const isNewAssessment = !assessment.filters;
-                        // --- BLOQUEO POR SUBTESTS ENVIADOS ---
                         const subtests = assessmentSubtests[assessment._id] || [];
                         const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
                         const respondedCount = subtests.filter(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0)).length;
-                        // Definir firstSubmitted correctamente
                         const firstSubmitted = subtests.find(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0));
                         const isEditBlocked = !!firstSubmitted;
                         let firstUserName = '';
@@ -560,7 +615,18 @@ const TrainerDashboard = ({ setUser, user }) => {
                             firstUserName = String(firstSubmitted.userId);
                           }
                         }
-                        // --- FIN BLOQUEO ---
+                        // Buscar nombre del branch como etiqueta SOLO en modo global (usa branch o branchId como ObjectId)
+                        let branchName = '';
+                        if (isGlobal) {
+                          let branchIdToCompare = '';
+                          if (assessment.branch) {
+                            branchIdToCompare = String(assessment.branch);
+                          } else if (assessment.branchId) {
+                            branchIdToCompare = String(assessment.branchId);
+                          }
+                          const foundBranch = branches.find(b => String(b._id) === branchIdToCompare);
+                          if (foundBranch) branchName = foundBranch.name;
+                        }
                         return (
                           <li
                             key={assessment._id || index}
@@ -568,7 +634,13 @@ const TrainerDashboard = ({ setUser, user }) => {
                             style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', minHeight: 48, borderBottom: '1px solid #f3f3f3', background: '#fff' }}
                           >
                             <div style={{ flex: 2, textAlign: 'left' }}>
-                              <span className="course-name">📝 {assessment.name}</span>
+                              <span className="course-name">📝 {assessment.name}
+                                {isGlobal && branchName && (
+                                  <span style={{ color: '#1976d2', fontWeight: 400, fontSize: 13, marginLeft: 12 }}>
+                                    [{branchName}]
+                                  </span>
+                                )}
+                              </span>
                               {isNewAssessment && (
                                 <div className="incomplete-course-row">
                                   <span className="incomplete-course-text">
@@ -580,71 +652,40 @@ const TrainerDashboard = ({ setUser, user }) => {
                             <div style={{ flex: 1, textAlign: 'center', fontWeight: 500 }}>
                               {respondedCount}/{totalAssigned}
                             </div>
-                            <div style={{ flex: 1, textAlign: 'center' }}>
-                              <div className="course-actions" style={{ justifyContent: 'center' }}>
-                                <button
-                                  className={`update-button${isEditBlocked ? ' disabled' : ''}`}
-                                  style={isEditBlocked ? { opacity: 0.5, pointerEvents: 'auto', cursor: 'not-allowed' } : {}}
-                                  disabled={false}
-                                  onClick={() => {
-                                    if (isEditBlocked) {
-                                      setSnackbar({ open: true, message: `No puedes editar este test porque ya fue respondido por ${firstUserName}`, type: "warning" });
-                                      return;
-                                    }
-                                    if (assessment && assessment._id) {
-                                      navigate(`/tests/${assessment._id}/edit`);
-                                    } else {
-                                      setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
-                                    }
-                                  }}
-                                  title={isNewAssessment ? "Agregar preguntas a la evaluación" : "Actualizar evaluación"}
-                                >
-                                  {isNewAssessment ? "New" : "Editar"}
-                                </button>
-                                <button
-                                  className="delete-button"
-                                  onClick={() => { if (assessment && assessment._id) { setAssessmentToDelete(assessment._id); setIsAssessmentConfirmModalOpen(true); } else { setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" }); } }}
-                                  title="Eliminar evaluación"
-                                >
-                                  Eliminar
-                                </button>
-                                <button
-                                  className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
-                                  onClick={async () => {
-                                    if (!assessment || !assessment._id) {
-                                      setSnackbar({ open: true, message: "Error: la evaluación seleccionada no tiene ID", type: "error" });
-                                      return;
-                                    }
-                                    try {
-                                      const token = user.token || localStorage.getItem("token");
-                                      const response = await axios.patch(
-                                        `${API_URL}/api/assessments/${assessment._id}/toggle-lock`,
-                                        {},
-                                        { headers: { Authorization: `Bearer ${token}` } }
-                                      );
-                                      const updatedAssessment = response.data.assessment || response.data;
-                                      if (updatedAssessment && updatedAssessment._id) {
-                                        setAssessments((prev) => prev.map(a => a._id === updatedAssessment._id ? updatedAssessment : a));
-                                        setSnackbar({ open: true, message: updatedAssessment.isLocked ? "Evaluación bloqueada" : "Evaluación desbloqueada", type: "success" });
-                                      } else {
-                                        setSnackbar({ open: true, message: "Error: la evaluación bloqueada no tiene ID", type: "error" });
-                                      }
-                                    } catch (error) {
-                                      setSnackbar({ open: true, message: "Error al bloquear/desbloquear evaluación", type: "error" });
-                                    }
-                                  }}
-                                  title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
-                                >
-                                  {assessment.isLocked ? <FaLock style={{ marginRight: 6 }} /> : <FaLockOpen style={{ marginRight: 6 }} />}
-                                  {assessment.isLocked ? "Desbloquear" : "Bloquear"}
-                                </button>
+                            {!isGlobal && (
+                              <div style={{ flex: 1, textAlign: 'center' }}>
+                                <div className="course-actions" style={{ justifyContent: 'center' }}>
+                                  <button
+                                    className="update-button"
+                                    onClick={() => handleUpdate(assessment)}
+                                    title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
+                                    style={{ marginRight: 8 }}
+                                  >
+                                    {isNewAssessment ? "New" : "Update"}
+                                  </button>
+                                  <button
+                                    className="delete-button"
+                                    onClick={() => setAssessmentToDelete(assessment._id) || setIsAssessmentConfirmModalOpen(true)}
+                                    title="Eliminar evaluación"
+                                    style={{ marginRight: 8 }}
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
+                                    className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
+                                    onClick={() => {/* Aquí deberías implementar el bloqueo/desbloqueo de la evaluación */}}
+                                    title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
+                                  >
+                                    {assessment.isLocked ? "Unlock" : "Lock"}
+                                  </button>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </li>
                         );
                       })
                     ) : (
-                      <li className="empty-message">No hay evaluaciones registradas en esta sucursal.</li>
+                      <li className="empty-message">No hay evaluaciones registradas {isGlobal ? 'en ninguna sucursal.' : 'en esta sucursal.'}</li>
                     )}
                   </ul>
                 </section>

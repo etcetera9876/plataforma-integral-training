@@ -8,6 +8,7 @@ const {
   createCourse,
   getCoursesByBranch,
   getCoursesForRecruiter,
+  getAllCourses, // <-- Nuevo controlador global
   deleteCourse,
   toggleLockCourse, // <-- Agregamos el controlador
   updateCourse, // <-- Agregamos el controlador para actualizar curso
@@ -29,6 +30,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Rutas para los cursos
+router.get("/all", getAllCourses); // Nueva ruta para obtener todos los cursos (modo global)
 router.get("/", getCoursesForRecruiter); // Obtener cursos para reclutador (publicados)SI
 router.post("/", createCourse); // Crear un curso
 // Endpoint para obtener todos los IDs de cursos firmados por un usuario (debe ir antes de :branchId)
