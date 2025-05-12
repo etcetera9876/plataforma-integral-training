@@ -46,6 +46,9 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [showComponentsConfigModal, setShowComponentsConfigModal] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", type: "info" });
 
+  // Estado para subtests de cada assessment
+  const [assessmentSubtests, setAssessmentSubtests] = useState({});
+
   // Cargar bloques desde el backend cada vez que cambia la sucursal
   useEffect(() => {
     if (!selectedBranch) {
@@ -59,6 +62,20 @@ const TrainerDashboard = ({ setUser, user }) => {
       .then(res => setBlocks(res.data))
       .catch(() => setBlocks([]));
   }, [selectedBranch, user]);
+
+  // Cargar subtests de todos los assessments al cargar la lista
+  useEffect(() => {
+    if (!assessments || assessments.length === 0) return;
+    const token = getValidToken();
+    assessments.forEach(assessment => {
+      if (!assessment || !assessment._id) return;
+      axios.get(`${API_URL}/api/assessments/${assessment._id}/subtests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(res => {
+        setAssessmentSubtests(prev => ({ ...prev, [assessment._id]: res.data }));
+      });
+    });
+  }, [assessments]);
 
   const handleUpdate = (course) => {
     setSelectedCourse(course);
@@ -343,6 +360,32 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   }, [branches]);
 
+  // Escuchar evento dbChange de socket.io para recargar subtests y assessments en tiempo real
+  useEffect(() => {
+    if (!user) return;
+    const handleDbChange = () => {
+      fetchAssessments(); // Recarga la lista de tests
+      // Recarga subtests de todos los tests después de actualizar assessments
+      setTimeout(() => {
+        if (assessments && assessments.length > 0) {
+          const token = getValidToken();
+          assessments.forEach(assessment => {
+            if (!assessment || !assessment._id) return;
+            axios.get(`${API_URL}/api/assessments/${assessment._id}/subtests`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then(res => {
+              setAssessmentSubtests(prev => ({ ...prev, [assessment._id]: res.data }));
+            });
+          });
+        }
+      }, 500); // Pequeño delay para asegurar que los datos estén actualizados
+    };
+    socket.on('dbChange', handleDbChange);
+    return () => {
+      socket.off('dbChange', handleDbChange);
+    };
+  }, [user, assessments, fetchAssessments]);
+
   // Obtén la sección activa del dashboard según la ruta actual
   const getActiveSection = () => {
     if (location.pathname === '/results') return 'results';
@@ -361,7 +404,7 @@ const TrainerDashboard = ({ setUser, user }) => {
           userId={user.id}
         />
         <main className="main-content">
-          <h1 className="title">Trainer Dashboard</h1>
+          <h1 className="title" style={{ marginBottom: 32 }}>Trainer Dashboard</h1>
           <p className="subtitle">Welcome! Here you can create courses and assessments. You can also review assessments completed by recruiters and managers, as well as signed training receipts. All of this management is done by branch.</p>
 
           {/* Selector de branch global, siempre visible */}
@@ -460,9 +503,9 @@ const TrainerDashboard = ({ setUser, user }) => {
                 </section>
 
                 {/* Sección de evaluaciones */}
-                <section className="assessments-section">
+                <section className="assessments-section" style={{ marginTop: 32 }}>
                   <div className="section-header">
-                    <h2 className="section-title">{currentBranchName} Evaluaciones</h2>
+                    <h2 className="section-title" style={{ marginBottom: 18 }}>{currentBranchName} Evaluaciones</h2>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {/* Botón de banco de preguntas */}
                       <button
@@ -491,25 +534,56 @@ const TrainerDashboard = ({ setUser, user }) => {
                       </button>
                     </div>
                   </div>
-                  <ul className="course-list">
+                  {/* Encabezado de la lista de evaluaciones alineado con las filas */}
+                  <div style={{ display: 'flex', fontWeight: 600, padding: '10px 24px 10px 24px', borderBottom: '1px solid #eee', color: '#333', fontSize: 15, alignItems: 'center', minHeight: 40 }}>
+                    <div style={{ flex: 2, textAlign: 'left' }}>Nombre</div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>Progreso</div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>Acciones</div>
+                  </div>
+                  <ul className="course-list" style={{ padding: 0, margin: 0 }}>
                     {assessments.length > 0 ? (
                       assessments.filter(a => a && a.name).map((assessment, index) => {
                         // Considera incompleto si no tiene filtros
                         const isNewAssessment = !assessment.filters;
+                        // --- BLOQUEO POR SUBTESTS ENVIADOS ---
+                        const subtests = assessmentSubtests[assessment._id] || [];
+                        const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
+                        const respondedCount = subtests.filter(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0)).length;
+                        // Definir firstSubmitted correctamente
+                        const firstSubmitted = subtests.find(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0));
+                        const isEditBlocked = !!firstSubmitted;
+                        let firstUserName = '';
+                        if (firstSubmitted) {
+                          if (typeof firstSubmitted.userId === 'object' && firstSubmitted.userId) {
+                            firstUserName = firstSubmitted.userId.name || firstSubmitted.userId.email || firstSubmitted.userId._id;
+                          } else {
+                            firstUserName = String(firstSubmitted.userId);
+                          }
+                        }
+                        // --- FIN BLOQUEO ---
                         return (
                           <li
                             key={assessment._id || index}
                             className={`course-item${isNewAssessment ? " new-course-alert" : ""}`}
+                            style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', minHeight: 48, borderBottom: '1px solid #f3f3f3', background: '#fff' }}
                           >
-                            <div className="course-main-row">
+                            <div style={{ flex: 2, textAlign: 'left' }}>
                               <span className="course-name">📝 {assessment.name}</span>
-                              <span className="course-status">
-                                {assessment.isLocked ? '🔒 Bloqueado' : '🟢 Activo'}
-                              </span>
-                              <div className="course-actions">
+                            </div>
+                            <div style={{ flex: 1, textAlign: 'center', fontWeight: 500 }}>
+                              {respondedCount}/{totalAssigned}
+                            </div>
+                            <div style={{ flex: 1, textAlign: 'center' }}>
+                              <div className="course-actions" style={{ justifyContent: 'center' }}>
                                 <button
-                                  className="update-button"
+                                  className={`update-button${isEditBlocked ? ' disabled' : ''}`}
+                                  style={isEditBlocked ? { opacity: 0.5, pointerEvents: 'auto', cursor: 'not-allowed' } : {}}
+                                  disabled={false}
                                   onClick={() => {
+                                    if (isEditBlocked) {
+                                      setSnackbar({ open: true, message: `No puedes editar este test porque ya fue respondido por ${firstUserName}`, type: "warning" });
+                                      return;
+                                    }
                                     if (assessment && assessment._id) {
                                       navigate(`/tests/${assessment._id}/edit`);
                                     } else {

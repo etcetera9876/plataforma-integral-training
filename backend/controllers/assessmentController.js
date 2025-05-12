@@ -170,6 +170,7 @@ exports.updateAssessment = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ message: 'Evaluación no encontrada' });
     }
+    await emitDbChange(); // Notifica a los clientes en tiempo real tras editar
     res.json({ message: 'Evaluación actualizada', assessment: updated });
   } catch (error) {
     res.status(500).json({ message: 'Error al actualizar la evaluación', error: error.message });

@@ -427,9 +427,8 @@ const TestEditPage = () => {
               ))}
             </select>
           </div>
-       
           <div className="modal-field" style={{ marginBottom: 16 }}>
-            <label>Cursos relacionados (opcional)</label>
+            <label>Curso relacionado (opcional)</label>
             <div style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {courses.map((c) => (
@@ -542,7 +541,8 @@ const TestEditPage = () => {
                     min={0}
                     style={{ width: 60 }}
                     value={questionFilters.counts[type.value]}
-                    onChange={e => setQuestionFilters(f => ({ ...f, counts: { ...f.counts, [type.value]: Number(e.target.value) } }))}
+                    onChange={e => setQuestionFilters(f => ({ ...f, counts: { ...f.counts, [type.value]: Number(e.target.value) } }))
+                    }
                   />
                 </div>
               ))}

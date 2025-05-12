@@ -192,7 +192,7 @@ const TrainingDashboard = ({ setUser, user }) => {
                   buttonText = 'Corrigiendo...';
                   buttonDisabled = true;
                 } else if (assessment.submittedAt) {
-                  buttonText = (state && state.result) ? 'Mostrar respuestas' : 'Mostrar Puntaje';
+                  buttonText = 'Mostrar puntaje';
                   buttonDisabled = false; // Siempre habilitado visualmente
                 }
                 return (
@@ -228,13 +228,13 @@ const TrainingDashboard = ({ setUser, user }) => {
                     </div>
                     {/* Botón SIEMPRE habilitado */}
                     <button
-                      className={`confirm-button${buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje' ? ' show-result-active' : ''}`}
+                      className={`confirm-button${buttonText === 'Mostrar puntaje' ? ' show-result-active' : ''}`}
                       style={{
                         marginTop: 12,
                         opacity: 1,
                         cursor: 'pointer',
-                        background: (buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje') ? '#1976d2' : undefined,
-                        color: (buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje') ? '#fff' : undefined,
+                        background: buttonText === 'Mostrar puntaje' ? '#1976d2' : undefined,
+                        color: buttonText === 'Mostrar puntaje' ? '#fff' : undefined,
                         zIndex: 2,
                         position: 'relative'
                       }}
@@ -247,7 +247,7 @@ const TrainingDashboard = ({ setUser, user }) => {
                           handleAssessmentButtonClick(assessment);
                         }
                       }}
-                      disabled={buttonDisabled && !(buttonText === 'Mostrar respuestas' || buttonText === 'Mostrar Puntaje')}
+                      disabled={buttonDisabled && buttonText !== 'Mostrar puntaje'}
                     >
                       {buttonText}
                     </button>
