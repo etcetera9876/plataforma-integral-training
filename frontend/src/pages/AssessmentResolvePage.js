@@ -81,11 +81,37 @@ const AssessmentResolvePage = () => {
       const userObj = JSON.parse(localStorage.getItem("user"));
       userId = userObj?.id;
     }
+    // --- ADAPTACIÓN: Normalizar fechas en form-dynamic a MM/dd/yyyy antes de enviar ---
+    let answersToSend = { ...answers };
+    if (test && Array.isArray(test.questions)) {
+      test.questions.forEach((q, idx) => {
+        if (q.type === 'form-dynamic' && Array.isArray(q.forms) && q.forms.length > 0 && typeof answers[idx] === 'object' && answers[idx] !== null) {
+          const formFields = q.forms[0].fields || [];
+          const newObj = { ...answers[idx] };
+          formFields.forEach(field => {
+            if (field.type === 'date' && newObj[field.label]) {
+              let val = newObj[field.label];
+              // Si está en formato yyyy-mm-dd, convertir a MM/dd/yyyy
+              if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                const [y, m, d] = val.split('-');
+                val = `${m}/${d}/${y}`;
+              } else if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(val)) {
+                // Si está en formato dd/mm/yyyy o dd-mm-yyyy, convertir a MM/dd/yyyy
+                const [d, m, y] = val.split(/[\/\-]/);
+                val = `${m}/${d}/${y}`;
+              }
+              newObj[field.label] = val;
+            }
+          });
+          answersToSend[idx] = newObj;
+        }
+      });
+    }
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(`/api/assessments/${id}/submit`, {
         userId,
-        answers,
+        answers: answersToSend,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });

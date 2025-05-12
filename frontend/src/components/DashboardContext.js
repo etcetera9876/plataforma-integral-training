@@ -100,7 +100,7 @@ export function DashboardProvider({ user, children }) {
     });
     // SOLO UNA escucha para certificateSigned: recarga certificados del branch seleccionado SOLO si el usuario es Trainer
     // Solo recargar si el usuario es recruiter
-    if (user?.role === 'Recruiter') {
+    if (user?.role === 'Recruiter' || user?.role === 'Trainer') {
       newSocket.on('dbChange', fetchAllData);
     }
 
@@ -115,7 +115,7 @@ export function DashboardProvider({ user, children }) {
     setSocket(newSocket);
     return () => {
       newSocket.off('certificateSigned', certificateHandler);
-      if (user?.role === 'Recruiter') {
+      if (user?.role === 'Recruiter' || user?.role === 'Trainer') {
         newSocket.off('dbChange', fetchAllData);
       }
       newSocket.disconnect();

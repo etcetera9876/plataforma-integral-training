@@ -7,6 +7,7 @@ const multer = require("multer");
 const Subtest = require('../models/subtest');
 const nodemailer = require('nodemailer');
 const { emitDbChange } = require('../socket');
+const { isOpenAnswerCorrect } = require('../utils/openai');
 
 // Configuración nodemailer
 const transporter = nodemailer.createTransport({
@@ -424,6 +425,7 @@ exports.submitAssessment = async (req, res) => {
       let userAnswer = answers[i];
       let correctAnswer = q.correctAnswer;
       let isCorrect = false;
+      let iaReason = undefined;
       if (q.type === 'single' || q.type === 'single-choice') {
         isCorrect = String(userAnswer).trim() === String(correctAnswer).trim();
       } else if (q.type === 'boolean') {
@@ -436,32 +438,82 @@ exports.submitAssessment = async (req, res) => {
         const arrCorrect = toArr(correctAnswer).sort();
         isCorrect = arrUser.length === arrCorrect.length && arrUser.every((val, idx) => val === arrCorrect[idx]);
       } else if (q.type === 'form-dynamic') {
-        // correctAnswer y userAnswer deben ser objetos { label: valor }
         if (typeof correctAnswer === 'string') {
           try { correctAnswer = JSON.parse(correctAnswer); } catch {}
+        }
+        // Si es array, tomar el primer elemento
+        if (Array.isArray(correctAnswer)) {
+          correctAnswer = correctAnswer[0] || {};
         }
         if (typeof userAnswer === 'string') {
           try { userAnswer = JSON.parse(userAnswer); } catch {}
         }
         if (typeof correctAnswer === 'object' && correctAnswer && typeof userAnswer === 'object' && userAnswer) {
           const correctKeys = Object.keys(correctAnswer);
-          isCorrect = correctKeys.length > 0 && correctKeys.every(
-            key => String(userAnswer[key]).trim() === String(correctAnswer[key]).trim()
-          );
+          isCorrect = correctKeys.length > 0 && correctKeys.every(key => {
+            const userVal = userAnswer[key];
+            const correctVal = correctAnswer[key];
+            // --- Comparación inteligente para fechas ---
+            // Si ambos parecen fechas, comparar como fechas
+            if (typeof userVal === 'string' && typeof correctVal === 'string') {
+              // Detecta formatos de fecha comunes
+              const dateRegex = /^(\d{2}[-\/]\d{2}[-\/]\d{4}|\d{4}[-\/]\d{2}[-\/]\d{2})$/;
+              // Permitir también ISO (yyyy-mm-dd)
+              const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+              if ((dateRegex.test(userVal) || isoDateRegex.test(userVal)) && (dateRegex.test(correctVal) || isoDateRegex.test(correctVal))) {
+                // Intenta parsear ambas fechas
+                const parseDate = s => {
+                  // MM/dd/yyyy o MM-dd-yyyy (NUEVO: primero MM/dd/yyyy)
+                  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(s)) {
+                    const [m, d, y] = s.split(/[\/\-]/);
+                    return new Date(`${y}-${m}-${d}`);
+                  }
+                  // yyyy-mm-dd o yyyy/mm/dd
+                  if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(s)) {
+                    return new Date(s.replace(/[\/]/g, '-'));
+                  }
+                  // yyyy-mm-dd (ISO)
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+                    return new Date(s);
+                  }
+                  return null;
+                };
+                const dateA = parseDate(userVal);
+                const dateB = parseDate(correctVal);
+                if (dateA && dateB && dateA.getFullYear() === dateB.getFullYear() && dateA.getMonth() === dateB.getMonth() && dateA.getDate() === dateB.getDate()) {
+                  return true;
+                }
+              }
+            }
+            // Comparación normal (string)
+            return String(userVal).trim() === String(correctVal).trim();
+          });
         } else {
           isCorrect = false;
         }
       } else if (q.type === 'open' || q.type === 'case') {
-        isCorrect = null;
+        // --- IA autocorrección para preguntas abiertas ---
+        if (userAnswer && q.correctAnswerIA) {
+          const iaResult = await isOpenAnswerCorrect(userAnswer, q.correctAnswerIA);
+          isCorrect = iaResult.isCorrect;
+          iaReason = iaResult.iaReason;
+        } else {
+          isCorrect = null;
+        }
       }
       if (isCorrect === true) correctCount++;
-      correctMap[i] = isCorrect;
+      // Guardar razonamiento IA solo para preguntas abiertas
+      correctMap[i] = (iaReason !== undefined) ? { isCorrect, iaReason } : isCorrect;
     }
     subtest.correctCount = correctCount;
     subtest.totalQuestions = totalQuestions;
     subtest.score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : null;
     subtest.correctMap = correctMap;
     // --- FIN AUTOCORRECCIÓN ---
+
+    // Notificar en tiempo real a los trainers (socket.io)
+    const { emitDbChange } = require('../socket');
+    emitDbChange();
 
     const t3 = Date.now();
     await subtest.save();

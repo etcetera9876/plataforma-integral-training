@@ -267,7 +267,16 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
         const fields = forms[0]?.fields || [];
         fields.forEach(field => {
           if (field.label && field.correctAnswer !== undefined) {
-            formCorrectAnswers[field.label] = field.correctAnswer;
+            let val = field.correctAnswer;
+            // Solo normalizar si viene en formato yyyy-mm-dd, si ya es MM/dd/yyyy NO tocar
+            if (field.type === 'date' && val) {
+              if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                const [y, m, d] = val.split('-');
+                val = `${m}/${d}/${y}`;
+              }
+              // Si ya es MM/dd/yyyy, no modificar
+            }
+            formCorrectAnswers[field.label] = val;
           }
         });
       }
@@ -284,7 +293,14 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
       });
       if (form.type === 'form-dynamic') {
         data.append('forms', JSON.stringify(processedForms));
-        if (formCorrectAnswers) data.append('correctAnswer', JSON.stringify(formCorrectAnswers));
+        // Forzar correctAnswer a objeto (no array)
+        if (formCorrectAnswers) {
+          let toSave = formCorrectAnswers;
+          if (Array.isArray(formCorrectAnswers)) {
+            toSave = formCorrectAnswers[0] || {};
+          }
+          data.append('correctAnswer', JSON.stringify(toSave));
+        }
       }
       let response;
       if (editIndex !== null && questions[editIndex]?._id) {

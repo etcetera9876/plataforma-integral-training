@@ -61,68 +61,73 @@ const TestFormPreview = ({ form, editable, value = {}, onChange }) => {
           borderRadius: 8,
         }}
       />
-      {form.fields && fixedWidth > 0 && scaledHeight > 0 && form.fields.map((field, idx) => (
-        <div
-          key={idx}
-          style={{
-            position: "absolute",
-            left: field.x,
-            top: field.y,
-            width: field.width || 140,
-            minHeight: 38,
-            zIndex: 2,
-            background: "rgba(255,255,255,0.85)",
-            border: '1px solid #bbb',
-            borderRadius: 4,
-            padding: 6,
-            boxSizing: 'border-box',
-          }}
-        >
-          {/* Solo input, sin etiqueta */}
-          {field.type === "text" && (
-            <input
-              type="text"
-              placeholder="Texto"
-              style={{ width: '100%' }}
-              value={value[field.label] || ''}
-              disabled={!editable}
-              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
-            />
-          )}
-          {field.type === "number" && (
-            <input
-              type="number"
-              placeholder="Número"
-              style={{ width: '100%' }}
-              value={value[field.label] || ''}
-              disabled={!editable}
-              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
-            />
-          )}
-          {field.type === "date" && (
-            <input
-              type="date"
-              style={{ width: '100%' }}
-              value={value[field.label] || ''}
-              disabled={!editable}
-              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
-            />
-          )}
-          {field.type === "select" && (
-            <select
-              style={{ width: '100%' }}
-              value={value[field.label] || ''}
-              disabled={!editable}
-              onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
-            >
-              <option value="">Selecciona</option>
-              {(field.options || '').split(',').map((opt, i) => (
-                <option key={i} value={opt.trim()}>{opt.trim()}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      ))}
+      {form.fields && fixedWidth > 0 && scaledHeight > 0 && form.fields.map((field, idx) => {
+        // Ajustar ancho mínimo del contenedor para campos de fecha
+        let fieldBoxWidth = field.width || 140;
+        if (field.type === 'date' && fieldBoxWidth < 140) fieldBoxWidth = 140;
+        return (
+          <div
+            key={idx}
+            style={{
+              position: "absolute",
+              left: field.x,
+              top: field.y,
+              width: fieldBoxWidth,
+              minHeight: 38,
+              zIndex: 2,
+              background: "rgba(255,255,255,0.85)",
+              border: '1px solid #bbb',
+              borderRadius: 4,
+              padding: 6,
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Solo input, sin etiqueta */}
+            {field.type === "text" && (
+              <input
+                type="text"
+                placeholder="Texto"
+                style={{ width: '100%'}}
+                value={value[field.label] || ''}
+                disabled={!editable}
+                onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+              />
+            )}
+            {field.type === "number" && (
+              <input
+                type="number"
+                placeholder="Número"
+                style={{ width: '100%' }}
+                value={value[field.label] || ''}
+                disabled={!editable}
+                onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+              />
+            )}
+            {field.type === "date" && (
+              <input
+                type="date"
+                style={{ width: 130, minWidth: 120 }}
+                value={value[field.label] || ''}
+                disabled={!editable}
+                onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+              />
+            )}
+            {field.type === "select" && (
+              <select
+                style={{ width: '100%' }}
+                value={value[field.label] || ''}
+                disabled={!editable}
+                onChange={editable && onChange ? e => onChange({ ...value, [field.label]: e.target.value }) : undefined}
+              >
+                <option value="">Selecciona</option>
+                {(field.options || '').split(',').map((opt, i) => (
+                  <option key={i} value={opt.trim()}>{opt.trim()}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

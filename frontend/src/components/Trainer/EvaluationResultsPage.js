@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import socket from '../../socket';
 
 const EvaluationResultsPage = ({ user, branchId }) => {
   const [branches, setBranches] = useState([]);
@@ -29,6 +30,16 @@ const EvaluationResultsPage = ({ user, branchId }) => {
   useEffect(() => {
     if (!selectedTest) return;
     axios.get(`/api/assessments/${selectedTest._id}/subtests`, axiosConfig).then(res => setSubtests(res.data));
+  }, [selectedTest]);
+
+  // Recargar subtests en tiempo real cuando llega un evento de socket
+  useEffect(() => {
+    if (!selectedTest) return;
+    const handler = () => {
+      axios.get(`/api/assessments/${selectedTest._id}/subtests`, axiosConfig).then(res => setSubtests(res.data));
+    };
+    socket.on('dbChange', handler);
+    return () => socket.off('dbChange', handler);
   }, [selectedTest]);
 
   // Obtener nombres de usuario por ID (solo para los que no están en userNamesMap)
@@ -67,13 +78,13 @@ const EvaluationResultsPage = ({ user, branchId }) => {
         {selectedTest && (
           <>
             <h3 style={{ marginBottom: 18 }}>Resultados para: {selectedTest.name}</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8, minWidth: 600 }}>
               <thead>
                 <tr style={{ background: '#e3eafc' }}>
-                  <th style={{ padding: 10, borderBottom: '1px solid #ddd' }}>Usuario</th>
-                  <th style={{ padding: 10, borderBottom: '1px solid #ddd' }}>Estado</th>
-                  <th style={{ padding: 10, borderBottom: '1px solid #ddd' }}>Fecha envío</th>
-                  <th style={{ padding: 10, borderBottom: '1px solid #ddd' }}>Puntaje</th>
+                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Usuario</th>
+                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 120 }}>Estado</th>
+                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Fecha envío</th>
+                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 100 }}>Puntaje</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,7 +93,7 @@ const EvaluationResultsPage = ({ user, branchId }) => {
                 )}
                 {subtests.map(st => (
                   <tr key={st._id}>
-                    <td style={{ padding: 10 }}>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>
                       {(() => {
                         if (typeof st.userId === 'object') {
                           return st.userId.name || st.userId.email || st.userId._id || JSON.stringify(st.userId);
@@ -93,9 +104,9 @@ const EvaluationResultsPage = ({ user, branchId }) => {
                         }
                       })()}
                     </td>
-                    <td style={{ padding: 10 }}>{st.submittedAt ? 'Completado' : 'Pendiente'}</td>
-                    <td style={{ padding: 10 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
-                    <td style={{ padding: 10 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 120 }}>{st.submittedAt ? 'Completado' : 'Pendiente'}</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 100 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>
                   </tr>
                 ))}
               </tbody>
