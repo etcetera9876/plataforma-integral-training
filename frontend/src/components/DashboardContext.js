@@ -138,6 +138,12 @@ export function DashboardProvider({ user, children }) {
   };
   const updateCourses = (newCourses) => setCourses(newCourses);
   const updateAssessments = (newAssessments) => setAssessments(newAssessments);
+  // NUEVO: Actualiza el estado de un assessment tras submit inmediato
+  const updateAssessmentSubmission = (assessmentId, submittedAt) => {
+    setAssessments((prev) => prev.map(a =>
+      a._id === assessmentId ? { ...a, submittedAt } : a
+    ));
+  };
   const handleSelectBranch = (branchId, token) => {
     setSelectedBranch(branchId);
     selectedBranchRef.current = branchId;
@@ -153,6 +159,7 @@ export function DashboardProvider({ user, children }) {
       addSignedCourse,
       updateCourses,
       updateAssessments,
+      updateAssessmentSubmission, // <-- Exporta la función
       refetchAll: fetchAllData,
       // NUEVO: contexto global para certificados y sucursales
       branches,

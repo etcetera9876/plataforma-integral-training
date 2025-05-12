@@ -393,37 +393,62 @@ exports.getAssignedAssessments = async (req, res) => {
 
 // Guardar respuestas de un usuario para un assessment
 exports.submitAssessment = async (req, res) => {
+  const startAll = Date.now();
   try {
     const { id } = req.params; // assessmentId
     const { userId, answers } = req.body;
     if (!userId || !answers) {
       return res.status(400).json({ message: 'Faltan userId o answers' });
     }
+    const t1 = Date.now();
     // Busca el subtest correspondiente
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
     const Subtest = require('../models/subtest');
     const subtest = await Subtest.findOne({ assessment: id, userId: userObjectId });
+    const t2 = Date.now();
     if (!subtest) {
       return res.status(404).json({ message: 'No se encontró el subtest para este usuario' });
     }
     // Guarda las respuestas en el subtest
     subtest.submittedAnswers = answers;
     subtest.submittedAt = new Date();
+    const t3 = Date.now();
     await subtest.save();
-    // Notificar por correo al trainer (nodemailer)
-    try {
-      const User = require('../models/user');
-      const assessment = await Assessment.findById(id);
-      const recruiter = await User.findById(userId);
-      const trainer = await User.findById(assessment.createdBy?.id);
-      // ENVÍO DE CORREO DE PRUEBA: siempre a chriscervantesdelacruz@jcsfamily.com
-      const subject = `El reclutador ${recruiter?.name || userId} ha realizado el test "${assessment.name}"`;
-      const text = `Hola Trainer,\n\nEl reclutador ${recruiter?.name || userId} ha completado el test "${assessment.name}" el día ${new Date().toLocaleString()}.\n\nPuedes revisar las respuestas en la plataforma.`;
-      await sendNotificationEmail('chriscervantesdelacruz@jcsfamily.com', subject, text);
-    } catch (notifyErr) {
-      console.error('Error al notificar al trainer:', notifyErr);
-    }
-    res.json({ message: 'Respuestas guardadas correctamente' });
+    const t4 = Date.now();
+    // Notificar por correo al trainer (nodemailer) de forma asíncrona
+    (async () => {
+      try {
+        const User = require('../models/user');
+        const assessment = await Assessment.findById(id);
+        const recruiter = await User.findById(userId);
+        const trainer = await User.findById(assessment.createdBy?.id);
+        const subject = `El reclutador ${recruiter?.name || userId} ha realizado el test "${assessment.name}"`;
+        const text = `Hola Trainer,\n\nEl reclutador ${recruiter?.name || userId} ha completado el test "${assessment.name}" el día ${new Date().toLocaleString()}.\n\nPuedes revisar las respuestas en la plataforma.`;
+        await sendNotificationEmail('chriscervantesdelacruz@gmail.com', subject, text);
+      } catch (notifyErr) {
+        console.error('Error al notificar al trainer:', notifyErr);
+      }
+    })();
+    const t5 = Date.now();
+    const timings = {
+      total: t5 - startAll,
+      findSubtest: t2 - t1,
+      prepareSubtest: t3 - t2,
+      saveSubtest: t4 - t3,
+      afterSave: t5 - t4
+    };
+    console.log('submitAssessment timings:', timings);
+    // Devuelve el subtest actualizado para que el frontend pueda bloquear el test instantáneamente
+    res.json({ 
+      message: 'Respuestas guardadas correctamente', 
+      timings, 
+      subtest: {
+        submittedAt: subtest.submittedAt,
+        submittedAnswers: subtest.submittedAnswers,
+        assessment: subtest.assessment,
+        userId: subtest.userId
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error al guardar respuestas', error: error.message });
   }

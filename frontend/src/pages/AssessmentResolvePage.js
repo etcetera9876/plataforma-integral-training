@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useDashboard } from '../components/DashboardContext';
 
 // Reutilizamos la lógica de TestPreviewModal pero como página completa
 const AssessmentResolvePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { updateAssessmentSubmission } = useDashboard();
   const [test, setTest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -82,12 +84,16 @@ const AssessmentResolvePage = () => {
     console.log('Enviando respuestas:', { userId, answers }); // <-- LOG para depuración
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`/api/assessments/${id}/submit`, {
+      const res = await axios.post(`/api/assessments/${id}/submit`, {
         userId,
         answers,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      // Actualiza el assessment en el contexto global para bloquear el botón instantáneamente
+      if (res.data && res.data.subtest && res.data.subtest.submittedAt) {
+        updateAssessmentSubmission(id, res.data.subtest.submittedAt);
+      }
       navigate('/training-dashboard', { state: { successMessage: '¡Respuestas enviadas correctamente!' } });
     } catch (err) {
       alert('Error al enviar las respuestas.');
