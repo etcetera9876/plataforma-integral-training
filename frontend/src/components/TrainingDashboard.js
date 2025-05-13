@@ -19,6 +19,7 @@ const TrainingDashboard = ({ setUser, user }) => {
   const [assessmentStates, setAssessmentStates] = useState({}); // { [assessmentId]: { status, result } }
   const [showResultModal, setShowResultModal] = useState(false);
   const [modalResult, setModalResult] = useState(null);
+  const [showCourseModal, setShowCourseModal] = useState(false); // Estado para el modal de curso
 
   // Usar datos del contexto global
   const { courses, signedCourses, assessments, loading, refetchAll } = useDashboard();
@@ -145,7 +146,17 @@ const TrainingDashboard = ({ setUser, user }) => {
         <p>Bienvenido al área de administración. Aquí puedes gestionar cursos, simulaciones y más.</p>
 
         <section className="training-courses-section">
-          <h2>Tus Cursos</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <h2>Tus Cursos</h2>
+            <button
+              className="icon-button"
+              title="Crear curso"
+              onClick={() => setShowCourseModal(true)}
+              style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
+            >
+              <span role="img" aria-label="Crear curso" style={{ fontSize: 26 }}>➕</span>
+            </button>
+          </div>
           {courses.length > 0 ? (
             <div className="training-course-list scrollable-container"> {/* Clase para scroll horizontal */}
               {courses.map((course) => (
@@ -211,6 +222,12 @@ const TrainingDashboard = ({ setUser, user }) => {
                       display: 'inline-block',
                       verticalAlign: 'top'
                     }}
+                    onClick={() => {
+                      if (assessment.isLocked) {
+                        setLockedAssessmentName(assessment.name);
+                        setShowLockedAssessmentModal(true);
+                      }
+                    }}
                   >
                     {/* Contenido opaco excepto el botón */}
                     <div
@@ -240,6 +257,11 @@ const TrainingDashboard = ({ setUser, user }) => {
                       }}
                       onClick={e => {
                         e.stopPropagation();
+                        if (assessment.isLocked) {
+                          setLockedAssessmentName(assessment.name);
+                          setShowLockedAssessmentModal(true);
+                          return;
+                        }
                         if (!assessment.submittedAt) {
                           setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'sending' } }));
                           handleAssessmentClick(assessment);

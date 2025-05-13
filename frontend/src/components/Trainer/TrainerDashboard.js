@@ -484,210 +484,319 @@ const TrainerDashboard = ({ setUser, user }) => {
                         className="add-button"
                         onClick={() => setShowCourseModal(true)}
                         title="Agregar curso"
+                        style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
                       >
-                        ＋
+                        <span role="img" aria-label="Crear curso" style={{ fontSize: 26 }}>➕</span>
                       </button>
                     )}
                   </div>
 
-                  <ul className="course-list">
-                    {courses.length > 0 ? (
-                      courses.map((course, index) => {
-                        const isNew =
-                          !course.description &&
-                          (!course.resources || course.resources.length === 0);
-                        const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
-                        // Buscar nombre del branch
-                        const branchName = branches.find(b => String(b._id) === String(course.branchId))?.name || 'Sin sucursal';
-                        return (
-                          <li
-                            key={course._id || index}
-                            className={`course-item${isNew ? " new-course-alert" : ""}`}
-                          >
-                            <div className="course-main-row">
-                              <span className="course-name">
-                                📘 {course.name}
-                                {isGlobal && (
-                                  <span style={{ color: '#1976d2', fontWeight: 400, fontSize: 13, marginLeft: 12 }}>
-                                    [{branchName}]
+                  {isGlobal ? (
+                    <div style={{ background: '#fafafa', borderRadius: 12, border: '1px solid #ddd', padding: 0, marginTop: 8 }}>
+                      <div style={{ display: 'flex', fontWeight: 600, padding: '16px 32px 8px 32px', color: '#222', fontSize: 16, alignItems: 'center', minHeight: 40 }}>
+                        <div style={{ flex: 2, textAlign: 'left' }}>Sucursal</div>
+                        <div style={{ flex: 3, textAlign: 'left' }}>Nombre</div>
+                        <div style={{ flex: 1, textAlign: 'left' }}>Estado</div>
+                      </div>
+                      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                        {courses.length > 0 ? (
+                          courses.map((course, index) => {
+                            const branchName = branches.find(b => String(b._id) === String(course.branchId))?.name || 'Sin sucursal';
+                            const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
+                            return (
+                              <li key={course._id || index} style={{ display: 'flex', alignItems: 'center', padding: '18px 32px', minHeight: 48, borderBottom: index === courses.length - 1 ? 'none' : '1px solid #eee', background: '#fff', borderRadius: index === 0 ? '12px 12px 0 0' : index === courses.length - 1 ? '0 0 12px 12px' : '0' }}>
+                                <div style={{ flex: 2, color: '#1976d2', fontWeight: 500, fontSize: 15 }}>{branchName}</div>
+                                <div style={{ flex: 3, color: '#222', fontWeight: 500, fontSize: 15, textAlign: 'left' }}>
+                                  <span className="course-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <span role="img" aria-label="libro">📘</span> {course.name}
                                   </span>
-                                )}
-                              </span>
-                              <span className="course-status" title={status.tooltip}>
-                                {status.icon} {status.text}
-                              </span>
-                              {!isGlobal && (
-                                <div className="course-actions">
-                                  <button
-                                    className="update-button"
-                                    onClick={() => handleUpdate(course)}
-                                    title={isNew ? "Agregar información al curso" : "Actualizar curso"}
-                                  >
-                                    {isNew ? "New" : "Update"}
-                                  </button>
-                                  <button
-                                    className="delete-button"
-                                    onClick={() => handleDeleteClick(course._id)}
-                                    title="Eliminar curso"
-                                  >
-                                    Delete
-                                  </button>
-                                  <button
-                                    className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
-                                    onClick={() => handleToggleLock(course._id, course.isLocked)}
-                                    title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
-                                  >
-                                    {course.isLocked ? "Unlock" : "Lock"}
-                                  </button>
                                 </div>
-                              )}
-                            </div>
-                            {isNew && (
-                              <div className="incomplete-course-row">
-                                <span className="incomplete-course-text">
-                                  Curso incompleto: agrega descripción o recursos.
-                                </span>
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })
-                    ) : (
-                      <li className="empty-message">No hay cursos registrados {isGlobal ? 'en ninguna sucursal.' : 'en esta sucursal.'}</li>
-                    )}
-                  </ul>
+                                <div style={{ flex: 1, color: '#1a237e', fontWeight: 500, fontSize: 15 }} title={status.tooltip}>{status.text}</div>
+                              </li>
+                            );
+                          })
+                        ) : (
+                          <li className="empty-message" style={{ padding: '18px 32px' }}>No hay cursos registrados en ninguna sucursal.</li>
+                        )}
+                      </ul>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', fontWeight: 600, padding: '10px 24px 10px 24px', borderBottom: '1px solid #eee', color: '#333', fontSize: 15, alignItems: 'center', minHeight: 40 }}>
+                        <div style={{ flex: 2, textAlign: 'left' }}>Nombre</div>
+                        <div style={{ flex: 1, textAlign: 'center', fontWeight: 600 }}>Estado</div>
+                        <div style={{ flex: 1, textAlign: 'center' }}>Acciones</div>
+                      </div>
+                      <ul className="course-list" style={{ padding: 0, margin: 0 }}>
+                        {courses.length > 0 ? (
+                          courses.map((course, index) => {
+                            const isNew =
+                              !course.description &&
+                              (!course.resources || course.resources.length === 0);
+                            const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
+                            return (
+                              <li
+                                key={course._id || index}
+                                className={`course-item${isNew ? " new-course-alert" : ""}`}
+                                style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', minHeight: 48, borderBottom: '1px solid #f3f3f3', background: '#fff' }}
+                              >
+                                <div style={{ flex: 2, textAlign: 'left' }}>
+                                  <span className="course-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <span role="img" aria-label="libro">📘</span> {course.name}
+                                  </span>
+                                  {isNew && (
+                                    <div className="incomplete-course-row">
+                                      <span className="incomplete-course-text">
+                                        Curso incompleto: agrega descripción o recursos.
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ flex: 1, textAlign: 'center', fontWeight: 500 }} title={status.tooltip}>
+                                  {status.text}
+                                </div>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div className="course-actions" style={{ justifyContent: 'center' }}>
+                                    <button
+                                      className="update-button"
+                                      onClick={() => handleUpdate(course)}
+                                      title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                                      style={{ marginRight: 8 }}
+                                    >
+                                      {isNew ? "New" : "Update"}
+                                    </button>
+                                    <button
+                                      className="delete-button"
+                                      onClick={() => handleDeleteClick(course._id)}
+                                      title="Eliminar curso"
+                                      style={{ marginRight: 8 }}
+                                    >
+                                      Delete
+                                    </button>
+                                    <button
+                                      className={`lock-button ${course.isLocked ? "locked" : "unlocked"}`}
+                                      onClick={() => handleToggleLock(course._id, course.isLocked)}
+                                      title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                                      style={{
+                                        marginRight: 8,
+                                        background: course.isLocked ? '#e65100' : '#e3f2fd', // más oscuro cuando está lock, suave cuando unlock
+                                        color: course.isLocked ? '#fff' : '#1976d2',
+                                        border: '2px solid #bdbdbd',
+                                        borderRadius: 5,
+                                        minWidth: 44,
+                                        minHeight: 38,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 20,
+                                        fontWeight: 600,
+                                        boxShadow: '0 2px 6px #bbb',
+                                        transition: 'background 0.18s, color 0.18s'
+                                      }}
+                                    >
+                                      {course.isLocked ? (
+                                        <span role="img" aria-label="Candado cerrado" style={{ fontSize: 20, color: '#fff', verticalAlign: 'middle' }}>🔒</span>
+                                      ) : (
+                                        <span role="img" aria-label="Candado abierto" style={{ fontSize: 20, color: '#1976d2', verticalAlign: 'middle' }}>🔓</span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })
+                        ) : (
+                          <li className="empty-message">No hay cursos registrados en esta sucursal.</li>
+                        )}
+                      </ul>
+                    </>
+                  )}
                 </section>
 
                 {/* Sección de evaluaciones */}
                 <section className="assessments-section" style={{ marginTop: 32 }}>
-                  <div className="section-header">
-                    <h2 className="section-title" style={{ marginBottom: 18 }}>{isGlobal ? 'Todas las evaluaciones' : currentBranchName + ' Evaluaciones'}</h2>
+                  <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                    <h2 className="section-title" style={{ marginBottom: 0 }}>{isGlobal ? 'Todas las evaluaciones' : currentBranchName + ' Evaluaciones'}</h2>
                     {!isGlobal && (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {/* Botón de banco de preguntas */}
+                      <div style={{ display: 'flex', gap: 12 }}>
                         <button
-                          className="add-button"
-                          style={{ background: 'white', border: '1px solid #ccc', padding: 4, marginRight: 4 }}
-                          onClick={() => setShowQuestionBankModal(true)}
-                          title="Banco de preguntas"
-                        >
-                          <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 24, height: 24 }} />
-                        </button>
-                        {/* Botón para crear evaluación */}
-                        <button
-                          className="add-button"
+                          className="icon-button"
+                          title="Crear evaluación"
                           onClick={() => setShowAssessmentModal(true)}
-                          title="Agregar evaluación"
+                          style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
                         >
-                          ＋
+                          <span role="img" aria-label="Crear evaluación" style={{ fontSize: 26 }}>➕</span>
                         </button>
                         <button
-                          className="add-button"
-                          style={{ background: '#43a047' }}
-                          onClick={() => setShowComponentsConfigModal(true)}
-                          title="Configurar bloques/componentes"
+                          className="icon-button"
+                          title="Crear pregunta en banco"
+                          onClick={() => setShowQuestionBankModal(true)}
+                          style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0' }}
                         >
-                          ⚙️
+                          <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 26, height: 26, display: 'block' }} />
+                        </button>
+                        <button
+                          className="icon-button"
+                          title="Crear bloque"
+                          onClick={() => setShowComponentsConfigModal(true)}
+                          style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
+                        >
+                          <span role="img" aria-label="Bloques" style={{ fontSize: 26 }}>🧩</span>
                         </button>
                       </div>
                     )}
                   </div>
-                  {/* Encabezado de la lista de evaluaciones alineado con las filas */}
-                  <div style={{ display: 'flex', fontWeight: 600, padding: '10px 24px 10px 24px', borderBottom: '1px solid #eee', color: '#333', fontSize: 15, alignItems: 'center', minHeight: 40 }}>
-                    <div style={{ flex: 2, textAlign: 'left' }}>Nombre {isGlobal && <span style={{marginLeft:8, fontWeight:400, fontSize:13}}>(Sucursal)</span>}</div>
-                    <div style={{ flex: 1, textAlign: 'center', fontWeight: 600 }}>Progreso</div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>{!isGlobal && 'Acciones'}</div>
-                  </div>
-                  <ul className="course-list" style={{ padding: 0, margin: 0 }}>
-                    {assessments.length > 0 ? (
-                      assessments.filter(a => a && a.name).map((assessment, index) => {
-                        const isNewAssessment = !assessment.filters;
-                        const subtests = assessmentSubtests[assessment._id] || [];
-                        const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
-                        const respondedCount = subtests.filter(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0)).length;
-                        const firstSubmitted = subtests.find(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0));
-                        const isEditBlocked = !!firstSubmitted;
-                        let firstUserName = '';
-                        if (firstSubmitted) {
-                          if (typeof firstSubmitted.userId === 'object' && firstSubmitted.userId) {
-                            firstUserName = firstSubmitted.userId.name || firstSubmitted.userId.email || firstSubmitted.userId._id;
-                          } else {
-                            firstUserName = String(firstSubmitted.userId);
-                          }
-                        }
-                        // Buscar nombre del branch como etiqueta SOLO en modo global (usa branch o branchId como ObjectId)
-                        let branchName = '';
-                        if (isGlobal) {
-                          let branchIdToCompare = '';
-                          if (assessment.branch) {
-                            branchIdToCompare = String(assessment.branch);
-                          } else if (assessment.branchId) {
-                            branchIdToCompare = String(assessment.branchId);
-                          }
-                          const foundBranch = branches.find(b => String(b._id) === branchIdToCompare);
-                          if (foundBranch) branchName = foundBranch.name;
-                        }
-                        return (
-                          <li
-                            key={assessment._id || index}
-                            className={`course-item${isNewAssessment ? " new-course-alert" : ""}`}
-                            style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', minHeight: 48, borderBottom: '1px solid #f3f3f3', background: '#fff' }}
-                          >
-                            <div style={{ flex: 2, textAlign: 'left' }}>
-                              <span className="course-name">📝 {assessment.name}
-                                {isGlobal && branchName && (
-                                  <span style={{ color: '#1976d2', fontWeight: 400, fontSize: 13, marginLeft: 12 }}>
-                                    [{branchName}]
-                                  </span>
-                                )}
-                              </span>
-                              {isNewAssessment && (
-                                <div className="incomplete-course-row">
-                                  <span className="incomplete-course-text">
-                                    Evaluación incompleta: configura los filtros y genera tests personalizados.
+                  {isGlobal ? (
+                    <div style={{ background: '#fafafa', borderRadius: 12, border: '1px solid #ddd', padding: 0, marginTop: 8 }}>
+                      <div style={{ display: 'flex', fontWeight: 600, padding: '16px 32px 8px 32px', color: '#222', fontSize: 16, alignItems: 'center', minHeight: 40 }}>
+                        <div style={{ flex: 2, textAlign: 'left' }}>Sucursal</div>
+                        <div style={{ flex: 3, textAlign: 'left' }}>Nombre</div>
+                        <div style={{ flex: 1, textAlign: 'left' }}>Progreso</div>
+                      </div>
+                      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                        {assessments.length > 0 ? (
+                          assessments.filter(a => a && a.name).map((assessment, index) => {
+                            const subtests = assessmentSubtests[assessment._id] || [];
+                            const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
+                            const respondedCount = subtests.filter(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0)).length;
+                            // Buscar nombre del branch de forma robusta
+                            let branchName = '';
+                            let branchError = false;
+                            let branchObj = null;
+                            if (assessment.branch) {
+                              branchObj = branches.find(b => String(b._id) === String(assessment.branch))
+                                || branches.find(b => b.name === assessment.branch);
+                            }
+                            if (branchObj && branchObj.name) {
+                              branchName = branchObj.name;
+                            } else if (assessment.branch) {
+                              branchName = `ID no encontrado: ${assessment.branch}`;
+                              branchError = true;
+                            } else {
+                              branchName = 'Sucursal no asignada';
+                              branchError = true;
+                            }
+                            return (
+                              <li key={assessment._id || index} style={{ display: 'flex', alignItems: 'center', padding: '18px 32px', minHeight: 48, borderBottom: index === assessments.length - 1 ? 'none' : '1px solid #eee', background: '#fff', borderRadius: index === 0 ? '12px 12px 0 0' : index === assessments.length - 1 ? '0 0 12px 12px' : '0' }}>
+                                <div style={{ flex: 2, color: branchError ? '#d32f2f' : '#1976d2', fontWeight: 500, fontSize: 15 }}>
+                                  {branchName}
+                                  {branchError && (
+                                    <span style={{ color: '#d32f2f', fontWeight: 400, fontSize: 13, marginLeft: 8 }}>(Error: ID de sucursal no válido o no existe)</span>
+                                  )}
+                                </div>
+                                <div style={{ flex: 3, color: '#222', fontWeight: 500, fontSize: 15, textAlign: 'left' }}>
+                                  <span className="course-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <span role="img" aria-label="document">📝</span> {assessment.name}
                                   </span>
                                 </div>
-                              )}
-                            </div>
-                            <div style={{ flex: 1, textAlign: 'center', fontWeight: 500 }}>
-                              {respondedCount}/{totalAssigned}
-                            </div>
-                            {!isGlobal && (
-                              <div style={{ flex: 1, textAlign: 'center' }}>
-                                <div className="course-actions" style={{ justifyContent: 'center' }}>
-                                  <button
-                                    className="update-button"
-                                    onClick={() => handleUpdate(assessment)}
-                                    title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
-                                    style={{ marginRight: 8 }}
-                                  >
-                                    {isNewAssessment ? "New" : "Update"}
-                                  </button>
-                                  <button
-                                    className="delete-button"
-                                    onClick={() => setAssessmentToDelete(assessment._id) || setIsAssessmentConfirmModalOpen(true)}
-                                    title="Eliminar evaluación"
-                                    style={{ marginRight: 8 }}
-                                  >
-                                    Delete
-                                  </button>
-                                  <button
-                                    className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
-                                    onClick={() => {/* Aquí deberías implementar el bloqueo/desbloqueo de la evaluación */}}
-                                    title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
-                                  >
-                                    {assessment.isLocked ? "Unlock" : "Lock"}
-                                  </button>
+                                <div style={{ flex: 1, color: '#1a237e', fontWeight: 500, fontSize: 15, textAlign: 'left' }}>{respondedCount}/{totalAssigned}</div>
+                              </li>
+                            );
+                          })
+                        ) : (
+                          <li className="empty-message" style={{ padding: '18px 32px' }}>No hay evaluaciones registradas en ninguna sucursal.</li>
+                        )}
+                      </ul>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', fontWeight: 600, padding: '10px 24px 10px 24px', borderBottom: '1px solid #eee', color: '#333', fontSize: 15, alignItems: 'center', minHeight: 40 }}>
+                        <div style={{ flex: 2, textAlign: 'left' }}>Nombre</div>
+                        <div style={{ flex: 1, textAlign: 'center', fontWeight: 600 }}>Progreso</div>
+                        <div style={{ flex: 1, textAlign: 'center' }}>Acciones</div>
+                      </div>
+                      <ul className="course-list" style={{ padding: 0, margin: 0 }}>
+                        {assessments.length > 0 ? (
+                          assessments.filter(a => a && a.name).map((assessment, index) => {
+                            const isNewAssessment = !assessment.filters;
+                            const subtests = assessmentSubtests[assessment._id] || [];
+                            const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
+                            const respondedCount = subtests.filter(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0)).length;
+                            return (
+                              <li
+                                key={assessment._id || index}
+                                className={`course-item${isNewAssessment ? " new-course-alert" : ""}`}
+                                style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', minHeight: 48, borderBottom: '1px solid #f3f3f3', background: '#fff' }}
+                              >
+                                <div style={{ flex: 2, textAlign: 'left' }}>
+                                  <span className="course-name">📝 {assessment.name}</span>
+                                  {isNewAssessment && (
+                                    <div className="incomplete-course-row">
+                                      <span className="incomplete-course-text">
+                                        Evaluación incompleta: configura los filtros y genera tests personalizados.
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })
-                    ) : (
-                      <li className="empty-message">No hay evaluaciones registradas {isGlobal ? 'en ninguna sucursal.' : 'en esta sucursal.'}</li>
-                    )}
-                  </ul>
+                                <div style={{ flex: 1, textAlign: 'center', fontWeight: 500 }}>
+                                  {respondedCount}/{totalAssigned}
+                                </div>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div className="course-actions" style={{ justifyContent: 'center' }}>
+                                    <button
+                                      className="update-button"
+                                      onClick={() => handleUpdate(assessment)}
+                                      title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
+                                      style={{ marginRight: 8 }}
+                                    >
+                                      {isNewAssessment ? "New" : "Update"}
+                                    </button>
+                                    <button
+                                      className="delete-button"
+                                      onClick={() => setAssessmentToDelete(assessment._id) || setIsAssessmentConfirmModalOpen(true)}
+                                      title="Eliminar evaluación"
+                                      style={{ marginRight: 8 }}
+                                    >
+                                      Delete
+                                    </button>
+                                    <button
+                                      className={`lock-button ${assessment.isLocked ? "locked" : "unlocked"}`}
+                                      onClick={async () => {
+                                        try {
+                                          const token = getValidToken();
+                                          await axios.patch(`${API_URL}/api/assessments/${assessment._id}/toggle-lock`, {}, {
+                                            headers: { Authorization: `Bearer ${token}` },
+                                          });
+                                          fetchAssessments();
+                                        } catch (err) {
+                                          setSnackbar({ open: true, message: 'Error al bloquear/desbloquear la evaluación', type: 'error' });
+                                        }
+                                      }}
+                                      title={assessment.isLocked ? "Desbloquear evaluación" : "Bloquear evaluación"}
+                                      style={{
+                                        marginRight: 8,
+                                        background: assessment.isLocked ? '#e65100' : '#e3f2fd', // más oscuro cuando está lock, suave cuando unlock
+                                        color: assessment.isLocked ? '#fff' : '#1976d2',
+                                        border: '2px solid #bdbdbd',
+                                        borderRadius: 5,
+                                        minWidth: 44,
+                                        minHeight: 38,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 20,
+                                        fontWeight: 600,
+                                        boxShadow: '0 2px 6px #bbb',
+                                        transition: 'background 0.18s, color 0.18s'
+                                      }}
+                                    >
+                                      {assessment.isLocked ? (
+                                        <span role="img" aria-label="Candado cerrado" style={{ fontSize: 20, color: '#fff', verticalAlign: 'middle' }}>🔒</span>
+                                      ) : (
+                                        <span role="img" aria-label="Candado abierto" style={{ fontSize: 20, color: '#1976d2', verticalAlign: 'middle' }}>🔓</span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })
+                        ) : (
+                          <li className="empty-message">No hay evaluaciones registradas en esta sucursal.</li>
+                        )}
+                      </ul>
+                    </>
+                  )}
                 </section>
               </>
             )

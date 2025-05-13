@@ -402,3 +402,10 @@
 }
 
 /* Fin de limpieza: se eliminaron .creator, .course-details, .course-detail, .modal-input, .evaluation-buttons, .eval-button, .modal-actions-button2 y cualquier regla no usada en los dashboards y modales principales. */
+.icon-button {
+  transition: transform 0.18s cubic-bezier(.4,1.4,.6,1);
+}
+.icon-button:hover, .icon-button:focus {
+  transform: scale(1.18);
+  z-index: 2;
+}
