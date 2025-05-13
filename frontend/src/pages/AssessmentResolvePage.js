@@ -57,11 +57,9 @@ const AssessmentResolvePage = () => {
           });
         }
         setTest(testData);
-        // Si el test/subtest tiene timer, mostrar modal antes de iniciar
-        if (testData && testData.timer && Number(testData.timer) >= 10) {
-          setShowTimerModal(true);
-          setTimerModalAccepted(false);
-        }
+        // Mostrar SIEMPRE el modal antes de iniciar el test
+        setShowTimerModal(true);
+        setTimerModalAccepted(false);
       } catch (err) {
         setError("No se pudo cargar la evaluación");
       } finally {
@@ -117,6 +115,7 @@ const AssessmentResolvePage = () => {
         }
       });
     }
+    console.log("Enviando respuestas:", { userId, assessmentId: id, answers: answersToSend });
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(`/api/assessments/${id}/submit`, {
@@ -125,11 +124,12 @@ const AssessmentResolvePage = () => {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log("Respuesta del backend:", res.data);
       if (res.data && res.data.subtest && res.data.subtest.submittedAt) {
         updateAssessmentSubmission(id, res.data.subtest.submittedAt);
       }
       // Limpiar timer persistente al enviar
-      let userId = localStorage.getItem("userId");
+      userId = localStorage.getItem("userId");
       if (!userId) {
         const userObj = JSON.parse(localStorage.getItem("user"));
         userId = userObj?.id;
@@ -138,6 +138,7 @@ const AssessmentResolvePage = () => {
       // Redirige directamente al dashboard, no muestra resultado aquí
       navigate('/training-dashboard', { state: { successMessage: '¡Respuestas enviadas correctamente!' } });
     } catch (err) {
+      console.error("Error al enviar respuestas:", err);
       let msg = 'Error al enviar las respuestas.';
       if (err?.response?.data?.message) {
         msg += `\n${err.response.data.message}`;
@@ -208,10 +209,10 @@ const AssessmentResolvePage = () => {
     setShowTimerModal(false);
   };
 
-  // Al cargar, leer si ya aceptó el timer
+  // Al cargar, leer si ya aceptó el modal
   useEffect(() => {
     const accepted = localStorage.getItem(getTimerAcceptedKey());
-    if (test && test.timer && Number(test.timer) >= 10) {
+    if (test) {
       setTimerModalAccepted(!!accepted);
       setShowTimerModal(!accepted);
     }
@@ -226,22 +227,35 @@ const AssessmentResolvePage = () => {
   if (loading) return <div>Cargando evaluación...</div>;
   if (error || !test) return <div>{error || "No se encontró la evaluación."}</div>;
 
-  if (showTimerModal && test && test.timer && Number(test.timer) >= 10 && !timerModalAccepted) {
+  if (showTimerModal && test && !timerModalAccepted) {
+    // Modal genérico si NO hay timer válido, si hay timer muestra el mensaje original
+    const hasTimer = test.timer && Number(test.timer) >= 10;
     return (
       <Modal isOpen={true} onClose={() => {
         setShowTimerModal(false);
         navigate('/training-dashboard');
       }}>
         <div style={{ padding: 32, maxWidth: 420, textAlign: 'center' }}>
-          <HourglassAnimation />
-          <h2 style={{ color: '#1976d2', fontWeight: 700, marginBottom: 18 }}>Este test tiene tiempo limitado</h2>
+          {hasTimer && <HourglassAnimation />}
+          <h2 style={{ color: '#1976d2', fontWeight: 700, marginBottom: 18 }}>
+            {hasTimer ? 'Este test tiene tiempo limitado' : 'Antes de comenzar el test'}
+          </h2>
           <div style={{ fontSize: 18, marginBottom: 18 }}>
-            Dispondrás de <b>{test.timer} minutos</b> para resolver el test.<br />
-            El tiempo comenzará al presionar <b>Comenzar</b> y no se detendrá aunque recargues la página.<br />
-            <span style={{ color: '#d32f2f', fontWeight: 600 }}>
-              Una vez que inicies el test, <u>no podrás cancelarlo ni salir</u> hasta que envíes tus respuestas o se acabe el tiempo.
-            </span><br />
-            Si el tiempo se agota, tus respuestas se enviarán automáticamente.
+            {hasTimer ? (
+              <>
+                Dispondrás de <b>{test.timer} minutos</b> para resolver el test.<br />
+                El tiempo comenzará al presionar <b>Comenzar</b> y no se detendrá aunque recargues la página.<br />
+                <span style={{ color: '#d32f2f', fontWeight: 600 }}>
+                  Una vez que inicies el test, <u>no podrás cancelarlo ni salir</u> hasta que envíes tus respuestas o se acabe el tiempo.
+                </span><br />
+                Si el tiempo se agota, tus respuestas se enviarán automáticamente.
+              </>
+            ) : (
+              <>
+                Al iniciar el test, <b>no podrás salir ni cancelar</b> hasta que envíes tus respuestas.<br />
+                ¿Deseas comenzar?
+              </>
+            )}
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 24 }}>
             <button style={{ background: '#1976d2', color: '#fff', fontWeight: 600, fontSize: 17, border: 'none', borderRadius: 8, padding: '10px 32px', cursor: 'pointer' }}
@@ -281,7 +295,6 @@ const AssessmentResolvePage = () => {
       )}
       <ol style={{ paddingLeft: 24, listStylePosition: 'decimal' }}>
         {test.questions && test.questions.map((q, idx) => {
-          console.log(`Tipo de pregunta #${idx + 1}:`, q.type);
           // Renderizado explícito para cada tipo
           if ((q.type === 'single' || q.type === 'single-choice') && Array.isArray(q.options)) {
             return (

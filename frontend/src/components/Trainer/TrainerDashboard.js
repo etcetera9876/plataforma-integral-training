@@ -196,6 +196,7 @@ const TrainerDashboard = ({ setUser, user }) => {
 
       if (validUserIds.length === 0) return;
 
+      console.log('[DEBUG] fetchUserNames - userIds enviados:', validUserIds);
       const response = await axios.post(
         `${API_URL}/api/users/names`,
         { userIds: validUserIds },
@@ -203,7 +204,7 @@ const TrainerDashboard = ({ setUser, user }) => {
           headers: { Authorization: `Bearer ${user.token}` },
         }
       );
-
+      console.log('[DEBUG] fetchUserNames - respuesta backend:', response.data);
       setUserNames((prev) => ({ ...prev, ...response.data }));
     } catch (error) {
       console.error("Error al obtener nombres de usuarios:", error.response?.data || error.message);
@@ -720,7 +721,16 @@ const TrainerDashboard = ({ setUser, user }) => {
                             const isNewAssessment = !assessment.filters;
                             const subtests = assessmentSubtests[assessment._id] || [];
                             const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
+                            const respondedSubtest = subtests.find(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0));
                             const respondedCount = subtests.filter(st => st.submittedAt || (st.submittedAnswers && Object.keys(st.submittedAnswers).length > 0)).length;
+                            // Nuevo: Si hay algún subtest resuelto, bloquear Update
+                            const updateDisabled = Boolean(respondedSubtest);
+                            // Obtener nombre del usuario que ya resolvió (si existe)
+                            let resolvedUserName = '';
+                            if (respondedSubtest && respondedSubtest.userId) {
+                              const userId = typeof respondedSubtest.userId === 'object' ? respondedSubtest.userId._id : respondedSubtest.userId;
+                              resolvedUserName = userNames[userId] || userId;
+                            }
                             return (
                               <li
                                 key={assessment._id || index}
@@ -744,9 +754,21 @@ const TrainerDashboard = ({ setUser, user }) => {
                                   <div className="course-actions" style={{ justifyContent: 'center' }}>
                                     <button
                                       className="update-button"
-                                      onClick={() => handleUpdateAssessment(assessment)}
-                                      title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
-                                      style={{ marginRight: 8 }}
+                                      onClick={e => {
+                                        if (updateDisabled) {
+                                          e.preventDefault();
+                                          // Mostrar nombre si existe, si no, 'Un usuario'
+                                          const userIdKey = respondedSubtest && respondedSubtest.userId ? (typeof respondedSubtest.userId === 'object' ? respondedSubtest.userId._id : respondedSubtest.userId) : undefined;
+                                          console.log('[DEBUG] userNames:', userNames);
+                                          console.log('[DEBUG] userIdKey para el snackbar:', userIdKey);
+                                          const name = (userIdKey && userNames[userIdKey]) || 'Un usuario';
+                                          setSnackbar({ open: true, message: `${name} ya ha realizado el examen, lo puedes revisar.`, type: 'info', duration: 4000 });
+                                        } else {
+                                          handleUpdateAssessment(assessment);
+                                        }
+                                      }}
+                                      title={isNewAssessment ? "Agregar información a la evaluación" : updateDisabled ? "Ya hay respuestas, no se puede editar" : "Actualizar evaluación"}
+                                      style={{ marginRight: 8, opacity: updateDisabled ? 0.5 : 1, cursor: updateDisabled ? 'not-allowed' : 'pointer', pointerEvents: 'auto' }}
                                     >
                                       {isNewAssessment ? "New" : "Update"}
                                     </button>
@@ -946,6 +968,7 @@ const TrainerDashboard = ({ setUser, user }) => {
         message={snackbar.message}
         type={snackbar.type}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        duration={snackbar.duration || 4000}
       />
 
       {/* Modal para crear pregunta de banco */}

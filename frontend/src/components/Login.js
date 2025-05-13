@@ -33,8 +33,10 @@ const Login = ({ onLogin }) => {
       
       // Extraemos token y usuario de la respuesta
       const { token, user } = response.data;
-      // Guarda el token en localStorage, si lo deseas
+      // Guarda el token y el userId en localStorage
       localStorage.setItem("token", token);
+      localStorage.setItem("userId", user.id); // <-- AÑADIDO: guardar userId explícitamente
+      localStorage.setItem("user", JSON.stringify(user)); // Opcional: asegura que el objeto user esté actualizado
       console.log("LocalStorage token:", localStorage.getItem("token"));
     
       setTimeout(() => {

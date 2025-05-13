@@ -510,10 +510,10 @@ exports.submitAssessment = async (req, res) => {
 
     // Notificar en tiempo real a los trainers (socket.io)
     const { emitDbChange } = require('../socket');
-    emitDbChange();
 
     const t3 = Date.now();
     await subtest.save();
+    emitDbChange();
     const t4 = Date.now();
     // Notificar por correo al trainer (nodemailer) de forma asíncrona
     (async () => {
