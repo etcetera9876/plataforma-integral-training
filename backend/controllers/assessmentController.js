@@ -66,7 +66,6 @@ exports.getAssessments = async (req, res) => {
 
 exports.createAssessment = async (req, res) => {
   try {
-    console.log("REQ.BODY ASSESSMENT:", req.body); // <-- LOG PARA DEPURAR
     const { name, description, branch, components, block, publicationDate, expirationDate, assignedTo, relatedCourses } = req.body;
 
     if (!name) {
@@ -340,11 +339,8 @@ exports.getSubtests = async (req, res) => {
 // Obtener evaluaciones asignadas a un usuario y branch (con estado de subtest)
 exports.getAssignedAssessments = async (req, res) => {
   try {
-    console.log('--- getAssignedAssessments called ---');
     const { userId, branchId } = req.query;
-    console.log('Params:', { userId, branchId });
     if (!userId || !branchId) {
-      console.log('Faltan parámetros');
       return res.status(400).json({ message: 'Faltan parámetros userId o branchId' });
     }
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
@@ -599,6 +595,93 @@ exports.sendReminderEmail = async (req, res) => {
     res.json({ message: 'Correo de recordatorio enviado' });
   } catch (error) {
     res.status(500).json({ message: 'Error al enviar el correo de recordatorio', error: error.message });
+  }
+};
+
+// Obtener resumen de notas por bloque y nota global para un usuario y branch
+exports.getGradesSummary = async (req, res) => {
+  try {
+    const { userId, branchId } = req.query;
+    if (!userId || !branchId) {
+      return res.status(400).json({ message: 'Faltan parámetros userId o branchId' });
+    }
+    // Validar ObjectId
+    const isValidUserId = /^[a-f\d]{24}$/i.test(userId);
+    const isValidBranchId = /^[a-f\d]{24}$/i.test(branchId);
+    if (!isValidUserId || !isValidBranchId) {
+      return res.status(400).json({ message: 'userId o branchId no son válidos' });
+    }
+    const Subtest = require('../models/subtest');
+    const Assessment = require('../models/assessment');
+    const Block = require('../models/block');
+
+    // 1. Buscar todos los assessments de la branch
+    const assessments = await Assessment.find({ branch: branchId });
+    const assessmentIds = assessments.map(a => a._id);
+    // 2. Obtener todos los subtests del usuario para esos assessments
+    const subtests = await Subtest.find({ assessment: { $in: assessmentIds }, userId });
+    if (subtests.length === 0) {
+      return res.json({
+        blocks: [],
+        notaGlobal: 0,
+        testsDetail: []
+      });
+    }
+
+    // 3. Agrupar subtests por bloque
+    const blockScores = {}; // { blockId: [score, ...] }
+    subtests.forEach(st => {
+      const blockId = String(st.block);
+      if (!blockScores[blockId]) blockScores[blockId] = [];
+      blockScores[blockId].push(typeof st.score === 'number' ? st.score : 0);
+    });
+
+    // 4. Obtener info de los bloques y calcular promedios
+    const blockIds = Object.keys(blockScores);
+    const blocks = await Block.find({ _id: { $in: blockIds } });
+    let notaGlobal = 0;
+    const blocksSummary = blocks.map(block => {
+      const scores = blockScores[String(block._id)] || [];
+      const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      const weighted = (avg * block.weight) / 100;
+      notaGlobal += weighted;
+      // Agrega el contador de tests (count)
+      return {
+        blockId: block._id,
+        label: block.label,
+        weight: block.weight,
+        average: avg,
+        weighted: weighted,
+        count: scores.length
+      };
+    });
+
+    // 5. Agregar detalle de cada test resuelto
+    // Mapear assessmentId a nombre
+    const assessmentNameMap = {};
+    assessments.forEach(a => { assessmentNameMap[String(a._id)] = a.name; });
+    // Mapear blockId a label
+    const blockLabelMap = {};
+    blocks.forEach(b => { blockLabelMap[String(b._id)] = b.label; });
+    // Detalle de tests resueltos
+    const testsDetail = subtests.map(st => ({
+      assessmentId: st.assessment,
+      assessmentName: assessmentNameMap[String(st.assessment)] || '',
+      blockId: st.block,
+      blockLabel: blockLabelMap[String(st.block)] || '',
+      score: st.score,
+      correctCount: st.correctCount,
+      totalQuestions: st.totalQuestions,
+      submittedAt: st.submittedAt
+    }));
+
+    res.json({
+      blocks: blocksSummary,
+      notaGlobal,
+      testsDetail
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al calcular el resumen de notas', error: error.message, stack: error.stack });
   }
 };
 

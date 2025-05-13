@@ -26,6 +26,9 @@ router.get('/blocks/branch/:branchId', authMiddleware, blockController.getBlocks
 router.put('/blocks/:id', authMiddleware, blockController.updateBlock);
 router.delete('/blocks/:id', authMiddleware, blockController.deleteBlock);
 
+// Obtener resumen de notas por bloque y nota global para un usuario y branch
+router.get('/grades-summary', authMiddleware, assessmentController.getGradesSummary);
+
 // Evaluaciones (assessments)
 router.post('/', authMiddleware, assessmentController.createAssessment);
 router.get('/', authMiddleware, assessmentController.getAssessments);

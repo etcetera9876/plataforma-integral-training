@@ -79,7 +79,6 @@ exports.getCoursesForRecruiter = async (req, res) => {
       : recruiterId;
 
     const currentDate = new Date();
-    console.log('[DEBUG] currentDate (UTC):', currentDate.toISOString());
 
     // Si branchId es 'Global', no filtrar por branchId
     let filter = {
@@ -104,11 +103,6 @@ exports.getCoursesForRecruiter = async (req, res) => {
     }
 
     const courses = await Course.find(filter).sort({ createdAt: -1 });
-
-    // Log para depuración de fechas de publicación
-    courses.forEach(c => {
-      console.log(`[DEBUG] Curso: ${c.name}, publicationDate: ${c.publicationDate ? c.publicationDate.toISOString() : 'null'}`);
-    });
 
     res.status(200).json(courses);
   } catch (error) {
@@ -326,7 +320,6 @@ exports.signCourse = async (req, res) => {
     // Emitir evento de firma por socket.io (certificateSigned con datos completos)
     const { ioInstance } = require('../socket');
     const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
-    console.log('[DEBUG][signCourse] ioInstance:', !!ioInstance, 'branchIdStr:', branchIdStr, 'certificado:', certificado);
     if (ioInstance) {
       console.log('[SOCKET][BACKEND] Emite certificateSigned:', { ...certificado, branchId: branchIdStr });
       ioInstance.emit('certificateSigned', { ...certificado, branchId: branchIdStr });
@@ -348,12 +341,8 @@ exports.getSignedCourses = async (req, res) => {
     const { userId } = req.query;
     if (!userId) return res.status(400).json({ message: 'Falta userId' });
     const CourseSignature = require('../models/courseSignature');
-    // DEBUG: Log para ver si el modelo se carga correctamente
-    console.log('[DEBUG] Buscando firmas para userId:', userId);
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
     const signatures = await CourseSignature.find({ userId: userObjectId }, 'courseId');
-    // DEBUG: Log resultado de la consulta
-    console.log('[DEBUG] Firmas encontradas:', signatures);
     const signedCourseIds = signatures.map(sig => String(sig.courseId));
     res.json({ signedCourseIds });
   } catch (err) {

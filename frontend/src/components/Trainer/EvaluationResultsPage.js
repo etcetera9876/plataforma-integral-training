@@ -27,6 +27,11 @@ const EvaluationResultsPage = ({ user, branchId }) => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserName, setCurrentUserName] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'info' });
+  const [viewMode, setViewMode] = useState('test'); // 'test' o 'user'
+  const [gradesSummary, setGradesSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [userOptions, setUserOptions] = useState([]);
 
   // Obtener token
   const token = user?.token || localStorage.getItem('token');
@@ -96,6 +101,45 @@ const EvaluationResultsPage = ({ user, branchId }) => {
     }
   };
 
+  // Cargar lista de usuarios con subtests en la branch seleccionada
+  useEffect(() => {
+    if (viewMode !== 'user' || !branchId) return;
+    axios.get(`/api/assessments?branchId=${branchId}`, axiosConfig).then(res => {
+      const allTests = res.data || [];
+      // Obtener todos los subtests de todos los tests
+      Promise.all(
+        allTests.map(test => axios.get(`/api/assessments/${test._id}/subtests`, axiosConfig).then(r => r.data))
+      ).then(subtestsArrays => {
+        const userIds = Array.from(new Set(subtestsArrays.flat().map(st => {
+          if (typeof st.userId === 'object' && st.userId?._id) return st.userId._id;
+          if (typeof st.userId === 'string') return st.userId;
+          return null;
+        }).filter(Boolean)));
+        // Obtener nombres de usuario
+        if (userIds.length > 0) {
+          axios.post('/api/users/names', { userIds }, axiosConfig)
+            .then(resp => {
+              const options = userIds.map(id => ({ id, name: resp.data[id] || id }));
+              setUserOptions(options);
+              if (!selectedUserId && options.length > 0) setSelectedUserId(options[0].id);
+            });
+        } else {
+          setUserOptions([]);
+        }
+      });
+    });
+  }, [viewMode, branchId]);
+
+  // Cargar resumen de notas por usuario seleccionado
+  useEffect(() => {
+    if (viewMode !== 'user' || !branchId || !selectedUserId) return;
+    setLoadingSummary(true);
+    axios.get(`/api/assessments/grades-summary?userId=${selectedUserId}&branchId=${branchId}`, axiosConfig)
+      .then(res => setGradesSummary(res.data))
+      .catch(() => setGradesSummary(null))
+      .finally(() => setLoadingSummary(false));
+  }, [viewMode, branchId, selectedUserId]);
+
   useEffect(() => {
     if (snackbar.open) {
       const timer = setTimeout(() => {
@@ -106,80 +150,177 @@ const EvaluationResultsPage = ({ user, branchId }) => {
   }, [snackbar.open]);
 
   return (
-    <div style={{ display: 'flex', gap: 32 }}>
-      <div style={{ minWidth: 320 }}>
-        <h4>Tests</h4>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {tests.map(test => (
-            <li key={test._id} style={{ marginBottom: 10 }}>
-              <button onClick={() => setSelectedTest(test)} style={{ background: selectedTest?._id === test._id ? '#1976d2' : '#f5f5f5', color: selectedTest?._id === test._id ? '#fff' : '#222', border: 'none', borderRadius: 6, padding: '8px 16px', width: '100%', textAlign: 'left', fontWeight: 600, cursor: 'pointer' }}>
-                {test.name} <span style={{ fontWeight: 400, fontSize: 13, color: '#888' }}>({test.createdAt?.slice(0,10)})</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      {/* Detalle de resultados */}
-      <div style={{ flex: 1 }}>
-        {selectedTest && (
-          <>
-            <h3 style={{ marginBottom: 18 }}>Resultados para: {selectedTest.name}</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8, minWidth: 600 }}>
-              <thead>
-                <tr style={{ background: '#e3eafc' }}>
-                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Usuario</th>
-                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 120 }}>Estado</th>
-                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Fecha envío</th>
-                  <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 100 }}>Puntaje</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subtests.length === 0 && (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888', padding: 18 }}>(No hay resultados aún)</td></tr>
-                )}
-                {subtests.map(st => (
-                  <tr key={st._id}>
-                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>
-                      {(() => {
-                        if (typeof st.userId === 'object') {
-                          return st.userId.name || st.userId.email || st.userId._id || JSON.stringify(st.userId);
-                        } else if (/^[a-f\d]{24}$/i.test(st.userId) && userNamesMap[st.userId]) {
-                          return userNamesMap[st.userId];
-                        } else {
-                          return st.userId;
-                        }
-                      })()}
-                    </td>
-                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 120 }}>
-                      {st.submittedAt ? 'Completado' : (
-                        <>
-                          Pendiente
-                          <button
-                            style={{
-                              marginLeft: 8,
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              verticalAlign: 'middle',
-                              padding: 0
-                            }}
-                            title="Enviar recordatorio por correo"
-                            onClick={() => handleRemindClick(st)}
-                          >
-                            <img src={require('../../assets/gmail-icon.png')} alt="Gmail" style={{ width: 20, height: 20, verticalAlign: 'middle' }} />
-                          </button>
-                        </>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
-                    <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 100 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0, marginBottom: 15 }}>
+        <div style={{ display: 'flex', gap: 24, marginBottom: 18 }}>
+          <button
+            className={viewMode === 'test' ? 'confirm-button' : 'icon-button'}
+            style={{ fontWeight: 600, fontSize: 16, padding: '8px 24px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
+            onClick={() => setViewMode('test')}
+          >
+            Por test
+          </button>
+          <button
+            className={viewMode === 'user' ? 'confirm-button' : 'icon-button'}
+            style={{ fontWeight: 600, fontSize: 16, padding: '8px 24px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
+            onClick={() => setViewMode('user')}
+          >
+            Por usuario
+          </button>
+        </div>
+        {viewMode === 'user' && (
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontWeight: 600, marginRight: 8, marginTop: 20 }}>Selecciona usuario:</label>
+            <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)} style={{ padding: 6, borderRadius: 6, minWidth: 180 }}>
+              {userOptions.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
+      {viewMode === 'test' ? (
+        <div style={{ display: 'flex', gap: 32, width: '100%' }}>
+          <div style={{ minWidth: 320, background: '#fafbfc', borderRadius: 12, boxShadow: '0 2px 12px #e0e0e0', border: '1px solid #e0e0e0', padding: 24, boxSizing: 'border-box', height: 'fit-content' }}>
+            <h4>Lista de Tests</h4>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {tests.map(test => (
+                <li key={test._id} style={{ marginBottom: 10 }}>
+                  <button onClick={() => setSelectedTest(test)} style={{ background: selectedTest?._id === test._id ? '#1976d2' : '#f5f5f5', color: selectedTest?._id === test._id ? '#fff' : '#222', border: 'none', borderRadius: 6, padding: '8px 16px', width: '100%', textAlign: 'left', fontWeight: 600, cursor: 'pointer' }}>
+                    {test.name} <span style={{ fontWeight: 400, fontSize: 13, color: '#888' }}>({test.createdAt?.slice(0,10)})</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {/* Detalle de resultados */}
+          <div style={{ flex: 1 }}>
+            {selectedTest && (
+              <>
+                <h3 style={{ marginBottom: 18 }}>Resultados para: {selectedTest.name}</h3>
+                <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8 }}>
+                  <thead>
+                    <tr style={{ background: '#e3eafc' }}>
+                      <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Usuario</th>
+                      <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 120 }}>Estado</th>
+                      <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Fecha envío</th>
+                      <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 100 }}>Puntaje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subtests.length === 0 && (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888', padding: 18 }}>(No hay resultados aún)</td></tr>
+                    )}
+                    {subtests.map(st => (
+                      <tr key={st._id}>
+                        <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>
+                          {(() => {
+                            if (typeof st.userId === 'object') {
+                              return st.userId.name || st.userId.email || st.userId._id || JSON.stringify(st.userId);
+                            } else if (/^[a-f\d]{24}$/i.test(st.userId) && userNamesMap[st.userId]) {
+                              return userNamesMap[st.userId];
+                            } else {
+                              return st.userId;
+                            }
+                          })()}
+                        </td>
+                        <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 120 }}>
+                          {st.submittedAt ? 'Completado' : (
+                            <>
+                              Pendiente
+                              <button
+                                style={{
+                                  marginLeft: 8,
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  verticalAlign: 'middle',
+                                  padding: 0
+                                }}
+                                title="Enviar recordatorio por correo"
+                                onClick={() => handleRemindClick(st)}
+                              >
+                                <img src={require('../../assets/gmail-icon.png')} alt="Gmail" style={{ width: 20, height: 20, verticalAlign: 'middle' }} />
+                              </button>
+                            </>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
+                        <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 100 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div style={{ width: '100%', background: '#fafbfc', borderRadius: 12, boxShadow: '0 2px 12px #e0e0e0', padding: 32, boxSizing: 'border-box', margin: '0 auto' }}>
+          <h3 style={{ marginBottom: 18 }}>Notas por bloque y nota global</h3>
+          {loadingSummary ? (
+            <div>Cargando resumen...</div>
+          ) : gradesSummary ? (
+            <>
+              <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', marginBottom: 18 }}>
+                <thead>
+                  <tr style={{ background: '#e3eafc' }}>
+                    <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left' }}>Bloque</th>
+                    <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'center' }}>Peso (%)</th>
+                    <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'center' }}>Promedio (%)</th>
+                    <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'center' }}>Aporte (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gradesSummary.blocks.map(b => (
+                    <tr key={b.blockId}>
+                      <td style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                        {b.label}
+                        {typeof b.count === 'number' ? <span style={{ color: '#888', fontWeight: 400 }}> ({b.count})</span> : null}
+                      </td>
+                      <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'center' }}>{b.weight}</td>
+                      <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'center' }}>{b.average.toFixed(2)}</td>
+                      <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'center' }}>{b.weighted.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ fontWeight: 700, fontSize: 20, color: '#1976d2', textAlign: 'right' }}>
+                Nota global: {gradesSummary.notaGlobal.toFixed(2)}%
+              </div>
+              {gradesSummary && gradesSummary.testsDetail && gradesSummary.testsDetail.length > 0 && (
+                <div style={{ marginTop: 32 }}>
+                  <h4 style={{ marginBottom: 12 }}>Detalle de tests resueltos</h4>
+                  <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', background: '#fff', borderRadius: 8, marginBottom: 18 }}>
+                    <thead>
+                      <tr style={{ background: '#e3eafc' }}>
+                        <th style={{ padding: '8px 0', borderBottom: '1px solid #ddd', textAlign: 'left' }}>Test</th>
+                        <th style={{ padding: '8px 0', borderBottom: '1px solid #ddd', textAlign: 'left' }}>Bloque</th>
+                        <th style={{ padding: '8px 0', borderBottom: '1px solid #ddd', textAlign: 'left' }}>Fecha</th>
+                        <th style={{ padding: '8px 0', borderBottom: '1px solid #ddd', textAlign: 'center' }}>Puntaje (%)</th>
+                        <th style={{ padding: '8px 0', borderBottom: '1px solid #ddd', textAlign: 'center' }}>Correctas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gradesSummary.testsDetail.map((t, idx) => (
+                        <tr key={t.assessmentId + '-' + idx}>
+                          <td style={{ padding: '8px 0', borderBottom: '1px solid #eee', textAlign: 'left' }}>{t.assessmentName}</td>
+                          <td style={{ padding: '8px 0', borderBottom: '1px solid #eee', textAlign: 'left' }}>{t.blockLabel}</td>
+                          <td style={{ padding: '8px 0', borderBottom: '1px solid #eee', textAlign: 'left' }}>{t.submittedAt ? new Date(t.submittedAt).toLocaleString() : '-'}</td>
+                          <td style={{ padding: '8px 0', borderBottom: '1px solid #eee', textAlign: 'center' }}>{typeof t.score === 'number' ? t.score : '-'}</td>
+                          <td style={{ padding: '8px 0', borderBottom: '1px solid #eee', textAlign: 'center' }}>{t.correctCount != null && t.totalQuestions != null ? `${t.correctCount} / ${t.totalQuestions}` : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : (
+            <div>No hay datos de notas para este usuario en la sucursal seleccionada.</div>
+          )}
+        </div>
+      )}
       <ConfirmModal
         open={confirmOpen}
         onConfirm={handleConfirm}
