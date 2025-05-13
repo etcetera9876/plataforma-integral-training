@@ -489,16 +489,14 @@ const TrainerDashboard = ({ setUser, user }) => {
                 <section className="courses-section">
                   <div className="section-header">
                     <h2 className="section-title">{isGlobal ? 'Todos los cursos' : currentBranchName + ' Courses'}</h2>
-                    {!isGlobal && (
-                      <button
-                        className="add-button"
-                        onClick={() => setShowCourseModal(true)}
-                        title="Agregar curso"
-                        style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
-                      >
-                        <span role="img" aria-label="Crear curso" style={{ fontSize: 26 }}>➕</span>
-                      </button>
-                    )}
+                    <button
+                      className="add-button"
+                      onClick={() => setShowCourseModal(true)}
+                      title="Agregar curso"
+                      style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
+                    >
+                      <span role="img" aria-label="Crear curso" style={{ fontSize: 26 }}>➕</span>
+                    </button>
                   </div>
 
                   {isGlobal ? (
@@ -627,34 +625,32 @@ const TrainerDashboard = ({ setUser, user }) => {
                 <section className="assessments-section" style={{ marginTop: 32 }}>
                   <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                     <h2 className="section-title" style={{ marginBottom: 0 }}>{isGlobal ? 'Todas las evaluaciones' : currentBranchName + ' Evaluaciones'}</h2>
-                    {!isGlobal && (
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                          className="icon-button"
-                          title="Crear evaluación"
-                          onClick={() => setShowAssessmentModal(true)}
-                          style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
-                        >
-                          <span role="img" aria-label="Crear evaluación" style={{ fontSize: 26 }}>➕</span>
-                        </button>
-                        <button
-                          className="icon-button"
-                          title="Crear pregunta en banco"
-                          onClick={() => setShowQuestionBankModal(true)}
-                          style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0' }}
-                        >
-                          <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 26, height: 26, display: 'block' }} />
-                        </button>
-                        <button
-                          className="icon-button"
-                          title="Crear bloque"
-                          onClick={() => setShowComponentsConfigModal(true)}
-                          style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
-                        >
-                          <span role="img" aria-label="Bloques" style={{ fontSize: 26 }}>🧩</span>
-                        </button>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <button
+                        className="icon-button"
+                        title="Crear evaluación"
+                        onClick={() => setShowAssessmentModal(true)}
+                        style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
+                      >
+                        <span role="img" aria-label="Crear evaluación" style={{ fontSize: 26 }}>➕</span>
+                      </button>
+                      <button
+                        className="icon-button"
+                        title="Crear pregunta en banco"
+                        onClick={() => setShowQuestionBankModal(true)}
+                        style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0' }}
+                      >
+                        <img src={require('../../assets/bank-icon.png')} alt="Banco de preguntas" style={{ width: 26, height: 26, display: 'block' }} />
+                      </button>
+                      <button
+                        className="icon-button"
+                        title="Crear bloque"
+                        onClick={() => setShowComponentsConfigModal(true)}
+                        style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
+                      >
+                        <span role="img" aria-label="Bloques" style={{ fontSize: 26 }}>🧩</span>
+                      </button>
+                    </div>
                   </div>
                   {isGlobal ? (
                     <div style={{ background: '#fafafa', borderRadius: 12, border: '1px solid #ddd', padding: 0, marginTop: 8 }}>
@@ -882,6 +878,7 @@ const TrainerDashboard = ({ setUser, user }) => {
             }
           }}
           branchId={selectedBranch}
+          isGlobal={isGlobal} // <-- PASA LA PROP PARA MODO GLOBAL
         />
       )}
 
