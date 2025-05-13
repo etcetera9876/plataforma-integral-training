@@ -58,6 +58,7 @@ const TestEditPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [courses, setCourses] = useState([]);
   const [relatedCourses, setRelatedCourses] = useState([]);
+  const [timer, setTimer] = useState(""); // Nuevo: timer en minutos
 
   // --- MERGE AUTOMÁTICO DE CAMPOS PARA FORM-DYNAMIC EN MULTIPREVIEW ---
   // Guarda el banco de preguntas para mergear datos de imagen en form-dynamic
@@ -160,6 +161,13 @@ const TestEditPage = () => {
         });
         if (Array.isArray(subtestsRes.data) && subtestsRes.data.length > 0) {
           setMultiPreview(subtestsRes.data);
+          // Si todos los subtests tienen el mismo timer válido, precargarlo en el formulario
+          const timers = subtestsRes.data.map(st => st.timer).filter(t => typeof t === 'number' && t >= 10);
+          if (timers.length > 0 && timers.every(t => t === timers[0])) {
+            setTimer(String(timers[0]));
+          } else {
+            setTimer("");
+          }
         }
         // Precargar filtros si existen en el assessment
         if (data.filters) {
@@ -367,7 +375,9 @@ const TestEditPage = () => {
       });
       // Si hay subtests generados, guárdalos
       if (multiPreview && Array.isArray(multiPreview) && multiPreview.length > 0) {
-        await axios.post(`/api/assessments/${id}/subtests`, { subtests: multiPreview }, {
+        // Agregar timer a cada subtest si está definido
+        const subtestsToSave = multiPreview.map(st => timer && Number(timer) >= 10 ? { ...st, timer: Number(timer) } : st);
+        await axios.post(`/api/assessments/${id}/subtests`, { subtests: subtestsToSave }, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
@@ -518,7 +528,9 @@ const TestEditPage = () => {
             )}
           </div>
           <div style={{ marginTop: 32, marginBottom: 32, padding: 16, background: '#f8f9fa', borderRadius: 10, border: '1.5px solid #e0e0e0' }}>
-            <h4 style={{ marginTop: 0 }}>Generar tests personalizados para cada usuario</h4>
+            <h4 style={{ marginTop: 0, fontSize: 22, color: '#1976d2', fontWeight: 600, letterSpacing: 0.2, marginBottom: 18 }}>
+              Generar tests personalizados para cada usuario
+            </h4>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <div>
                 <label>Dificultad *</label><br />
@@ -544,6 +556,17 @@ const TestEditPage = () => {
                   {topics.map((t, i) => <option key={i} value={t} />)}
                 </datalist>
               </div>
+              <div style={{ minWidth: 120 }}>
+                <label style={{ fontWeight: 500 }}>Timer (minutos, opcional)</label><br />
+                <input
+                  type="number"
+                  min={10}
+                  style={{ width: 80 }}
+                  value={timer}
+                  onChange={e => setTimer(e.target.value.replace(/^0+/, ''))}
+                  placeholder="10"
+                />
+              </div>
               {QUESTION_TYPES.map(type => (
                 <div key={type.value}>
                   <label>{type.label}</label><br />
@@ -567,49 +590,57 @@ const TestEditPage = () => {
                   onChange={e => setMaxRepeats(Number(e.target.value))}
                 />
               </div>
-              <button
-                type="button"
-                className="confirm-button"
-                style={{ minWidth: 220, fontSize: 17, padding: '5px 15px', marginTop: 12 }}
-                disabled={multiLoading || !canGenerateMulti}
-                onClick={async () => {
-                  setMultiLoading(true);
-                  setMultiPreview(null);
-                  setMultiMissing([]);
-                  try {
-                    const token = localStorage.getItem("token");
-                    const selectedBlock = blocks.find(b => b._id === block);
-                    const blockWeight = selectedBlock ? selectedBlock.weight : 100;
-                    const res = await axios.post(
-                      `${API_URL}/api/assessments/generate-multi`,
-                      {
-                        name,
-                        description,
-                        branch: branchId,
-                        assignedTo: assignedTo.length > 0 ? assignedTo : "All branch",
-                        components: [{ block, weight: blockWeight }],
-                        questionFilters,
-                        maxRepeats
-                      },
-                      { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    setMultiPreview(res.data.tests);
-                    setMultiMissing(res.data.missing || []);
-                  } catch (err) {
-                    setError("Error al generar tests personalizados");
-                    setShowAlert(true);
-                  } finally {
-                    setMultiLoading(false);
-                  }
-                }}
-              >
-                Generar tests personalizados
-              </button>
             </div>
+            <button
+              type="button"
+              className="confirm-button"
+              style={{ minWidth: 220, fontSize: 17, padding: '5px 15px', marginTop: 25 }}
+              disabled={multiLoading || !canGenerateMulti}
+              onClick={async () => {
+                if (timer && Number(timer) < 10) {
+                  setError('El timer debe ser mayor o igual a 10 minutos');
+                  setShowAlert(true);
+                  return;
+                }
+                setMultiLoading(true);
+                setMultiPreview(null);
+                setMultiMissing([]);
+                try {
+                  const token = localStorage.getItem("token");
+                  const selectedBlock = blocks.find(b => b._id === block);
+                  const blockWeight = selectedBlock ? selectedBlock.weight : 100;
+                  const res = await axios.post(
+                    `${API_URL}/api/assessments/generate-multi`,
+                    {
+                      name,
+                      description,
+                      branch: branchId,
+                      assignedTo: assignedTo.length > 0 ? assignedTo : "All branch",
+                      components: [{ block, weight: blockWeight }],
+                      questionFilters,
+                      maxRepeats,
+                      timer: timer && Number(timer) >= 10 ? Number(timer) : undefined
+                    },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                  setMultiPreview(res.data.tests);
+                  setMultiMissing(res.data.missing || []);
+                } catch (err) {
+                  setError("Error al generar tests personalizados");
+                  setShowAlert(true);
+                } finally {
+                  setMultiLoading(false);
+                }
+              }}
+            >
+              Generar tests personalizados
+            </button>
             {/* Previsualización */}
             {multiPreview && (
-              <div style={{ marginTop: 18 }}>
-                <h5>Previsualización de tests generados:</h5>
+              <div style={{ marginTop: 25 }}>
+                <h4 style={{ fontSize: 22, color: '#1976d2', fontWeight: 600, letterSpacing: 0.2, marginBottom: 15 }}>
+                  Previsualización de tests generados:
+                </h4>
                 {multiMissing.length > 0 && (
                   <div style={{ color: "#d32f2f", marginBottom: 8 }}>
                     {multiMissing.map((m, i) => {

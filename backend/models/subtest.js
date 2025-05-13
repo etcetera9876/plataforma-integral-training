@@ -16,6 +16,7 @@ const SubtestSchema = new mongoose.Schema({
   correctMap: { type: mongoose.Schema.Types.Mixed },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  timer: { type: Number, min: 10 }, // minutos, opcional
 });
 
 module.exports = mongoose.model('Subtest', SubtestSchema);

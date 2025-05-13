@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDashboard } from '../components/DashboardContext';
+import Modal from "../components/Trainer/Modal";
 
 // Reutilizamos la lógica de TestPreviewModal pero como página completa
 const AssessmentResolvePage = () => {
@@ -12,6 +13,10 @@ const AssessmentResolvePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [answers, setAnswers] = useState({});
+  const [timer, setTimer] = useState(null); // minutos restantes
+  const [timerActive, setTimerActive] = useState(false);
+  const [showTimerModal, setShowTimerModal] = useState(false);
+  const [timerModalAccepted, setTimerModalAccepted] = useState(false);
 
   useEffect(() => {
     const fetchAssessment = async () => {
@@ -52,6 +57,11 @@ const AssessmentResolvePage = () => {
           });
         }
         setTest(testData);
+        // Si el test/subtest tiene timer, mostrar modal antes de iniciar
+        if (testData && testData.timer && Number(testData.timer) >= 10) {
+          setShowTimerModal(true);
+          setTimerModalAccepted(false);
+        }
       } catch (err) {
         setError("No se pudo cargar la evaluación");
       } finally {
@@ -118,12 +128,94 @@ const AssessmentResolvePage = () => {
       if (res.data && res.data.subtest && res.data.subtest.submittedAt) {
         updateAssessmentSubmission(id, res.data.subtest.submittedAt);
       }
+      // Limpiar timer persistente al enviar
+      let userId = localStorage.getItem("userId");
+      if (!userId) {
+        const userObj = JSON.parse(localStorage.getItem("user"));
+        userId = userObj?.id;
+      }
+      localStorage.removeItem(`assessment_timer_${id}_${userId}`);
       // Redirige directamente al dashboard, no muestra resultado aquí
       navigate('/training-dashboard', { state: { successMessage: '¡Respuestas enviadas correctamente!' } });
     } catch (err) {
-      alert('Error al enviar las respuestas.');
+      let msg = 'Error al enviar las respuestas.';
+      if (err?.response?.data?.message) {
+        msg += `\n${err.response.data.message}`;
+      }
+      if (err?.response?.data?.error) {
+        msg += `\n${err.response.data.error}`;
+      }
+      // Mostrar detalles para depuración
+      msg += `\nuserId: ${userId}`;
+      msg += `\nassessmentId: ${id}`;
+      alert(msg);
     }
   };
+
+  // Temporizador regresivo
+  useEffect(() => {
+    if (!timerActive || timer == null) return;
+    if (timer <= 0) {
+      setTimerActive(false);
+      // Limpiar timer persistente
+      let userId = localStorage.getItem("userId");
+      if (!userId) {
+        const userObj = JSON.parse(localStorage.getItem("user"));
+        userId = userObj?.id;
+      }
+      localStorage.removeItem(`assessment_timer_${id}_${userId}`);
+      handleSubmit();
+      return;
+    }
+    const interval = setInterval(() => {
+      setTimer(t => t - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerActive, timer]);
+
+  // Solo inicializar timer si el usuario ha aceptado el modal (independiente de showTimerModal)
+  useEffect(() => {
+    if (!test || !test.timer || !timerModalAccepted) return;
+    const userId = localStorage.getItem("userId") || (JSON.parse(localStorage.getItem("user"))?.id);
+    const timerKey = `assessment_timer_${id}_${userId}`;
+    let startTimestamp = localStorage.getItem(timerKey);
+    const now = Date.now();
+    const durationMs = Number(test.timer) * 60 * 1000;
+    if (!startTimestamp) {
+      localStorage.setItem(timerKey, String(now));
+      startTimestamp = String(now);
+    }
+    const elapsed = now - Number(startTimestamp);
+    const remaining = Math.max(0, Math.floor((durationMs - elapsed) / 1000));
+    setTimer(remaining);
+    setTimerActive(remaining > 0);
+  }, [test, timerModalAccepted, id]);
+
+  // --- NUEVO: Persistir aceptación del timer en localStorage ---
+  const getTimerAcceptedKey = () => {
+    let userId = localStorage.getItem("userId");
+    if (!userId) {
+      const userObj = JSON.parse(localStorage.getItem("user"));
+      userId = userObj?.id;
+    }
+    return `assessment_timer_accepted_${id}_${userId}`;
+  };
+
+  // Al dar click en Comenzar, guardar en localStorage
+  const handleStartTimer = () => {
+    localStorage.setItem(getTimerAcceptedKey(), "1");
+    setTimerModalAccepted(true);
+    setShowTimerModal(false);
+  };
+
+  // Al cargar, leer si ya aceptó el timer
+  useEffect(() => {
+    const accepted = localStorage.getItem(getTimerAcceptedKey());
+    if (test && test.timer && Number(test.timer) >= 10) {
+      setTimerModalAccepted(!!accepted);
+      setShowTimerModal(!accepted);
+    }
+  }, [test, id]);
 
   // Importar dinámicamente TestFormPreview para evitar ciclo de dependencias
   let TestFormPreview = null;
@@ -134,10 +226,59 @@ const AssessmentResolvePage = () => {
   if (loading) return <div>Cargando evaluación...</div>;
   if (error || !test) return <div>{error || "No se encontró la evaluación."}</div>;
 
+  if (showTimerModal && test && test.timer && Number(test.timer) >= 10 && !timerModalAccepted) {
+    return (
+      <Modal isOpen={true} onClose={() => {
+        setShowTimerModal(false);
+        navigate('/training-dashboard');
+      }}>
+        <div style={{ padding: 32, maxWidth: 420, textAlign: 'center' }}>
+          <HourglassAnimation />
+          <h2 style={{ color: '#1976d2', fontWeight: 700, marginBottom: 18 }}>Este test tiene tiempo limitado</h2>
+          <div style={{ fontSize: 18, marginBottom: 18 }}>
+            Dispondrás de <b>{test.timer} minutos</b> para resolver el test.<br />
+            El tiempo comenzará al presionar <b>Comenzar</b> y no se detendrá aunque recargues la página.<br />
+            <span style={{ color: '#d32f2f', fontWeight: 600 }}>
+              Una vez que inicies el test, <u>no podrás cancelarlo ni salir</u> hasta que envíes tus respuestas o se acabe el tiempo.
+            </span><br />
+            Si el tiempo se agota, tus respuestas se enviarán automáticamente.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 24 }}>
+            <button style={{ background: '#1976d2', color: '#fff', fontWeight: 600, fontSize: 17, border: 'none', borderRadius: 8, padding: '10px 32px', cursor: 'pointer' }}
+              onClick={handleStartTimer}>
+              Comenzar
+            </button>
+            <button style={{ background: '#e0e0e0', color: '#444', fontWeight: 500, fontSize: 16, border: 'none', borderRadius: 8, padding: '10px 24px', cursor: 'pointer' }}
+              onClick={() => {
+                setShowTimerModal(false);
+                navigate('/training-dashboard');
+              }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // Render principal del test (incluye timer y preguntas)
   return (
     <div style={{ maxWidth: 900, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #e0e0e0", padding: 32, textAlign: 'left' }}>
       <h2 style={{ color: '#1976d2', fontWeight: 700, textAlign: 'center' }}>{test.name}</h2>
-      <p style={{ color: '#444', textAlign: 'center', marginBottom: 50 }}>{test.description}</p>
+      <p style={{ color: '#444', textAlign: 'center', marginBottom: 15 }}>{test.description}</p>
+      {test.timer && Number(test.timer) >= 10 && timer != null && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 50 }}>
+          <span style={{ fontSize: 22, fontWeight: 500, color: timer <= 60 ? '#d32f2f' : '#1976d2', marginRight: 12, display: 'flex', alignItems: 'center' }}>
+            <HourglassAnimation />
+            <span style={{ marginLeft: 10, fontSize: 20, fontWeight: 600, color: timer <= 60 ? '#d32f2f' : '#1976d2', letterSpacing: 1 }}>
+              Tiempo restante:
+            </span>
+            <span style={{ marginLeft: 12, fontSize: 22, fontWeight: 700, color: timer <= 60 ? '#d32f2f' : '#1976d2' }}>
+              {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}
+            </span>
+          </span>
+        </div>
+      )}
       <ol style={{ paddingLeft: 24, listStylePosition: 'decimal' }}>
         {test.questions && test.questions.map((q, idx) => {
           console.log(`Tipo de pregunta #${idx + 1}:`, q.type);
@@ -241,10 +382,25 @@ const AssessmentResolvePage = () => {
         <button className="confirm-button" style={{ minWidth: 180, fontSize: 17, padding: '10px 32px' }} onClick={handleSubmit}>
           Enviar respuestas
         </button>
-        <button className="cancel-button" style={{ marginLeft: 16 }} onClick={() => navigate(-1)}>Cancelar</button>
       </div>
     </div>
   );
 };
+
+function HourglassAnimation() {
+  // Simple animación CSS de reloj de arena
+  return (
+    <span style={{ display: 'inline-block', marginRight: 8, fontSize: 28, animation: 'hourglass-spin 1.2s linear infinite' }}>
+      ⏳
+      <style>{`
+        @keyframes hourglass-spin {
+          0% { transform: rotate(0deg); }
+          50% { transform: rotate(10deg); }
+          100% { transform: rotate(-10deg); }
+        }
+      `}</style>
+    </span>
+  );
+}
 
 export default AssessmentResolvePage;

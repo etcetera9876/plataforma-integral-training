@@ -236,7 +236,7 @@ exports.convertPdfToImage = async (req, res) => {
 // Generar tests personalizados para múltiples usuarios
 exports.generateMultiAssessments = async (req, res) => {
   try {
-    const { name, description, branch, assignedTo, components, questionFilters, maxRepeats } = req.body;
+    const { name, description, branch, assignedTo, components, questionFilters, maxRepeats, timer } = req.body;
     let userIds = assignedTo;
     // Si es All branch o All recruiters, buscar todos los usuarios cuyo place sea el nombre del branch
     if (assignedTo === 'All branch' || (Array.isArray(assignedTo) && assignedTo[0] === 'All recruiters')) {
@@ -279,7 +279,7 @@ exports.generateMultiAssessments = async (req, res) => {
           }
         }
       }
-      tests.push({ userId, name, description, branch, components, questions: testQuestions });
+      tests.push({ userId, name, description, branch, components, questions: testQuestions, timer });
     }
     res.json({ tests, missing });
   } catch (error) {
@@ -313,6 +313,7 @@ exports.saveSubtests = async (req, res) => {
         description: st.description || assessment.description,
         block: st.block || (assessment.components && assessment.components[0]?.block),
         questions: st.questions,
+        timer: st.timer && st.timer >= 10 ? st.timer : undefined,
       });
       await subtest.save();
       created.push(subtest);
