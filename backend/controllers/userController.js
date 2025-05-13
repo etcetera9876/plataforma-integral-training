@@ -45,7 +45,6 @@ async function updateUserRole(req, res) {
 async function getUsersByBranch(req, res) {
   try {
     const { branchId } = req.params;
-    console.log("Branch ID recibido:", branchId);
     if (!branchId) {
       return res.status(400).json({ message: "Branch ID is required" });
     }
@@ -64,7 +63,6 @@ async function getUsersByBranch(req, res) {
       // Si no es ObjectId, úsalo directamente como nombre del branch
       users = await User.find({ place: branchId });
     }
-    console.log("Usuarios encontrados:", users);
     res.status(200).json(users);
   } catch (error) {
     console.error("Error fetching users by branch:", error);

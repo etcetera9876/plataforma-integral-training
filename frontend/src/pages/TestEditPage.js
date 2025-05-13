@@ -388,6 +388,17 @@ const TestEditPage = () => {
     }
   };
 
+  // --- HABILITAR BOTÓN GENERAR TESTS PERSONALIZADOS SEGÚN CRITERIOS ---
+  const allowedTypes = ["boolean", "open", "single", "multiple", "form-dynamic"];
+  const hasAllowedType = allowedTypes.some(type => questionFilters.counts[type] > 0);
+  // El botón solo se habilita si:
+  // - NO hay subtests generados: se requiere dificultad y tipo
+  // - SI hay subtests generados: siempre habilitado
+  const noSubtests = !multiPreview || (Array.isArray(multiPreview) && multiPreview.length === 0);
+  const canGenerateMulti =
+    (!noSubtests && true) ||
+    (noSubtests && questionFilters.difficulty && hasAllowedType);
+
   if (loading) return <div>Cargando...</div>;
 
   return (
@@ -427,7 +438,7 @@ const TestEditPage = () => {
               ))}
             </select>
           </div>
-          <div className="modal-field" style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }}>
             <label>Curso relacionado (opcional)</label>
             <div style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
@@ -560,7 +571,7 @@ const TestEditPage = () => {
                 type="button"
                 className="confirm-button"
                 style={{ minWidth: 220, fontSize: 17, padding: '5px 15px', marginTop: 12 }}
-                disabled={multiLoading}
+                disabled={multiLoading || !canGenerateMulti}
                 onClick={async () => {
                   setMultiLoading(true);
                   setMultiPreview(null);
