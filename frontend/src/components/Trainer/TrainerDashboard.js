@@ -439,6 +439,15 @@ const TrainerDashboard = ({ setUser, user }) => {
   };
   const activeSection = getActiveSection();
 
+  const handleUpdateAssessment = (assessment) => {
+    navigate(`/tests/${assessment._id}/edit`, {
+      state: {
+        branchId: assessment.branch,
+        branchName: (branches.find(b => String(b._id) === String(assessment.branch))?.name) || '',
+      },
+    });
+  };
+
   return (
     <>
       <div className={`dashboard-container${isAnyModalOpen ? ' blurred' : ''}`}>
@@ -735,7 +744,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                                   <div className="course-actions" style={{ justifyContent: 'center' }}>
                                     <button
                                       className="update-button"
-                                      onClick={() => handleUpdate(assessment)}
+                                      onClick={() => handleUpdateAssessment(assessment)}
                                       title={isNewAssessment ? "Agregar información a la evaluación" : "Actualizar evaluación"}
                                       style={{ marginRight: 8 }}
                                     >
