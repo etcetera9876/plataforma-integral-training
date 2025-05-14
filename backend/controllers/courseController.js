@@ -228,6 +228,27 @@ exports.toggleLockCourse = async (req, res) => {
   }
 };
 
+// PATCH /api/courses/:courseId/set-lock
+exports.setLockCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { isLocked } = req.body;
+    if (typeof isLocked !== 'boolean') {
+      return res.status(400).json({ message: 'El campo isLocked debe ser booleano.' });
+    }
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+    course.isLocked = isLocked;
+    await course.save();
+    await emitDbChange();
+    res.status(200).json({ message: `Curso ${isLocked ? 'bloqueado' : 'desbloqueado'}`, isLocked: course.isLocked });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar el estado de bloqueo', error: error.message });
+  }
+};
+
 exports.deleteCourse = async (req, res) => {
   try {
     const { courseId } = req.params;

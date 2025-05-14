@@ -139,19 +139,28 @@ const TrainerDashboard = ({ setUser, user }) => {
     }
   };
 
-  const handleToggleLock = async (courseId, isLocked) => {
+  const handleToggleLock = async (courseId, isLocked, groupOverride) => {
     try {
-      if (isGlobal && window.coursesForGlobalEdit && window.coursesForGlobalEdit.length > 0) {
-        // Bloqueo/desbloqueo global: recorre todos los cursos del grupo
-        await Promise.all(window.coursesForGlobalEdit.map(async (c) => {
-          const response = await fetch(`http://localhost:5000/api/courses/${c._id}/toggle-lock`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-          });
-          // Opcional: podrías manejar errores individuales aquí
+      const group = groupOverride || (isGlobal && window.coursesForGlobalEdit && window.coursesForGlobalEdit.length > 0 ? window.coursesForGlobalEdit : null);
+      if (isGlobal && group && group.length > 0) {
+        let lockResults = [];
+        await Promise.all(group.map(async (c) => {
+          try {
+            const response = await fetch(`http://localhost:5000/api/courses/${c._id}/set-lock`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ isLocked: !isLocked })
+            });
+            let data = null;
+            try { data = await response.json(); } catch {}
+            lockResults.push({ id: c._id, branchId: c.branchId, ok: response.ok, status: response.status, data });
+          } catch (err) {
+            lockResults.push({ id: c._id, branchId: c.branchId, ok: false, error: err.message });
+          }
         }));
+        // console.log('[GLOBAL LOCK] Resultados de bloqueo/desbloqueo:', lockResults); // Eliminado log de depuración
         fetchCourses();
-        setSnackbar({ open: true, message: isLocked ? "Curso desbloqueado en todas las sucursales" : "Curso bloqueado en todas las sucursales", type: "success" });
+        setSnackbar({ open: true, message: !isLocked ? "Curso bloqueado en todas las sucursales" : "Curso desbloqueado en todas las sucursales", type: "success" });
       } else {
         // Modo sucursal: solo uno
         const response = await fetch(`http://localhost:5000/api/courses/${courseId}/toggle-lock`, {
@@ -511,6 +520,20 @@ const TrainerDashboard = ({ setUser, user }) => {
     });
   };
 
+  // Determina el estado global de bloqueo para un grupo de cursos
+  const getGlobalLockState = (group) => {
+    if (!group || group.length === 0) return null;
+    const lockedCount = group.filter(c => c.isLocked).length;
+    if (lockedCount === group.length) return 'locked';
+    if (lockedCount === 0) return 'unlocked';
+    return 'partial'; // Estado mixto
+  };
+
+  // Estado para el modal de confirmación de bloqueo global
+  const [showGlobalLockModal, setShowGlobalLockModal] = useState(false);
+  const [pendingLockAction, setPendingLockAction] = useState(null); // 'lock' o 'unlock'
+  const [pendingLockGroup, setPendingLockGroup] = useState(null); // grupo de cursos globales
+
   return (
     <>
       <div className={`dashboard-container${isAnyModalOpen ? ' blurred' : ''}`}>
@@ -597,6 +620,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                             const firstCourse = group[0];
                             const status = getCourseStatus(firstCourse.publicationDate, firstCourse.expirationDate, firstCourse.createdAt, now);
                             const isNew = !firstCourse.description && (!firstCourse.resources || firstCourse.resources.length === 0);
+                            const lockState = getGlobalLockState(group);
                             return (
                               <li key={firstCourse.globalGroupId || firstCourse.name} style={{ display: 'flex', alignItems: 'center', padding: '18px 32px', minHeight: 48, borderBottom: idx === groupedCourses.length - 1 ? 'none' : '1px solid #eee', background: '#fff', borderRadius: idx === 0 ? '12px 12px 0 0' : idx === groupedCourses.length - 1 ? '0 0 12px 12px' : '0' }}>
                                 <div style={{ flex: 2, color: '#1976d2', fontWeight: 500, fontSize: 15 }}>
@@ -634,13 +658,20 @@ const TrainerDashboard = ({ setUser, user }) => {
                                       Delete
                                     </button>
                                     <button
-                                      className={`lock-button ${firstCourse.isLocked ? "locked" : "unlocked"}`}
-                                      onClick={() => handleToggleLock(firstCourse._id, firstCourse.isLocked)}
-                                      title={firstCourse.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                                      className={`lock-button ${lockState === 'locked' ? 'locked' : lockState === 'unlocked' ? 'unlocked' : 'partial'}`}
+                                      onClick={() => {
+                                        if (lockState === 'partial') {
+                                          setShowGlobalLockModal(true);
+                                          setPendingLockGroup(group);
+                                        } else {
+                                          handleToggleLock(firstCourse._id, lockState === 'locked' || lockState === 'partial', group);
+                                        }
+                                      }}
+                                      title={lockState === 'locked' ? "Desbloquear todos los cursos" : lockState === 'unlocked' ? "Bloquear todos los cursos" : "Sincronizar estado de bloqueo"}
                                       style={{
                                         marginRight: 8,
-                                        background: firstCourse.isLocked ? '#e65100' : '#e3f2fd',
-                                        color: firstCourse.isLocked ? '#fff' : '#1976d2',
+                                        background: lockState === 'locked' ? '#e65100' : lockState === 'unlocked' ? '#e3f2fd' : '#ffe082',
+                                        color: lockState === 'locked' ? '#fff' : lockState === 'unlocked' ? '#1976d2' : '#333',
                                         border: '2px solid #bdbdbd',
                                         borderRadius: 5,
                                         minWidth: 44,
@@ -654,10 +685,12 @@ const TrainerDashboard = ({ setUser, user }) => {
                                         transition: 'background 0.18s, color 0.18s'
                                       }}
                                     >
-                                      {firstCourse.isLocked ? (
+                                      {lockState === 'locked' ? (
                                         <span role="img" aria-label="Candado cerrado" style={{ fontSize: 20, color: '#fff', verticalAlign: 'middle' }}>🔒</span>
-                                      ) : (
+                                      ) : lockState === 'unlocked' ? (
                                         <span role="img" aria-label="Candado abierto" style={{ fontSize: 20, color: '#1976d2', verticalAlign: 'middle' }}>🔓</span>
+                                      ) : (
+                                        <span role="img" aria-label="Candado parcial" style={{ fontSize: 20, color: '#ff9800', verticalAlign: 'middle' }}>🟡</span>
                                       )}
                                     </button>
                                   </div>
@@ -1139,6 +1172,35 @@ const TrainerDashboard = ({ setUser, user }) => {
             }
           }}
         />
+      )}
+
+      {/* Modal de confirmación para bloqueo global parcial */}
+      {showGlobalLockModal && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="modal" style={{ minWidth: 340, maxWidth: 420, padding: 32, borderRadius: 12, background: '#fff', boxShadow: '0 4px 24px #2224', textAlign: 'center' }}>
+            <h3 style={{ marginTop: 0 }}>Confirmación</h3>
+            <p>El estado de bloqueo es mixto.<br />¿Qué acción deseas realizar?</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 24 }}>
+              <button className="confirm-button" style={{ background: '#e65100', color: '#fff', minWidth: 120 }} onClick={() => {
+                handleToggleLock(pendingLockGroup[0]._id, false, pendingLockGroup);
+                setShowGlobalLockModal(false);
+                setPendingLockAction(null);
+                setPendingLockGroup(null);
+              }}>Bloquear todos</button>
+              <button className="confirm-button" style={{ background: '#1976d2', color: '#fff', minWidth: 120 }} onClick={() => {
+                handleToggleLock(pendingLockGroup[0]._id, true, pendingLockGroup);
+                setShowGlobalLockModal(false);
+                setPendingLockAction(null);
+                setPendingLockGroup(null);
+              }}>Desbloquear todos</button>
+              <button className="cancel-button" style={{ minWidth: 100 }} onClick={() => {
+                setShowGlobalLockModal(false);
+                setPendingLockAction(null);
+                setPendingLockGroup(null);
+              }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

@@ -255,6 +255,11 @@ const TrainingDashboard = ({ setUser, user }) => {
                           setShowLockedAssessmentModal(true);
                           return;
                         }
+                        if (buttonText === 'Debes firmar todos los cursos relacionados') {
+                          const courseNames = (assessment.relatedCourseNames || []).join(', ');
+                          setSnackbar({ open: true, message: `Debes firmar los cursos relacionados: ${courseNames}`, type: 'info' });
+                          return;
+                        }
                         if (!assessment.submittedAt) {
                           setAssessmentStates(prev => ({ ...prev, [assessment._id]: { status: 'sending' } }));
                           handleAssessmentClick(assessment);
@@ -262,7 +267,7 @@ const TrainingDashboard = ({ setUser, user }) => {
                           handleAssessmentButtonClick(assessment);
                         }
                       }}
-                      disabled={buttonDisabled && buttonText !== 'Mostrar puntaje'}
+                      disabled={buttonDisabled && buttonText !== 'Mostrar puntaje' && buttonText !== 'Debes firmar todos los cursos relacionados'}
                     >
                       {buttonText}
                     </button>

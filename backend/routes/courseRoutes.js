@@ -45,6 +45,7 @@ router.post('/link-preview', linkPreview); // Endpoint para obtener metadatos de
 // Firma de curso
 router.get('/:id/signature', require('../middlewares/authMiddleware'), courseController.getCourseSignature);
 router.post('/:id/signature', require('../middlewares/authMiddleware'), courseController.signCourse);
+router.patch('/:courseId/set-lock', courseController.setLockCourse); // Ruta para set-lock curso
 
 
 module.exports = router;
