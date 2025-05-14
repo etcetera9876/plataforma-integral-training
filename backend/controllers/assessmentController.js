@@ -78,14 +78,7 @@ exports.createAssessment = async (req, res) => {
       return res.status(400).json({ message: 'El campo "components" debe ser un array con al menos un elemento.' });
     }
 
-    // LOG extra para ver tipos
-    console.log("TIPOS:", {
-      branch: typeof branch,
-      block: typeof block,
-      components,
-      assignedTo,
-      relatedCourses,
-    });
+ 
 
     // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
     let adaptedComponents = components;
@@ -123,7 +116,7 @@ exports.createAssessment = async (req, res) => {
     await emitDbChange(); // <--- Notifica a los clientes en tiempo real
     res.status(201).json({ message: 'Evaluación creada correctamente', assessment });
   } catch (error) {
-    console.error("ERROR AL CREAR ASSESSMENT:", error); // <-- LOG PARA DEPURAR
+    
     res.status(500).json({ message: 'Error al crear la evaluación', error: error.message });
   }
 };
@@ -537,7 +530,7 @@ exports.submitAssessment = async (req, res) => {
       saveSubtest: t4 - t3,
       afterSave: t5 - t4
     };
-    console.log('submitAssessment timings:', timings);
+
     // Devuelve el subtest actualizado para que el frontend pueda bloquear el test instantáneamente
     res.json({ 
       message: 'Respuestas guardadas correctamente', 

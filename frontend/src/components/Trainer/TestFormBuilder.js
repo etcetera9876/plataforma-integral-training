@@ -58,10 +58,10 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
   // Estado local para cada formulario
   const [localForms, setLocalForms] = useState(forms.length > 0 ? forms : [{ bgImage: null, fields: [] }]);
 
-  // Log para depuración: mostrar bgImage cada vez que cambia
+
   React.useEffect(() => {
     localForms.forEach((form, idx) => {
-      // console.log(`[TestFormBuilder] Formulario #${idx + 1} bgImage:`, form.bgImage);
+     
     });
   }, [localForms]);
 
@@ -160,11 +160,10 @@ const TestFormBuilder = ({ forms, setForms, showPreviewPanel, setShowPreviewPane
       const cleanName = bgImage.replace(/^[/\\]?uploads[/\\]?/, '');
       if (cleanName.startsWith('http')) return cleanName;
       const url = `${API_URL}/uploads/${cleanName}`;
-      // console.log('[TestFormBuilder] getBgImageUrl para string:', url);
+  
       return url;
     }
     const url = URL.createObjectURL(bgImage);
-    // console.log('[TestFormBuilder] getBgImageUrl para archivo:', url);
     return url;
   };
 

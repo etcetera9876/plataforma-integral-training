@@ -35,7 +35,7 @@ async function generateCertificatePDF({ signature, user, course, outputPath }) {
 exports.getCertificatesByBranch = async (req, res) => {
   try {
     const { branch } = req.query;
-    console.log('[DEBUG][getCertificatesByBranch] branch recibido:', branch);
+  
     if (!branch) return res.status(400).json({ message: 'Falta branch' });
     // Buscar todos los CourseSignature que correspondan a cursos de la sucursal (aunque el curso ya no exista)
     // 1. Buscar todos los cursos (existentes) de la sucursal
@@ -108,7 +108,7 @@ exports.getCertificateTemplate = async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.query.userId; // Permitir pasar userId por query
-    console.log('[TEMPLATE] courseId:', courseId, 'userId:', userId);
+
     const Course = require('../models/course');
     const User = require('../models/user');
     const course = await Course.findById(courseId);
@@ -122,7 +122,7 @@ exports.getCertificateTemplate = async (req, res) => {
       const user = await User.findById(userId);
       if (user) {
         employeeName = user.name;
-        console.log('[TEMPLATE] Usuario encontrado:', user.name);
+       
       } else {
         console.error('[TEMPLATE] Usuario no encontrado:', userId);
       }
@@ -137,7 +137,7 @@ exports.getCertificateTemplate = async (req, res) => {
     } else if (course.createdAt) {
       trainingDate = new Date(course.createdAt).toLocaleDateString();
     }
-    console.log('[TEMPLATE] Datos plantilla:', { employeeName, trainingDate, employeeDate });
+   
     const PDFDocument = require('pdfkit');
     const doc = new PDFDocument({ margin: 50 });
     doc.pipe(res);

@@ -253,14 +253,24 @@ exports.deleteCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
 
-    // No eliminar las firmas relacionadas (CourseSignature), solo el curso
+    // Buscar y eliminar el curso
     const deletedCourse = await Course.findByIdAndDelete(courseId);
     if (!deletedCourse) {
       return res.status(404).json({ message: "Curso no encontrado" });
     }
 
-    // No eliminar CourseSignature: se mantienen como registro histórico
-    // Si quieres hacer un soft delete, puedes agregar un campo deleted: true en CourseSignature
+    // Eliminar archivos subidos asociados al curso (solo si url comienza con /uploads/)
+    if (Array.isArray(deletedCourse.resources)) {
+      deletedCourse.resources.forEach(resource => {
+        if (resource.url && typeof resource.url === 'string' && resource.url.startsWith('/uploads/')) {
+          const filePath = path.join(__dirname, '..', resource.url);
+          fs.unlink(filePath, err => { /* Ignorar error si no existe */ });
+        }
+      });
+    }
+
+    // Eliminar de la base de datos todos los recursos tipo link/document/pdf/word/excel/ppt/image/video/animación asociados a este curso
+    // (En este modelo, los recursos están embebidos en el curso, así que ya se eliminaron con el curso)
 
     res.status(200).json({ message: "Curso eliminado correctamente" });
     await emitDbChange();
@@ -350,14 +360,7 @@ exports.signCourse = async (req, res) => {
       await generateCertificatePDF({ signature, user, course, outputPath: pdfPath });
     }
 
-    // Log detallado antes de emitir el evento
-    console.log('[signCourse] Firma guardada:', {
-      signatureId: signature._id,
-      userId: user ? user._id : userId,
-      userName: user ? user.name : name,
-      courseId: course ? course._id : id,
-      courseName: course ? course.name : undefined
-    });
+
 
     // Construir objeto certificado
     const certificado = {
@@ -372,13 +375,13 @@ exports.signCourse = async (req, res) => {
     const { ioInstance } = require('../socket');
     const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
     if (ioInstance) {
-      console.log('[SOCKET][BACKEND] Emite certificateSigned:', { ...certificado, branchId: branchIdStr });
+     
       ioInstance.emit('certificateSigned', { ...certificado, branchId: branchIdStr });
     }
     // Emitir evento de cambio en la base de datos
     const { emitDbChange } = require('../socket');
     await emitDbChange();
-    console.log('[signCourse] emitDbChange llamado tras firma de curso.');
+
     res.json({ message: 'Firma guardada', signature });
   } catch (err) {
     console.error('[ERROR][signCourse]', err); // Log detallado del error

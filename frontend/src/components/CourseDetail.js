@@ -161,12 +161,12 @@ const CourseDetail = () => {
                 onClick={async () => {
                   try {
                     const apiBase = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-                    console.log('[PLANTILLA] Descargando desde:', `${apiBase}/api/certificates/template/${course._id}?userId=${user?.id}`);
+                    
                     const res = await fetch(`${apiBase}/api/certificates/template/${course._id}?userId=${user?.id}`);
-                    console.log('[PLANTILLA] Respuesta fetch:', res);
+                
                     if (!res.ok) throw new Error('No se pudo descargar la plantilla PDF');
                     const blob = await res.blob();
-                    console.log('[PLANTILLA] Blob generado:', blob);
+                    
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
@@ -175,7 +175,7 @@ const CourseDetail = () => {
                     a.click();
                     a.remove();
                     window.URL.revokeObjectURL(url);
-                    console.log('[PLANTILLA] Descarga completada');
+                    
                   } catch (err) {
                     console.error('[PLANTILLA] Error al descargar la plantilla PDF:', err);
                     alert('Error al descargar la plantilla PDF');

@@ -179,7 +179,7 @@ const TrainingDashboard = ({ setUser, user }) => {
         </section>
 
         <section className="training-assessments-section">
-          <h2>Tus Evaluaciones</h2>
+          <h2 style={{marginTop: 80}}>Tus Evaluaciones</h2>
           {visibleAssessments.length > 0 ? (
             <div className="training-course-list scrollable-container">
               {visibleAssessments.map((assessment) => {
@@ -204,6 +204,7 @@ const TrainingDashboard = ({ setUser, user }) => {
                     key={assessment._id}
                     className="training-course-item"
                     style={{
+
                       position: 'relative',
                       minWidth: 260,
                       maxWidth: 320,

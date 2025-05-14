@@ -61,11 +61,11 @@ const CourseModal = ({
 
   useEffect(() => {
     if (assignedMode === "select" && branchName) { // Usa branchName como parámetro
-      console.log("Solicitando usuarios del branchName:", branchName); // Log para depuración
+   
       axios
         .get(`/api/users/branch/${branchName}/users`)
         .then((response) => {
-          console.log("Usuarios obtenidos:", response.data); // Log para verificar los datos recibidos
+          
           setBranchUsers(response.data); // Actualiza la lista de usuarios
         })
         .catch((error) => {
@@ -127,7 +127,7 @@ const CourseModal = ({
     } else {
       assignedTo = assignedMode === "all" ? ["All recruiters"] : selectedUsers;
     }
-    // LOG de datos enviados
+   
     onSubmit({
       name: courseName,
       assignedTo,

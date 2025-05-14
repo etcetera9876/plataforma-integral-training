@@ -33,7 +33,7 @@ const register = async (req, res) => {
             place,
             role,
             startDate: startDate ? new Date(startDate) : new Date()});  // Si no envían fecha, usa la actual
-        console.log("Usuario a guardar:", user); // <-- Esto mostrará el objeto antes de guardarlo
+       
         await user.save();
 
         res.status(201).json({ message: 'Usuario registrado correctamente' });
@@ -53,7 +53,7 @@ const login = async (req, res) => {
       }
   
       if (password !== user.password) {
-        console.log("Contraseña incorrecta:", { inputPassword: password, userPassword: user.password });
+        
         return res.status(400).json({ message: 'Contraseña incorrecta' });
       }
   
@@ -64,7 +64,7 @@ const login = async (req, res) => {
       } else {
         // Buscar el branch correspondiente
         branch = await Branch.findOne({ name: user.place });
-        console.log("Branch encontrado:", branch);
+       
   
         if (!branch) {
           return res.status(404).json({ message: 'Sucursal no encontrada' });

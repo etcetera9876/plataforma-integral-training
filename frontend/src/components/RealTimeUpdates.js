@@ -12,7 +12,7 @@ const RealTimeUpdates = () => {
   useEffect(() => {
     // Escucha el evento "dbChange" emitido desde el backend
     socket.on('dbChange', (change) => {
-      console.log('Cambio recibido:', change);
+     
       // Agrega el cambio a la lista de actualizaciones
       setUpdates(prevUpdates => [change, ...prevUpdates]);
     });

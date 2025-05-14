@@ -280,10 +280,7 @@ const QuestionBankModal = ({ onClose, onCreate, topics = [] }) => {
           }
         });
       }
-      // Log para depuración
-      if (form.type === 'form-dynamic') {
-        // console.log('Enviando forms al backend:', processedForms);
-      }
+    
       const data = new FormData();
       Object.entries(form).forEach(([key, value]) => {
         if (key === 'options') data.append('options', JSON.stringify(value));

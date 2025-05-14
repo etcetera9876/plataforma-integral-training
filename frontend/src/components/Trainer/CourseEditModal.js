@@ -232,7 +232,7 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames, globa
         });
         let data = null;
         try { data = await response.json(); } catch {}
-        console.log('Respuesta actualización (sucursal)', course._id, data);
+  
         if (!response.ok) throw new Error("Error al guardar el curso");
         onSave && onSave();
         onClose();

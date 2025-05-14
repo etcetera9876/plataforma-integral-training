@@ -102,8 +102,8 @@ export function DashboardProvider({ user, children }) {
       newSocket.on('dbChange', fetchAllData);
     }
 
+  
     const certificateHandler = (data) => {
-      console.log('[SOCKET][CTX] certificateSigned recibido:', data, 'user.branchId:', user.branchId, 'selectedBranchRef:', selectedBranchRef.current, 'token:', user?.token, 'role:', user?.role);
       // Solo recargar si el usuario es trainer y el branch del certificado coincide con el branch seleccionado
       if (user?.role === 'Trainer' && data && String(data.branchId) === String(selectedBranchRef.current)) {
         fetchCertificates(selectedBranchRef.current, user?.token);

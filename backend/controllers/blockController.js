@@ -50,9 +50,7 @@ exports.getBlocksByBranch = async (req, res) => {
 };
 
 exports.updateBlock = async (req, res) => {
-  // LOGS para depuración
-  console.log('updateBlock - req.params:', req.params);
-  console.log('updateBlock - req.body:', req.body);
+
   try {
     const { id } = req.params;
     const { label, weight } = req.body;

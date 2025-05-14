@@ -158,7 +158,7 @@ const TrainerDashboard = ({ setUser, user }) => {
             lockResults.push({ id: c._id, branchId: c.branchId, ok: false, error: err.message });
           }
         }));
-        // console.log('[GLOBAL LOCK] Resultados de bloqueo/desbloqueo:', lockResults); // Eliminado log de depuración
+      
         fetchCourses();
         setSnackbar({ open: true, message: !isLocked ? "Curso bloqueado en todas las sucursales" : "Curso desbloqueado en todas las sucursales", type: "success" });
       } else {
@@ -246,7 +246,6 @@ const TrainerDashboard = ({ setUser, user }) => {
 
       if (validUserIds.length === 0) return;
 
-      console.log('[DEBUG] fetchUserNames - userIds enviados:', validUserIds);
       const response = await axios.post(
         `${API_URL}/api/users/names`,
         { userIds: validUserIds },
@@ -254,7 +253,7 @@ const TrainerDashboard = ({ setUser, user }) => {
           headers: { Authorization: `Bearer ${user.token}` },
         }
       );
-      console.log('[DEBUG] fetchUserNames - respuesta backend:', response.data);
+     
       setUserNames((prev) => ({ ...prev, ...response.data }));
     } catch (error) {
       console.error("Error al obtener nombres de usuarios:", error.response?.data || error.message);
@@ -928,8 +927,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                                           e.preventDefault();
                                           // Mostrar nombre si existe, si no, 'Un usuario'
                                           const userIdKey = respondedSubtest && respondedSubtest.userId ? (typeof respondedSubtest.userId === 'object' ? respondedSubtest.userId._id : respondedSubtest.userId) : undefined;
-                                          console.log('[DEBUG] userNames:', userNames);
-                                          console.log('[DEBUG] userIdKey para el snackbar:', userIdKey);
+                                       
                                           const name = (userIdKey && userNames[userIdKey]) || 'Un usuario';
                                           setSnackbar({ open: true, message: `${name} ya ha realizado el examen, lo puedes revisar.`, type: 'info', duration: 4000 });
                                         } else {

@@ -34,7 +34,7 @@ const TrainerCertificates = ({ setUser, user, branchId }) => {
         </>
       )}
       {certificates.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', padding: 32, marginTop: 24, maxWidth: 900, marginLeft: 0 }}>
+        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', padding: 32, marginTop: 0, maxWidth: 900, marginLeft: 0 }}>
           <table className="training-table" style={{ minWidth: 400, width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
               <tr>
