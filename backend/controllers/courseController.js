@@ -4,11 +4,12 @@ const { emitDbChange } = require('../socket'); // ✅ Esto es lo correcto
 const path = require('path');
 const fs = require('fs');
 const { getLinkPreview } = require('link-preview-js');
+const { v4: uuidv4 } = require('uuid'); // Para generar globalGroupId único
 
 // Crear un nuevo curso
 exports.createCourse = async (req, res) => {
   try {
-    const { name, assignedTo, branchId, publicationDate, expirationDate, createdBy } = req.body;
+    const { name, assignedTo, branchId, publicationDate, expirationDate, createdBy, globalGroupId } = req.body;
 
     // Validar y transformar `assignedTo`
     let assignedToTransformed;
@@ -23,30 +24,59 @@ exports.createCourse = async (req, res) => {
       return res.status(400).json({ message: "Formato inválido para assignedTo" });
     }
 
-    // Validar y transformar `branchId`
-    if (!mongoose.Types.ObjectId.isValid(branchId)) {
-      return res.status(400).json({ message: "branchId inválido" });
+    // Permitir branchId como string o array
+    if (Array.isArray(branchId)) {
+      // Validar todos los branchId
+      const invalid = branchId.some(id => !mongoose.Types.ObjectId.isValid(id));
+      if (invalid) {
+        return res.status(400).json({ message: "Uno o más branchId inválidos" });
+      }
+      // Generar globalGroupId si no viene del frontend
+      const groupId = globalGroupId || uuidv4();
+      // Crear un curso por cada branchId
+      const createdCourses = [];
+      for (const bId of branchId) {
+        const course = new Course({
+          name,
+          assignedTo: assignedToTransformed,
+          branchId: new mongoose.Types.ObjectId(bId),
+          publicationDate: publicationDate ? new Date(publicationDate) : null,
+          expirationDate: expirationDate ? new Date(expirationDate) : null,
+          createdBy: {
+            id: new mongoose.Types.ObjectId(createdBy.id),
+            name: createdBy.name,
+          },
+          globalGroupId: groupId,
+        });
+        await course.save();
+        createdCourses.push(course);
+      }
+      await emitDbChange();
+      return res.status(201).json({ message: "Cursos creados correctamente", courses: createdCourses, globalGroupId: groupId });
+    } else {
+      // Modo sucursal único (string)
+      if (!mongoose.Types.ObjectId.isValid(branchId)) {
+        return res.status(400).json({ message: "branchId inválido" });
+      }
+      const course = new Course({
+        name,
+        assignedTo: assignedToTransformed,
+        branchId: new mongoose.Types.ObjectId(branchId),
+        publicationDate: publicationDate ? new Date(publicationDate) : null,
+        expirationDate: expirationDate ? new Date(expirationDate) : null,
+        createdBy: {
+          id: new mongoose.Types.ObjectId(createdBy.id),
+          name: createdBy.name,
+        },
+        globalGroupId: globalGroupId || null,
+      });
+      await course.save();
+      await emitDbChange();
+      return res.status(201).json({ message: "Curso creado correctamente", course });
     }
-
-    // Crear el curso
-    const course = new Course({
-      name,
-      assignedTo: assignedToTransformed,
-      branchId: new mongoose.Types.ObjectId(branchId),
-      publicationDate: publicationDate ? new Date(publicationDate) : null,
-      expirationDate: expirationDate ? new Date(expirationDate) : null,
-      createdBy: {
-        id: new mongoose.Types.ObjectId(createdBy.id),
-        name: createdBy.name,
-      },
-    });
-
-    await course.save();
-    await emitDbChange();
-    res.status(201).json({ message: "Curso creado correctamente", course });
   } catch (error) {
     console.error("Error al crear el curso:", error);
-    res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    res.status(500).json({ message: "Error interno al crear el curso", error: error.message });
   }
 };
 

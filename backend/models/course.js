@@ -23,6 +23,7 @@ const courseSchema = new mongoose.Schema({
     name: { type: String, required: true },
   },
   createdAt: { type: Date, default: Date.now },
+  globalGroupId: { type: String, default: null }, // Identificador de grupo global
 });
 
 module.exports = mongoose.model("Course", courseSchema);

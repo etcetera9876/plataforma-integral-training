@@ -46,4 +46,5 @@ router.post('/link-preview', linkPreview); // Endpoint para obtener metadatos de
 router.get('/:id/signature', require('../middlewares/authMiddleware'), courseController.getCourseSignature);
 router.post('/:id/signature', require('../middlewares/authMiddleware'), courseController.signCourse);
 
+
 module.exports = router;

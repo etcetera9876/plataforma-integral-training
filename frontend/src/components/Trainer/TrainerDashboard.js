@@ -77,7 +77,16 @@ const TrainerDashboard = ({ setUser, user }) => {
     });
   }, [assessments]);
 
-  const handleUpdate = (course) => {
+  const handleUpdate = (course, group) => {
+    if (isGlobal && group) {
+      window.coursesForGlobalEdit = group;
+    } else if (isGlobal) {
+      if (course.globalGroupId) {
+        window.coursesForGlobalEdit = courses.filter(c => c.globalGroupId === course.globalGroupId);
+      } else {
+        window.coursesForGlobalEdit = courses.filter(c => c.name === course.name);
+      }
+    }
     setSelectedCourse(course);
     setIsModalOpen(true);
   };
@@ -89,15 +98,35 @@ const TrainerDashboard = ({ setUser, user }) => {
 
   const handleConfirmDelete = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseToDelete}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al eliminar el curso");
+      if (isGlobal && courseToDelete) {
+        // Buscar el curso a eliminar
+        const courseObj = courses.find(c => c._id === courseToDelete);
+        if (courseObj) {
+          // Buscar todos los cursos con el mismo globalGroupId (o por nombre si no existe)
+          let groupCourses = [];
+          if (courseObj.globalGroupId) {
+            groupCourses = courses.filter(c => c.globalGroupId === courseObj.globalGroupId);
+          } else {
+            groupCourses = courses.filter(c => c.name === courseObj.name);
+          }
+          // Eliminar todos los cursos en paralelo
+          await Promise.all(groupCourses.map(async (c) => {
+            await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${c._id}`, {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${user.token}`,
+              },
+            });
+          }));
+        }
+      } else {
+        // Modo sucursal: eliminar solo uno
+        await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseToDelete}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        });
       }
       setSnackbar({ open: true, message: "Curso eliminado correctamente", type: "success" });
       fetchCourses();
@@ -112,28 +141,40 @@ const TrainerDashboard = ({ setUser, user }) => {
 
   const handleToggleLock = async (courseId, isLocked) => {
     try {
-      // Usa la URL absoluta para asegurar que apunte al backend correcto
-      const response = await fetch(`http://localhost:5000/api/courses/${courseId}/toggle-lock`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-      });
-      // Verifica que la respuesta sea JSON y status 200
-      const contentType = response.headers.get("content-type");
-      if (!response.ok) {
-        let errorMsg = "Error al cambiar el estado de bloqueo";
-        if (contentType && contentType.includes("application/json")) {
-          const data = await response.json();
-          errorMsg = data.message || errorMsg;
+      if (isGlobal && window.coursesForGlobalEdit && window.coursesForGlobalEdit.length > 0) {
+        // Bloqueo/desbloqueo global: recorre todos los cursos del grupo
+        await Promise.all(window.coursesForGlobalEdit.map(async (c) => {
+          const response = await fetch(`http://localhost:5000/api/courses/${c._id}/toggle-lock`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+          });
+          // Opcional: podrías manejar errores individuales aquí
+        }));
+        fetchCourses();
+        setSnackbar({ open: true, message: isLocked ? "Curso desbloqueado en todas las sucursales" : "Curso bloqueado en todas las sucursales", type: "success" });
+      } else {
+        // Modo sucursal: solo uno
+        const response = await fetch(`http://localhost:5000/api/courses/${courseId}/toggle-lock`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+        });
+        const contentType = response.headers.get("content-type");
+        if (!response.ok) {
+          let errorMsg = "Error al cambiar el estado de bloqueo";
+          if (contentType && contentType.includes("application/json")) {
+            const data = await response.json();
+            errorMsg = data.message || errorMsg;
+          }
+          throw new Error(errorMsg);
         }
-        throw new Error(errorMsg);
+        if (contentType && contentType.includes("application/json")) {
+          await response.json();
+        }
+        fetchCourses();
+        setSnackbar({ open: true, message: isLocked ? "Curso desbloqueado" : "Curso bloqueado", type: "success" });
       }
-      if (contentType && contentType.includes("application/json")) {
-        await response.json();
-      }
-      fetchCourses();
     } catch (error) {
-      console.error("Error al cambiar el estado de bloqueo:", error);
-      alert(error.message || "Hubo un error al cambiar el estado de bloqueo");
+      setSnackbar({ open: true, message: error.message || "Hubo un error al cambiar el estado de bloqueo", type: "error" });
     }
   };
 
@@ -228,11 +269,15 @@ const TrainerDashboard = ({ setUser, user }) => {
         }
       );
 
-      const newCourse = response.data.course; // Acceder al curso desde response.data.course
-      // console.log("Nuevo curso creado:", newCourse); // Log para depuración
-
-      // Actualizar el estado con el nuevo curso
-      setCourses((prevCourses) => [newCourse, ...prevCourses]);
+      // Soporta ambos casos: course (sucursal) o courses (global)
+      if (response.data.course) {
+        setCourses((prevCourses) => [response.data.course, ...prevCourses]);
+      } else if (response.data.courses && Array.isArray(response.data.courses)) {
+        setCourses((prevCourses) => [
+          ...response.data.courses,
+          ...prevCourses
+        ]);
+      }
       setSnackbar({ open: true, message: "Curso creado con éxito", type: "success" });
     } catch (error) {
       console.error("Error al agregar el curso:", error.response?.data || error.message);
@@ -424,12 +469,29 @@ const TrainerDashboard = ({ setUser, user }) => {
           });
         }
       }, 500); // Pequeño delay para asegurar que los datos estén actualizados
+      // --- CAMBIO: recargar cursos también en modo global ---
+      if (isGlobal) {
+        const fetchAllCourses = async () => {
+          try {
+            const token = getValidToken();
+            const response = await axios.get(`${API_URL}/api/courses/all`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            setCourses(response.data);
+          } catch (error) {
+            setCourses([]);
+          }
+        };
+        fetchAllCourses();
+      } else {
+        fetchCourses();
+      }
     };
     socket.on('dbChange', handleDbChange);
     return () => {
       socket.off('dbChange', handleDbChange);
     };
-  }, [user, assessments, fetchAssessments]);
+  }, [user, assessments, fetchAssessments, isGlobal, fetchCourses]);
 
   // Obtén la sección activa del dashboard según la ruta actual
   const getActiveSection = () => {
@@ -502,30 +564,108 @@ const TrainerDashboard = ({ setUser, user }) => {
                   {isGlobal ? (
                     <div style={{ background: '#fafafa', borderRadius: 12, border: '1px solid #ddd', padding: 0, marginTop: 8 }}>
                       <div style={{ display: 'flex', fontWeight: 600, padding: '16px 32px 8px 32px', color: '#222', fontSize: 16, alignItems: 'center', minHeight: 40 }}>
-                        <div style={{ flex: 2, textAlign: 'left' }}>Sucursal</div>
+                        <div style={{ flex: 2, textAlign: 'left' }}>Sucursales</div>
                         <div style={{ flex: 3, textAlign: 'left' }}>Nombre</div>
                         <div style={{ flex: 1, textAlign: 'left' }}>Estado</div>
+                        <div style={{ flex: 1, textAlign: 'center' }}>Acciones</div>
                       </div>
                       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                        {courses.length > 0 ? (
-                          courses.map((course, index) => {
-                            const branchName = branches.find(b => String(b._id) === String(course.branchId))?.name || 'Sin sucursal';
-                            const status = getCourseStatus(course.publicationDate, course.expirationDate, course.createdAt, now);
+                        {(() => {
+                          // Agrupar cursos por globalGroupId si existe, si no por nombre
+                          const grouped = {};
+                          courses.forEach(course => {
+                            const groupKey = course.globalGroupId || `name:${course.name}`;
+                            if (!grouped[groupKey]) grouped[groupKey] = [];
+                            grouped[groupKey].push(course);
+                          });
+                          const groupedCourses = Object.values(grouped);
+                          if (groupedCourses.length === 0) {
                             return (
-                              <li key={course._id || index} style={{ display: 'flex', alignItems: 'center', padding: '18px 32px', minHeight: 48, borderBottom: index === courses.length - 1 ? 'none' : '1px solid #eee', background: '#fff', borderRadius: index === 0 ? '12px 12px 0 0' : index === courses.length - 1 ? '0 0 12px 12px' : '0' }}>
-                                <div style={{ flex: 2, color: '#1976d2', fontWeight: 500, fontSize: 15 }}>{branchName}</div>
+                              <li className="empty-message" style={{ padding: '18px 32px' }}>No hay cursos registrados en ninguna sucursal.</li>
+                            );
+                          }
+                          return groupedCourses.map((group, idx) => {
+                            // Obtener nombres de sucursales de forma robusta
+                            const branchNames = group.map(c => {
+                              const branch = branches.find(b => String(b._id) === String(c.branchId));
+                              if (!branch) {
+                                console.warn('[WARN][TrainerDashboard] No se encontró branch para branchId:', c.branchId, 'en curso:', c);
+                              }
+                              return branch ? branch.name : `Sucursal desconocida (${c.branchId || 'sin ID'})`;
+                            });
+                            // Mostrar estado del primer curso del grupo (puedes ajustar lógica si quieres un estado combinado)
+                            const firstCourse = group[0];
+                            const status = getCourseStatus(firstCourse.publicationDate, firstCourse.expirationDate, firstCourse.createdAt, now);
+                            const isNew = !firstCourse.description && (!firstCourse.resources || firstCourse.resources.length === 0);
+                            return (
+                              <li key={firstCourse.globalGroupId || firstCourse.name} style={{ display: 'flex', alignItems: 'center', padding: '18px 32px', minHeight: 48, borderBottom: idx === groupedCourses.length - 1 ? 'none' : '1px solid #eee', background: '#fff', borderRadius: idx === 0 ? '12px 12px 0 0' : idx === groupedCourses.length - 1 ? '0 0 12px 12px' : '0' }}>
+                                <div style={{ flex: 2, color: '#1976d2', fontWeight: 500, fontSize: 15 }}>
+                                  {branchNames.join(', ')}
+                                </div>
                                 <div style={{ flex: 3, color: '#222', fontWeight: 500, fontSize: 15, textAlign: 'left' }}>
                                   <span className="course-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                    <span role="img" aria-label="libro">📘</span> {course.name}
+                                    <span role="img" aria-label="libro">📘</span> {firstCourse.name}
                                   </span>
+                                  {isNew && (
+                                    <div className="incomplete-course-row">
+                                      <span className="incomplete-course-text">
+                                        Curso incompleto: agrega descripción o recursos.
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                                 <div style={{ flex: 1, color: '#1a237e', fontWeight: 500, fontSize: 15 }} title={status.tooltip}>{status.text}</div>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div className="course-actions" style={{ justifyContent: 'center' }}>
+                                    <button
+                                      className="update-button"
+                                      onClick={() => handleUpdate(firstCourse, group)}
+                                      title={isNew ? "Agregar información al curso" : "Actualizar curso"}
+                                      style={{ marginRight: 8 }}
+                                    >
+                                      {isNew ? "New" : "Update"}
+                                    </button>
+                                    <button
+                                      className="delete-button"
+                                      onClick={() => handleDeleteClick(firstCourse._id)}
+                                      title="Eliminar curso"
+                                      style={{ marginRight: 8 }}
+                                    >
+                                      Delete
+                                    </button>
+                                    <button
+                                      className={`lock-button ${firstCourse.isLocked ? "locked" : "unlocked"}`}
+                                      onClick={() => handleToggleLock(firstCourse._id, firstCourse.isLocked)}
+                                      title={firstCourse.isLocked ? "Desbloquear curso" : "Bloquear curso"}
+                                      style={{
+                                        marginRight: 8,
+                                        background: firstCourse.isLocked ? '#e65100' : '#e3f2fd',
+                                        color: firstCourse.isLocked ? '#fff' : '#1976d2',
+                                        border: '2px solid #bdbdbd',
+                                        borderRadius: 5,
+                                        minWidth: 44,
+                                        minHeight: 38,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 20,
+                                        fontWeight: 600,
+                                        boxShadow: '0 2px 6px #bbb',
+                                        transition: 'background 0.18s, color 0.18s'
+                                      }}
+                                    >
+                                      {firstCourse.isLocked ? (
+                                        <span role="img" aria-label="Candado cerrado" style={{ fontSize: 20, color: '#fff', verticalAlign: 'middle' }}>🔒</span>
+                                      ) : (
+                                        <span role="img" aria-label="Candado abierto" style={{ fontSize: 20, color: '#1976d2', verticalAlign: 'middle' }}>🔓</span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
                               </li>
                             );
-                          })
-                        ) : (
-                          <li className="empty-message" style={{ padding: '18px 32px' }}>No hay cursos registrados en ninguna sucursal.</li>
-                        )}
+                          });
+                        })()}
                       </ul>
                     </div>
                   ) : (
@@ -587,7 +727,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                                       title={course.isLocked ? "Desbloquear curso" : "Bloquear curso"}
                                       style={{
                                         marginRight: 8,
-                                        background: course.isLocked ? '#e65100' : '#e3f2fd', // más oscuro cuando está lock, suave cuando unlock
+                                        background: course.isLocked ? '#e65100' : '#e3f2fd',
                                         color: course.isLocked ? '#fff' : '#1976d2',
                                         border: '2px solid #bdbdbd',
                                         borderRadius: 5,
@@ -870,8 +1010,15 @@ const TrainerDashboard = ({ setUser, user }) => {
                   headers: { Authorization: `Bearer ${token}` },
                 }
               );
-              const newCourse = response.data.course;
-              setCourses((prevCourses) => [newCourse, ...prevCourses]);
+              // Soporta ambos casos: course (sucursal) o courses (global)
+              if (response.data.course) {
+                setCourses((prevCourses) => [response.data.course, ...prevCourses]);
+              } else if (response.data.courses && Array.isArray(response.data.courses)) {
+                setCourses((prevCourses) => [
+                  ...response.data.courses,
+                  ...prevCourses
+                ]);
+              }
               setSnackbar({ open: true, message: "Curso creado con éxito", type: "success" });
             } catch (error) {
               setSnackbar({ open: true, message: "Error al crear el curso", type: "error" });
@@ -889,6 +1036,8 @@ const TrainerDashboard = ({ setUser, user }) => {
           onClose={() => setIsModalOpen(false)}
           onSave={fetchCourses}
           userNames={userNames}
+          globalGroup={window.coursesForGlobalEdit || []}
+          isGlobal={isGlobal}
         />
       )}
 

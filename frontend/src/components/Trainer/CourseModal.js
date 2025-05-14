@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./TrainerDashboard.css";
 import { useDashboard } from '../DashboardContext';
+import { v4 as uuidv4 } from 'uuid'; // Para generar globalGroupId
 
 // Utilidad para convertir UTC a local para datetime-local
 function toLocalDatetimeString(dateStr) {
@@ -111,21 +112,29 @@ const CourseModal = ({
     }
     let assignedTo;
     let finalBranchId = branchId;
+    let globalGroupId = null;
     if (isGlobal) {
-      // Obtener usuarios de todas las branches seleccionadas
       assignedTo = assignedMode === "all"
         ? ["All recruiters"]
         : await fetchUsersFromBranches(selectedBranches);
       finalBranchId = selectedBranches; // Puede ser array
+      // Validación extra: si selectedBranches está vacío, no continuar
+      if (!Array.isArray(finalBranchId) || finalBranchId.length === 0) {
+        alert("Selecciona al menos una sucursal válida.");
+        return;
+      }
+      globalGroupId = uuidv4();
     } else {
       assignedTo = assignedMode === "all" ? ["All recruiters"] : selectedUsers;
     }
+    // LOG de datos enviados
     onSubmit({
       name: courseName,
       assignedTo,
       branchId: finalBranchId,
       publicationDate: null,
       expirationDate: null,
+      globalGroupId,
     });
     onClose();
   };
@@ -146,11 +155,13 @@ const CourseModal = ({
     }
     let assignedTo;
     let finalBranchId = branchId;
+    let globalGroupId = null;
     if (isGlobal) {
       assignedTo = assignedMode === "all"
         ? ["All recruiters"]
         : await fetchUsersFromBranches(selectedBranches);
       finalBranchId = selectedBranches;
+      globalGroupId = uuidv4();
     } else {
       assignedTo = assignedMode === "all" ? ["All recruiters"] : selectedUsers;
     }
@@ -160,6 +171,7 @@ const CourseModal = ({
       branchId: finalBranchId,
       publicationDate: scheduledDate ? new Date(scheduledDate).toISOString() : null,
       expirationDate: expirationDate ? new Date(expirationDate).toISOString() : null,
+      globalGroupId,
     });
     onClose();
   };
@@ -171,22 +183,11 @@ const CourseModal = ({
         onClick={stopPropagation}>
         <h3>Add course {isGlobal ? 'for selected branches' : `for ${branchName}`}</h3>
         {isGlobal && (
-          <section className="checklist-section">
-            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Selecciona sucursales:</div>
-            <div className="check-list" style={{ maxHeight: 320, overflowY: 'auto', padding: 0 }}>
-              {branches.map((b) => (
-                <div key={b._id} className="recruiter-row" style={{ padding: '8px 0', borderBottom: '1px solid #eee', background: '#fff', borderRadius: 8, margin: '0 0 4px 0', alignItems: 'center', gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedBranches.includes(b._id)}
-                    onChange={() => handleBranchCheckbox(b._id)}
-                    style={{ marginRight: 12, flexShrink: 0 }}
-                  />
-                  <span className="recruiter-name" style={{ fontSize: 15, textAlign: 'left', whiteSpace: 'normal', overflowWrap: 'break-word', margin: 0 }}>{b.name}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+          <section className="checklist-section"> <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Selecciona sucursales:</div> 
+          <div className="check-list" style={{ maxHeight: 320, overflowY: 'auto', padding: 0 }}> {branches.map((b) => ( 
+            <div key={b._id} className="recruiter-row" style={{ padding: '6px 0', borderBottom: '1px solid #eee', background: '#fff', borderRadius: 0, margin: 0, alignItems: 'center', gap: 0, justifyContent: 'flex-start' }}>
+               <input type="checkbox" checked={selectedBranches.includes(b._id)} onChange={() => handleBranchCheckbox(b._id)} style={{ marginRight: -120, marginLeft: -120, flexShrink: 0 }} />
+           <span className="recruiter-name" style={{ fontSize: 15, textAlign: 'left', margin: 0, padding: 0, minWidth: 0, flex: 1 }}>{b.name}</span> </div> ))} </div> </section>
         )}
         {!isGlobal && (
           <section className="checklist-section">  

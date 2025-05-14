@@ -148,14 +148,7 @@ const TrainingDashboard = ({ setUser, user }) => {
         <section className="training-courses-section">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <h2>Tus Cursos</h2>
-            <button
-              className="icon-button"
-              title="Crear curso"
-              onClick={() => setShowCourseModal(true)}
-              style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', boxShadow: '0 2px 8px #e0e0e0', fontSize: 28 }}
-            >
-              <span role="img" aria-label="Crear curso" style={{ fontSize: 26 }}>➕</span>
-            </button>
+         
           </div>
           {courses.length > 0 ? (
             <div className="training-course-list scrollable-container"> {/* Clase para scroll horizontal */}

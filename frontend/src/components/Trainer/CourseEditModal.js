@@ -48,7 +48,7 @@ const modalStyle = {
   boxSizing: 'border-box',
 };
 
-const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => {
+const CourseEditModal = ({ course, branchName, onClose, onSave, userNames, globalGroup = [], isGlobal = false }) => {
   const [name, setName] = useState(course?.name || "");
   const [description, setDescription] = useState(course?.description || "");
   const [resources, setResources] = useState(course?.resources || []);
@@ -68,6 +68,8 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
   const [showSchedule, setShowSchedule] = useState(!!(course?.publicationDate || course?.expirationDate));
   const [showLinkInput, setShowLinkInput] = useState(false);
   const fileInputRef = useRef();
+  // NUEVO: Guardar el grupo de cursos globales si existe
+  const groupRef = useRef(globalGroup);
 
   // Determina si el botón Save debe estar habilitado
   const canSave = description.trim().length > 0 || resources.length > 0;
@@ -183,26 +185,58 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
     setSaving(true);
     try {
       let assignedTo = assignedMode === "all" ? ["All recruiters"] : selectedUsers;
-      if (assignedTo.length === 0) {
-        alert("Debes asignar al menos un reclutador o seleccionar 'Todos los reclutadores'.");
-        setSaving(false);
-        return;
+      if (isGlobal && groupRef.current && groupRef.current.length > 0) {
+        // Usar el grupo local, no volver a filtrar
+        const groupCourses = groupRef.current;
+        let updateResults = [];
+        for (let i = 0; i < groupCourses.length; i++) {
+          const c = groupCourses[i];
+          try {
+            const res = await fetch(`/api/courses/${c._id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name,
+                description,
+                resources,
+                publicationDate: publicationDate ? toUTCDateString(publicationDate) : null,
+                expirationDate: expirationDate ? toUTCDateString(expirationDate) : null,
+                assignedTo,
+              }),
+            });
+            let data = null;
+            try { data = await res.json(); } catch {}
+            updateResults.push({id: c._id, branchId: c.branchId, ok: res.ok, status: res.status, data});
+          } catch (err) {
+            // Puedes agregar manejo de error si lo deseas
+          }
+        }
+        if (window.fetchAllCoursesGlobal) {
+          await window.fetchAllCoursesGlobal();
+        }
+        onSave && onSave();
+        onClose();
+      } else {
+        // Modo sucursal: solo uno
+        const response = await fetch(`/api/courses/${course._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            description,
+            resources,
+            publicationDate: publicationDate ? toUTCDateString(publicationDate) : null,
+            expirationDate: expirationDate ? toUTCDateString(expirationDate) : null,
+            assignedTo,
+          }),
+        });
+        let data = null;
+        try { data = await response.json(); } catch {}
+        console.log('Respuesta actualización (sucursal)', course._id, data);
+        if (!response.ok) throw new Error("Error al guardar el curso");
+        onSave && onSave();
+        onClose();
       }
-      const response = await fetch(`/api/courses/${course._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          description,
-          resources,
-          publicationDate: publicationDate ? toUTCDateString(publicationDate) : null,
-          expirationDate: expirationDate ? toUTCDateString(expirationDate) : null,
-          assignedTo,
-        }),
-      });
-      if (!response.ok) throw new Error("Error al guardar el curso");
-      onSave && onSave();
-      onClose();
     } catch (e) {
       alert(e.message);
     } finally {
@@ -213,6 +247,7 @@ const CourseEditModal = ({ course, branchName, onClose, onSave, userNames }) => 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={modalStyle}>
+        {/* Eliminado log visual de branches globales */}
         <div style={{ marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Editar curso para {branchName}</h3>
         </div>

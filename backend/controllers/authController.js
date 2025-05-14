@@ -45,10 +45,8 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     try {
       const { email, password } = req.body;
-      console.log("Inicio de sesión:", { email, password });
   
       const user = await User.findOne({ email });
-      console.log("Usuario encontrado:", user);
   
       if (!user) {
         return res.status(404).json({ message: 'Usuario no encontrado' });
