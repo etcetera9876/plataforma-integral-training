@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../config';
 import './CourseDetail.css';
@@ -42,6 +42,7 @@ function getFileIcon(filename) {
 
 const CourseDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { courses, signedCourses, addSignedCourse } = useDashboard();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -250,8 +251,7 @@ const CourseDetail = () => {
                     setShowSignModal(false);
                     setSigned(true);
                     addSignedCourse(id); // Actualiza el contexto global
-                    setSnackbar({ open: true, message: '¡Curso firmado y archivo subido con éxito!', type: 'success' });
-                    setTimeout(() => window.history.back(), 1200);
+                    navigate('/training-dashboard', { state: { successMessage: 'Curso firmado con éxito' } });
                   } catch (err) {
                     setSnackbar({ open: true, message: 'Error al firmar el curso o subir el archivo', type: 'error' });
                     setTimeout(() => setSnackbar({ open: false, message: '', type: 'error' }), 1500);

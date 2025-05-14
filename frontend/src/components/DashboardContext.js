@@ -17,6 +17,7 @@ export function DashboardProvider({ user, children }) {
   const [branches, setBranches] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
   const selectedBranchRef = useRef("");
 
   // Cargar datos iniciales
@@ -63,19 +64,16 @@ export function DashboardProvider({ user, children }) {
       setCertificates([]);
       return;
     }
-    setLoading(true);
+    setLoadingCertificates(true);
     try {
       const res = await axios.get(`/api/certificates?branch=${branchId}`, {
         headers: { Authorization: token || localStorage.getItem('token') }
       });
-      console.log('[DEBUG][DashboardContext] fetchCertificates branchId:', branchId, 'token:', token);
-      console.log('[DEBUG][DashboardContext] fetchCertificates response:', res.data);
       setCertificates(res.data);
     } catch (err) {
-      console.error('[DEBUG][DashboardContext] fetchCertificates error:', err);
       setCertificates([]);
     } finally {
-      setLoading(false);
+      setLoadingCertificates(false);
     }
   }, []);
 
@@ -156,6 +154,7 @@ export function DashboardProvider({ user, children }) {
       signedCourses,
       assessments,
       loading,
+      loadingCertificates,
       addSignedCourse,
       updateCourses,
       updateAssessments,

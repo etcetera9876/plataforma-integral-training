@@ -37,30 +37,32 @@ exports.getCertificatesByBranch = async (req, res) => {
     const { branch } = req.query;
     console.log('[DEBUG][getCertificatesByBranch] branch recibido:', branch);
     if (!branch) return res.status(400).json({ message: 'Falta branch' });
-    // Buscar cursos de la sucursal
+    // Buscar todos los CourseSignature que correspondan a cursos de la sucursal (aunque el curso ya no exista)
+    // 1. Buscar todos los cursos (existentes) de la sucursal
     const courses = await Course.find({ branchId: branch });
-    console.log('[DEBUG][getCertificatesByBranch] cursos encontrados:', courses.map(c => ({_id: c._id, name: c.name, branchId: c.branchId})));
-    const courseIds = courses.map(c => c._id);
-    // Buscar firmas de esos cursos
-    const signatures = await CourseSignature.find({ courseId: { $in: courseIds } });
-    console.log('[DEBUG][getCertificatesByBranch] firmas encontradas:', signatures.map(s => ({_id: s._id, userId: s.userId, courseId: s.courseId, name: s.name, signedAt: s.signedAt})));
-    // Buscar usuarios y cursos relacionados
-    const userIds = signatures.map(s => s.userId);
+    const courseIds = courses.map(c => String(c._id));
+    // 2. Buscar todas las firmas que tengan courseId de la sucursal (aunque el curso ya no exista)
+    const signatures = await CourseSignature.find({});
+    // 3. Filtrar firmas que correspondan a branch (por courseId en courseIds o por branchId guardado en CourseSignature si lo agregas en el futuro)
+    //    y además incluir firmas de cursos eliminados que alguna vez pertenecieron a la sucursal
+    //    (esto asume que solo se pueden firmar cursos de la sucursal actual)
+    const filteredSignatures = signatures.filter(sig => courseIds.includes(String(sig.courseId)) || (sig.courseName && sig.courseId && !courses.find(c => String(c._id) === String(sig.courseId))));
+    // 4. Buscar usuarios
+    const userIds = filteredSignatures.map(s => s.userId);
     const users = await User.find({ _id: { $in: userIds } });
-    // Mapas para acceso rápido
     const userMap = Object.fromEntries(users.map(u => [String(u._id), u]));
     const courseMap = Object.fromEntries(courses.map(c => [String(c._id), c]));
-    // Construir lista de certificados
-    const certificates = await Promise.all(signatures.map(async (sig) => {
-      // Usar los datos guardados en la firma si el usuario o curso ya no existen
+    // 5. Construir lista de certificados
+    const certificates = await Promise.all(filteredSignatures.map(async (sig) => {
       const user = userMap[String(sig.userId)];
       const course = courseMap[String(sig.courseId)];
       const userName = user ? user.name : sig.userName || sig.name;
       const courseName = course ? course.name : sig.courseName;
+      const eliminado = !course; // true si el curso ya no existe
       // Ruta del PDF
       const pdfFileName = `certificate-${sig._id}.pdf`;
       const pdfPath = path.join(__dirname, '../uploads', pdfFileName);
-      // Si no existe, generar el PDF
+      // Si no existe, generar el PDF solo si hay datos de usuario y curso
       if (!fs.existsSync(pdfPath) && user && course) {
         await generateCertificatePDF({ signature: sig, user, course, outputPath: pdfPath });
       }
@@ -70,7 +72,8 @@ exports.getCertificatesByBranch = async (req, res) => {
         courseName,
         signedAt: sig.signedAt,
         pdfUrl: `/api/certificates/${sig._id}/download`,
-        signedFileUrl: sig.signedFileUrl // Incluye el archivo firmado si existe
+        signedFileUrl: sig.signedFileUrl,
+        eliminado
       };
     }));
     res.json(certificates.filter(Boolean));

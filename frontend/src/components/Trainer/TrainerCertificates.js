@@ -9,7 +9,7 @@ const TrainerCertificates = ({ setUser, user, branchId }) => {
     certificates,
     selectedBranch,
     selectBranch,
-    loading,
+    loadingCertificates,
   } = useDashboard();
 
   useEffect(() => {
@@ -20,14 +20,20 @@ const TrainerCertificates = ({ setUser, user, branchId }) => {
 
   return (
     <>
-      {loading && <p>Loading certificates...</p>}
-      {!loading && selectedBranch && certificates.length === 0 && (
+      <div style={{ minHeight: 40 }}>
+        {loadingCertificates && (
+          <span style={{ color: '#1976d2', fontWeight: 600, fontSize: 16 }}>
+            Cargando certificados...
+          </span>
+        )}
+      </div>
+      {selectedBranch && certificates.length === 0 && !loadingCertificates && (
         <>
           <p>No certificates found for this branch.</p>
           <p style={{color: 'gray', fontSize: 13}}>¿Esperabas ver certificados aquí? Revisa la consola del navegador para detalles de depuración.</p>
         </>
       )}
-      {!loading && certificates.length > 0 && (
+      {certificates.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', padding: 32, marginTop: 24, maxWidth: 900, marginLeft: 0 }}>
           <table className="training-table" style={{ minWidth: 400, width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
@@ -48,7 +54,12 @@ const TrainerCertificates = ({ setUser, user, branchId }) => {
               {certificates.map(cert => (
                 <tr key={cert.id}>
                   <td style={{ textAlign: 'left', padding: '10px 16px' }}>{cert.userName}</td>
-                  <td style={{ textAlign: 'left', padding: '10px 16px' }}>{cert.courseName}</td>
+                  <td style={{ textAlign: 'left', padding: '10px 16px' }}>
+                    {cert.courseName}
+                    {cert.eliminado && (
+                      <span title="Curso eliminado" style={{ marginLeft: 8, color: '#c00', fontSize: 18, verticalAlign: 'middle' }}>🗑️</span>
+                    )}
+                  </td>
                   <td style={{ textAlign: 'left', padding: '10px 16px' }}>{new Date(cert.signedAt).toLocaleDateString()}</td>
                   <td style={{ textAlign: 'center', padding: '10px 16px' }}>
                     {cert.signedFileUrl && (
