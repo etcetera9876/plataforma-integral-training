@@ -1065,7 +1065,10 @@ const TrainerDashboard = ({ setUser, user }) => {
           course={selectedCourse}
           branchName={currentBranchName}
           onClose={() => setIsModalOpen(false)}
-          onSave={fetchCourses}
+          onSave={async () => {
+            await fetchCourses();
+            setSnackbar({ open: true, message: "Curso actualizado con éxito", type: "success" });
+          }}
           userNames={userNames}
           globalGroup={window.coursesForGlobalEdit || []}
           isGlobal={isGlobal}
