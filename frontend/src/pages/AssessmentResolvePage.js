@@ -18,6 +18,15 @@ const AssessmentResolvePage = () => {
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [timerModalAccepted, setTimerModalAccepted] = useState(false);
 
+  // Detectar si viene de cursos relacionados
+  const [fromRelated, setFromRelated] = useState(false);
+  useEffect(() => {
+    // Puedes usar localStorage, query param, o sessionStorage
+    // Aquí ejemplo con sessionStorage
+    const flag = sessionStorage.getItem(`assessment_from_related_${id}`);
+    setFromRelated(flag === '1');
+  }, [id]);
+
   useEffect(() => {
     const fetchAssessment = async () => {
       try {
@@ -262,13 +271,16 @@ const AssessmentResolvePage = () => {
               onClick={handleStartTimer}>
               Comenzar
             </button>
-            <button style={{ background: '#e0e0e0', color: '#444', fontWeight: 500, fontSize: 16, border: 'none', borderRadius: 8, padding: '10px 24px', cursor: 'pointer' }}
-              onClick={() => {
-                setShowTimerModal(false);
-                navigate('/training-dashboard');
-              }}>
-              Cancelar
-            </button>
+            {/* Solo mostrar Cancelar si NO viene de cursos relacionados */}
+            {!fromRelated && (
+              <button style={{ background: '#e0e0e0', color: '#444', fontWeight: 500, fontSize: 16, border: 'none', borderRadius: 8, padding: '10px 24px', cursor: 'pointer' }}
+                onClick={() => {
+                  setShowTimerModal(false);
+                  navigate('/training-dashboard');
+                }}>
+                Cancelar
+              </button>
+            )}
           </div>
         </div>
       </Modal>

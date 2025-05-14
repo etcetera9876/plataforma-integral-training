@@ -85,14 +85,17 @@ const TrainingDashboard = ({ setUser, user }) => {
     }
   }, [snackbar.open]);
 
-  // Filtrar assessments según fecha de publicación y expiración
+  // Filtrar assessments para mostrar solo los tests libres o los relacionados a cursos ya resueltos
   const visibleAssessments = assessments.filter((assessment) => {
+    // Test libre: no tiene cursos relacionados
+    const isLibre = !assessment.relatedCourses || assessment.relatedCourses.length === 0;
+    // Test relacionado: solo mostrar si ya fue resuelto
+    const isRelacionadoResuelto = Array.isArray(assessment.relatedCourses) && assessment.relatedCourses.length > 0 && assessment.submittedAt;
+    // Fechas de publicación/expiración
     const pub = assessment.publicationDate ? new Date(assessment.publicationDate) : null;
     const exp = assessment.expirationDate ? new Date(assessment.expirationDate) : null;
-    // Solo mostrar si:
-    // - No hay fecha de publicación o ya pasó
-    // - No hay fecha de expiración o aún no ha pasado
-    return (!pub || now >= pub) && (!exp || now < exp);
+    const fechaOk = (!pub || now >= pub) && (!exp || now < exp);
+    return fechaOk && (isLibre || isRelacionadoResuelto);
   });
 
   // Maneja el flujo del botón y resultado

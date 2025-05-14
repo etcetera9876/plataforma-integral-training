@@ -15,6 +15,7 @@ import mp4Icon from '../assets/mp4-icon.png';
 import mp3Icon from '../assets/mp3-icon.png';
 import checkIcon from '../assets/check-icon.png';
 
+
 const FILE_ICONS = {
   pdf: pdfIcon,
   doc: wordIcon,
@@ -54,6 +55,11 @@ const CourseDetail = () => {
   const [user, setUser] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'success' });
   const [signedPdfFile, setSignedPdfFile] = useState(null);
+  const [relatedAssessment, setRelatedAssessment] = useState(null);
+  const [redirectModal, setRedirectModal] = useState({ open: false, type: null, nextCourseId: null, nextCourseName: '', seconds: 5 });
+  const [testModal, setTestModal] = useState({ open: false, assessmentId: null, timer: null });
+  const [redirectTimer, setRedirectTimer] = useState(null);
+  const [warningModal, setWarningModal] = useState({ open: false });
 
   // Buscar el curso en el contexto global antes de pedirlo al backend
   useEffect(() => {
@@ -124,6 +130,50 @@ const CourseDetail = () => {
     }
   }, [id, signedCourses]);
 
+  // Buscar test relacionado al curso
+  useEffect(() => {
+    if (!id || !user) return;
+    axios.get(`/api/assessments/related-to-course/${id}`, {
+      headers: { Authorization: localStorage.getItem('token') }
+    })
+      .then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setRelatedAssessment(res.data[0]); // Solo uno por curso
+        } else {
+          setRelatedAssessment(null);
+        }
+      })
+      .catch(() => setRelatedAssessment(null));
+  }, [id, user]);
+
+  // Redirección automática a siguiente curso pendiente
+  useEffect(() => {
+    if (redirectModal.open && redirectModal.nextCourseId) {
+      const timer = setTimeout(() => {
+        setRedirectModal({ open: false, type: null, nextCourseId: null, nextCourseName: '', seconds: 5 });
+        if (redirectModal.type === 'course') {
+          navigate(`/course/${redirectModal.nextCourseId}`);
+        } else if (redirectModal.type === 'test') {
+          // FIX: Marcar flag en sessionStorage antes de navegar al test relacionado
+          sessionStorage.setItem(`assessment_from_related_${redirectModal.nextCourseId}`, '1');
+          navigate(`/assessment/${redirectModal.nextCourseId}`);
+        }
+      }, redirectModal.seconds * 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [redirectModal, navigate]);
+
+  // Cambia la redirección al test de 8 a 6 segundos
+  useEffect(() => {
+    if (redirectModal.open && redirectModal.type === 'test' && redirectModal.fromRelated) {
+      const timer = setTimeout(() => {
+        setRedirectModal({ open: false, type: null, nextCourseId: null, nextCourseName: '', seconds: 6 });
+        setTestModal({ open: true, assessmentId: redirectModal.nextCourseId, timer: relatedAssessment?.timer, fromRelated: true });
+      }, redirectModal.seconds * 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [redirectModal, relatedAssessment]);
+
   // Cierre automático del snackbar después de 1.5s
   useEffect(() => {
     if (snackbar.open) {
@@ -133,6 +183,76 @@ const CourseDetail = () => {
       return () => clearTimeout(timer);
     }
   }, [snackbar.open]);
+
+  // Limpieza de campos del modal de firma al redirigir a otro curso
+  useEffect(() => {
+    if (redirectModal.open && redirectModal.type === 'course') {
+      setSignature('');
+      setSignedPdfFile(null);
+    }
+  }, [redirectModal]);
+
+  // Agrega la función handleCourseSign antes del return principal
+  const handleCourseSign = async () => {
+    setSigning(true);
+    try {
+      const token = localStorage.getItem('token');
+      // 1. Firmar el curso
+      const courseRes = await axios.get(`/api/courses/byid/${id}`);
+      const courseData = courseRes.data;
+      const signRes = await axios.post(`/api/courses/${id}/signature`, {
+        userId: user.id,
+        name: signature.trim(),
+        courseName: courseData.name,
+        userName: user.name
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // 2. Subir el PDF firmado
+      if (signedPdfFile) {
+        const formData = new FormData();
+        formData.append('signedFile', signedPdfFile);
+        await axios.post(`/api/certificates/${signRes.data.signature._id}/upload-signed`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      setShowSignModal(false);
+      setSigned(true);
+      addSignedCourse(id);
+      // 3. Si hay test relacionado, verificar si faltan cursos
+      if (relatedAssessment) {
+        const readyRes = await axios.get(`/api/assessments/${relatedAssessment._id}/ready-for-user/${user.id}`, {
+          headers: { Authorization: token }
+        });
+        if (readyRes.data && Array.isArray(readyRes.data.missingCourses) && readyRes.data.missingCourses.length > 0) {
+          // Buscar el siguiente curso pendiente (que no sea el actual)
+          const nextCourseId = readyRes.data.missingCourses.find(cid => String(cid) !== String(id));
+          if (nextCourseId) {
+            // Buscar el nombre del siguiente curso
+            let nextCourseName = '';
+            try {
+              const nextRes = await axios.get(`/api/courses/byid/${nextCourseId}`);
+              nextCourseName = nextRes.data?.name || '';
+            } catch {}
+            setRedirectModal({ open: true, type: 'course', nextCourseId, nextCourseName, seconds: 5 });
+            return;
+          }
+        } else {
+          // Todos los cursos firmados, mostrar modal de redirección al test
+          setRedirectModal({ open: true, type: 'test', nextCourseId: relatedAssessment._id, nextCourseName: relatedAssessment.name || 'Test', seconds: 6, fromRelated: true });
+          return;
+        }
+      } else {
+        // No hay test relacionado, flujo normal
+        navigate('/training-dashboard', { state: { successMessage: 'Curso firmado con éxito' } });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Error al firmar el curso o subir el archivo', type: 'error' });
+      setTimeout(() => setSnackbar({ open: false, message: '', type: 'error' }), 1500);
+    } finally {
+      setSigning(false);
+    }
+  };
 
   if (loading) return <div className="course-detail-loading">Cargando...</div>;
   if (!course) return <div className="course-detail-error">No se encontró el curso.</div>;
@@ -146,7 +266,8 @@ const CourseDetail = () => {
             {signed && (
               <img src={checkIcon} alt="Curso firmado" title="Curso firmado" style={{ width: 32, height: 32, marginRight: 12, marginTop: 2 }} />
             )}
-            <button className="course-detail-btn" onClick={() => window.history.back()}>Regresar</button>
+            {/* Botón Regresar siempre lleva al dashboard */}
+            <button className="course-detail-btn" onClick={() => navigate('/training-dashboard')}>Regresar</button>
           </div>
         </div>
         {/* Modal de firma */}
@@ -225,39 +346,20 @@ const CourseDetail = () => {
                     setSnackbar({ open: true, message: 'El nombre debe coincidir exactamente con el registrado en el sistema.', type: 'error' });
                     return;
                   }
-                  setSigning(true);
-                  try {
+                  // Si es el último curso relacionado, mostrar advertencia antes de firmar
+                  if (relatedAssessment) {
                     const token = localStorage.getItem('token');
-                    // 1. Firmar el curso
-                    // Obtener datos del curso y usuario para guardar en la firma
-                    const courseRes = await axios.get(`/api/courses/byid/${id}`);
-                    const courseData = courseRes.data;
-                    const signRes = await axios.post(`/api/courses/${id}/signature`, {
-                      userId: user.id,
-                      name: signature.trim(),
-                      courseName: courseData.name, // Nuevo campo
-                      userName: user.name // Nuevo campo
-                    }, {
-                      headers: { Authorization: `Bearer ${token}` }
+                    const readyRes = await axios.get(`/api/assessments/${relatedAssessment._id}/ready-for-user/${user.id}`, {
+                      headers: { Authorization: token }
                     });
-                    // 2. Subir el PDF firmado
-                    if (signedPdfFile) {
-                      const formData = new FormData();
-                      formData.append('signedFile', signedPdfFile);
-                      await axios.post(`/api/certificates/${signRes.data.signature._id}/upload-signed`, formData, {
-                        headers: { Authorization: `Bearer ${token}` }
-                      });
+                    if (readyRes.data && Array.isArray(readyRes.data.missingCourses) && readyRes.data.missingCourses.length === 1 && String(readyRes.data.missingCourses[0]) === String(id)) {
+                      // Es el último curso relacionado
+                      setWarningModal({ open: true });
+                      return;
                     }
-                    setShowSignModal(false);
-                    setSigned(true);
-                    addSignedCourse(id); // Actualiza el contexto global
-                    navigate('/training-dashboard', { state: { successMessage: 'Curso firmado con éxito' } });
-                  } catch (err) {
-                    setSnackbar({ open: true, message: 'Error al firmar el curso o subir el archivo', type: 'error' });
-                    setTimeout(() => setSnackbar({ open: false, message: '', type: 'error' }), 1500);
-                  } finally {
-                    setSigning(false);
                   }
+                  // Proceso normal de firma
+                  await handleCourseSign();
                 }}
               >
                 Confirmar
@@ -355,6 +457,78 @@ const CourseDetail = () => {
           >
             He revisado el curso
           </button>
+        )}
+        {/* Modal de advertencia para el último curso relacionado */}
+        {warningModal.open && (
+          <div className="modal-overlay" style={{ zIndex: 9999 }}>
+            <div className="modal" style={{ minWidth: 340, maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, position: 'relative', background: '#fff', textAlign: 'center' }}>
+              <h3>Advertencia</h3>
+              <p>¿Estás segura? Este fue el ultimo curso con relacion a tu test. Si firmas, serás redirigido al test sin salir hasta terminarlo…</p>
+              <button className="confirm-button" style={{ minWidth: 120, fontSize: 16, marginRight: 12 }}
+                onClick={async () => {
+                  setWarningModal({ open: false });
+                  await handleCourseSign();
+                }}>
+                Firmar y continuar
+              </button>
+              <button className="cancel-button" style={{ minWidth: 120, fontSize: 16 }}
+                onClick={() => {
+                  setWarningModal({ open: false });
+                  setShowSignModal(false);
+                  setSignature('');
+                  setSignedPdfFile(null);
+                  navigate('/training-dashboard');
+                }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Modal de confirmación para test relacionado */}
+        {testModal.open && (
+          <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => (!testModal.fromRelated) ? setTestModal({ ...testModal, open: false }) : null}>
+            <div className="modal" style={{ minWidth: 340, maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, position: 'relative', background: '#fff' }} onClick={e => e.stopPropagation()}>
+              {/* Solo mostrar botón cerrar si NO viene de cursos relacionados */}
+              {!testModal.fromRelated && (
+                <button style={{ position: 'absolute', top: 10, right: 10, fontSize: 22, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setTestModal({ ...testModal, open: false })}>✕</button>
+              )}
+              <h3 style={{ marginTop: 0, color: '#1976d2', fontWeight: 700 }}>Antes de comenzar el test</h3>
+              <p style={{ fontWeight: 600 }}>Al iniciar el test, <b>no podrás salir ni cancelar</b> hasta que envíes tus respuestas.<br />¿Deseas comenzar?</p>
+              <button className="confirm-button" style={{ minWidth: 120, fontSize: 16 }}
+                onClick={() => {
+                  setTestModal({ ...testModal, open: false });
+                  setShowSignModal(false);
+                  navigate(`/assessment/${testModal.assessmentId}`);
+                }}>
+                Comenzar
+              </button>
+              {/* Solo mostrar Cancelar si NO viene de cursos relacionados */}
+              {!testModal.fromRelated && (
+                <button className="cancel-button" style={{ minWidth: 120, fontSize: 16, marginLeft: 12 }}
+                  onClick={() => setTestModal({ ...testModal, open: false })}>
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Modal de redirección automática (a curso o test) */}
+        {redirectModal.open && redirectModal.type === 'course' && (
+          <div className="modal-overlay" style={{ zIndex: 9999 }}>
+            <div className="modal" style={{ minWidth: 340, maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, position: 'relative', background: '#fff', textAlign: 'center' }}>
+              <h3>Redirigiendo al siguiente curso relacionado</h3>
+              <p>Este test requiere que firmes también el curso: <b>{redirectModal.nextCourseName}</b></p>
+              <p>Serás redirigido automáticamente en {redirectModal.seconds} segundos...</p>
+            </div>
+          </div>
+        )}
+        {redirectModal.open && redirectModal.type === 'test' && (
+          <div className="modal-overlay" style={{ zIndex: 9999 }}>
+            <div className="modal" style={{ minWidth: 340, maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 24px #2224', padding: 32, position: 'relative', background: '#fff', textAlign: 'center' }}>
+              <h3>Redirigiendo al test relacionado</h3>
+              <p>Has firmado todos los cursos requeridos. Serás redirigido automáticamente al test <b>{redirectModal.nextCourseName}</b> en {redirectModal.seconds} segundos...</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

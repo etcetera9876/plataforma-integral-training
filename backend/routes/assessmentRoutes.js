@@ -33,6 +33,9 @@ router.get('/grades-summary', authMiddleware, assessmentController.getGradesSumm
 router.post('/', authMiddleware, assessmentController.createAssessment);
 router.get('/', authMiddleware, assessmentController.getAssessments);
 
+router.get("/related-to-course/:courseId", authMiddleware, assessmentController.getAssessmentsRelatedToCourse);
+router.get("/:assessmentId/ready-for-user/:userId", authMiddleware, assessmentController.isAssessmentReadyForUser);
+
 // Evaluaciones asignadas a un usuario y branch
 router.get('/assigned', authMiddleware, assessmentController.getAssignedAssessments);
 

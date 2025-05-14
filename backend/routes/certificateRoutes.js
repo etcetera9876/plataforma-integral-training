@@ -14,19 +14,36 @@ router.post('/:signatureId/upload-signed', authenticateToken, async (req, res, n
   // Usar el controlador existente para subir el archivo
   await certificateController.uploadSignedCertificate[0](req, res, async (err) => {
     if (err) return next(err);
-    // Si hubo error en multer, termina
     if (res.headersSent) return;
-    // Validar que el archivo fue subido (obligatorio)
     if (!req.file) {
       return res.status(400).json({ message: 'El archivo firmado es obligatorio.' });
     }
-    // Lógica de subida exitosa
     try {
       // Ejecutar la segunda parte del controlador (guardar en BD)
       await certificateController.uploadSignedCertificate[1](req, res);
-      // Si la subida fue exitosa, emitir el evento certificateSigned
+      // Emitir el evento certificateSigned SOLO por socket, sin responder de nuevo
       const signatureId = req.params.signatureId;
-      await certificateController.emitSignedEvent(req, res);
+      try {
+        const signature = await require('../models/courseSignature').findById(signatureId);
+        const user = signature ? await require('../models/user').findById(signature.userId) : null;
+        const course = signature ? await require('../models/course').findById(signature.courseId) : null;
+        if (signature && user && course) {
+          const certificado = {
+            id: signature._id,
+            userName: user.name,
+            courseName: course.name,
+            signedAt: signature.signedAt,
+            pdfUrl: `/api/certificates/${signature._id}/download`,
+            signedFileUrl: signature.signedFileUrl
+          };
+          const { ioInstance } = require('../socket');
+          const branchIdStr = course && course.branchId ? String(course.branchId) : undefined;
+          if (ioInstance) {
+            ioInstance.emit('certificateSigned', { ...certificado, branchId: branchIdStr });
+          }
+        }
+      } catch (e) { /* ignora errores de socket */ }
+      // La respuesta ya fue enviada por uploadSignedCertificate[1]
     } catch (error) {
       next(error);
     }

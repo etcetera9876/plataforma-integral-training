@@ -679,4 +679,42 @@ exports.getGradesSummary = async (req, res) => {
   }
 };
 
+// GET /api/assessments/related-to-course/:courseId
+exports.getAssessmentsRelatedToCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    if (!courseId) return res.status(400).json({ message: 'Faltan courseId' });
+    const Assessment = require('../models/assessment');
+    const assessments = await Assessment.find({ relatedCourses: courseId });
+    res.json(assessments);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al buscar tests relacionados', error: err.message });
+  }
+};
+
+// GET /api/assessments/:assessmentId/ready-for-user/:userId
+exports.isAssessmentReadyForUser = async (req, res) => {
+  try {
+    const { assessmentId, userId } = req.params;
+    if (!assessmentId || !userId) return res.status(400).json({ message: 'Faltan datos' });
+    const Assessment = require('../models/assessment');
+    const CourseSignature = require('../models/courseSignature');
+    const assessment = await Assessment.findById(assessmentId);
+    if (!assessment) return res.status(404).json({ message: 'Test no encontrado' });
+    if (!assessment.relatedCourses || assessment.relatedCourses.length === 0) {
+      return res.json({ ready: true, missingCourses: [] });
+    }
+    // Buscar firmas del usuario para los cursos requeridos
+    const firmas = await CourseSignature.find({
+      userId,
+      courseId: { $in: assessment.relatedCourses }
+    });
+    const firmados = firmas.map(f => String(f.courseId));
+    const missingCourses = assessment.relatedCourses.filter(cid => !firmados.includes(String(cid)));
+    res.json({ ready: missingCourses.length === 0, missingCourses });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al verificar firmas de cursos', error: err.message });
+  }
+};
+
 module.exports.uploadPdf = uploadPdf;
