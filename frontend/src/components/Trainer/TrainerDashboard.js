@@ -552,8 +552,8 @@ const TrainerDashboard = ({ setUser, user }) => {
               <p>Loading branches...</p>
             ) : branches.length > 0 ? (
               <select id="branch-select" value={isGlobal ? 'GLOBAL' : (selectedBranch ? String(selectedBranch) : "")} onChange={handleBranchChange}>
-                {showGlobalOption && <option value="GLOBAL">🌐 Global (todas las sucursales)</option>}
                 <option value="">-- Selecciona una sucursal --</option>
+                {showGlobalOption && <option value="GLOBAL">🌐 Global (todas las sucursales)</option>}
                 {branches.map((branch) => (
                   <option key={branch._id} value={String(branch._id)}>
                     {branch.name}
