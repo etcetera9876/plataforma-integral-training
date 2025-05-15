@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useRef, useContext } from "react";
+import { useParams, useNavigate, UNSAFE_NavigationContext as NavigationContext } from "react-router-dom";
 import axios from "axios";
 import { useDashboard } from '../components/DashboardContext';
 import Modal from "../components/Trainer/Modal";
@@ -232,6 +232,75 @@ const AssessmentResolvePage = () => {
   try {
     TestFormPreview = require('../components/Trainer/TestFormPreview').default;
   } catch {}
+
+  // --- BLOQUEO beforeunload (cierre/recarga/retroceso navegador) ---
+  const navigator = useContext(NavigationContext).navigator;
+  const [blockNav, setBlockNav] = useState(false);
+  const blockNavRef = useRef(false);
+
+  useEffect(() => {
+    if (!timerModalAccepted) return;
+    const handleBeforeUnload = (e) => {
+      if (blockNavRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [timerModalAccepted]);
+
+  // --- BLOQUEO navegación interna SPA (React Router v7+) ---
+  useEffect(() => {
+    if (!timerModalAccepted) return;
+    setBlockNav(true);
+    blockNavRef.current = true;
+    let unblock = null;
+    if (navigator && navigator.block) {
+      unblock = navigator.block((tx) => {
+        if (blockNavRef.current) {
+          const confirm = window.confirm('¿Seguro que quieres salir? Si aceptas, el test se enviará vacío y afectará tu promedio. Si fue un apagón real, contacta a soporte.');
+          if (confirm) {
+            // Enviar test vacío
+            enviarTestVacio();
+            unblock();
+            tx.retry();
+          }
+          // Si cancela, no navega
+          return false;
+        }
+        return true;
+      });
+    }
+    return () => {
+      if (unblock) unblock();
+      setBlockNav(false);
+      blockNavRef.current = false;
+    };
+  }, [timerModalAccepted, navigator]);
+
+  // Función para enviar test vacío (0%)
+  const enviarTestVacio = async () => {
+    let userId = localStorage.getItem("userId");
+    if (!userId) {
+      const userObj = JSON.parse(localStorage.getItem("user"));
+      userId = userObj?.id;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`/api/assessments/${id}/submit`, {
+        userId,
+        answers: {}, // vacío
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Limpiar timer persistente
+      localStorage.removeItem(`assessment_timer_${id}_${userId}`);
+    } catch (err) {
+      // Ignorar error, el test se considera enviado
+    }
+  };
 
   if (loading) return <div>Cargando evaluación...</div>;
   if (error || !test) return <div>{error || "No se encontró la evaluación."}</div>;

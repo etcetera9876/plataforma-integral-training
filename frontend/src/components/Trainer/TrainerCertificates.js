@@ -9,14 +9,16 @@ const TrainerCertificates = ({ setUser, user, branchId }) => {
     certificates,
     selectedBranch,
     selectBranch,
+    fetchCertificates,
     loadingCertificates,
   } = useDashboard();
 
   useEffect(() => {
-    if (branchId && branchId !== selectedBranch) {
-      selectBranch(branchId, user.token);
+    if (branchId) {
+      // Siempre recarga certificados al montar o cambiar branchId
+      fetchCertificates(branchId, user.token);
     }
-  }, [branchId, selectedBranch, selectBranch, user.token]);
+  }, [branchId, fetchCertificates, user.token]);
 
   return (
     <>

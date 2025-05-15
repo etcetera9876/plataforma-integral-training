@@ -7,7 +7,8 @@ const CourseSignatureSchema = new mongoose.Schema({
   signedAt: { type: Date, default: Date.now },
   signedFileUrl: { type: String, default: null }, // Ruta del PDF firmado subido por el usuario
   courseName: { type: String, default: null }, // Nombre del curso al momento de firmar
-  userName: { type: String, default: null } // Nombre del usuario al momento de firmar
+  userName: { type: String, default: null }, // Nombre del usuario al momento de firmar
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: false } // Sucursal del curso al momento de firmar
 });
 
 module.exports = mongoose.model('CourseSignature', CourseSignatureSchema);

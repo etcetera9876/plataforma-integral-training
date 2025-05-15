@@ -199,6 +199,26 @@ exports.updateCourse = async (req, res) => {
       return res.status(404).json({ message: "Curso no encontrado" });
     }
 
+    // Si se actualiza el nombre, actualizar también en CourseSignature
+    if (updates.name) {
+      // Si se actualiza el nombre, actualizar también en CourseSignature
+      const CourseSignature = require('../models/courseSignature');
+      await CourseSignature.updateMany(
+        { courseId: courseId },
+        { $set: { courseName: updates.name } }
+      );
+      // Eliminar PDFs de certificados relacionados para forzar su regeneración
+      const path = require('path');
+      const fs = require('fs');
+      const firmas = await CourseSignature.find({ courseId: courseId });
+      for (const firma of firmas) {
+        const pdfPath = path.join(__dirname, '../uploads', `certificate-${firma._id}.pdf`);
+        if (fs.existsSync(pdfPath)) {
+          try { fs.unlinkSync(pdfPath); } catch (e) { /* ignorar error */ }
+        }
+      }
+    }
+
     await emitDbChange();
     res.status(200).json(updatedCourse);
   } catch (error) {
@@ -340,13 +360,14 @@ exports.signCourse = async (req, res) => {
     const User = require('../models/user');
     const user = await User.findById(userObjectId);
     const course = await require('../models/course').findById(id);
-    // Crear la firma guardando también courseName y userName
+    // Crear la firma guardando también courseName, userName y branchId
     const signature = new CourseSignature({
       courseId: id,
       userId: userObjectId,
       name,
       courseName: course ? course.name : null,
-      userName: user ? user.name : null
+      userName: user ? user.name : null,
+      branchId: course ? course.branchId : null
     });
     await signature.save();
 

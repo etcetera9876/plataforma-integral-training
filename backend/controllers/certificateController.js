@@ -41,12 +41,15 @@ exports.getCertificatesByBranch = async (req, res) => {
     // 1. Buscar todos los cursos (existentes) de la sucursal
     const courses = await Course.find({ branchId: branch });
     const courseIds = courses.map(c => String(c._id));
-    // 2. Buscar todas las firmas que tengan courseId de la sucursal (aunque el curso ya no exista)
-    const signatures = await CourseSignature.find({});
-    // 3. Filtrar firmas que correspondan a branch (por courseId en courseIds o por branchId guardado en CourseSignature si lo agregas en el futuro)
-    //    y además incluir firmas de cursos eliminados que alguna vez pertenecieron a la sucursal
-    //    (esto asume que solo se pueden firmar cursos de la sucursal actual)
-    const filteredSignatures = signatures.filter(sig => courseIds.includes(String(sig.courseId)) || (sig.courseName && sig.courseId && !courses.find(c => String(c._id) === String(sig.courseId))));
+    // 2. Buscar todas las firmas
+    const signatures = await CourseSignature.find({
+      $or: [
+        { branchId: branch }, // Preferido: firmas con branchId guardado
+        { branchId: { $exists: false }, courseId: { $in: courseIds } } // Compatibilidad: firmas antiguas
+      ]
+    });
+    // 3. Filtrar firmas estrictamente por branchId
+    const filteredSignatures = signatures.filter(sig => String(sig.branchId) === String(branch));
     // 4. Buscar usuarios
     const userIds = filteredSignatures.map(s => s.userId);
     const users = await User.find({ _id: { $in: userIds } });

@@ -17,11 +17,13 @@ import QuestionBankModal from './QuestionBankModal';
 import { FaLock, FaLockOpen } from "react-icons/fa";
 import EvaluationResultsPage from "./EvaluationResultsPage";
 import TrainerCertificates from "./TrainerCertificates";
+import { useDashboard } from '../DashboardContext';
 
 const TrainerDashboard = ({ setUser, user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { branches, loading } = useBranches();
+  const { fetchCertificates } = useDashboard();
   const [selectedBranch, setSelectedBranch] = useState("");
   const [courses, setCourses] = useState([]);
   const [userNames, setUserNames] = useState({});
@@ -1067,6 +1069,9 @@ const TrainerDashboard = ({ setUser, user }) => {
           onClose={() => setIsModalOpen(false)}
           onSave={async () => {
             await fetchCourses();
+            if (activeSection === 'certificates') {
+              await fetchCertificates(selectedBranch, user.token);
+            }
             setSnackbar({ open: true, message: "Curso actualizado con éxito", type: "success" });
           }}
           userNames={userNames}
