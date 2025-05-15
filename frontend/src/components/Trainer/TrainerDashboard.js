@@ -535,6 +535,11 @@ const TrainerDashboard = ({ setUser, user }) => {
   const [pendingLockAction, setPendingLockAction] = useState(null); // 'lock' o 'unlock'
   const [pendingLockGroup, setPendingLockGroup] = useState(null); // grupo de cursos globales
 
+  // Filtrar assessments según modo: en sucursal oculta los de nivelación
+  const filteredAssessments = isGlobal
+    ? assessments
+    : assessments.filter(a => !a.isLevelingTest);
+
   return (
     <>
       <div className={`dashboard-container${isAnyModalOpen ? ' blurred' : ''}`}>
@@ -887,7 +892,7 @@ const TrainerDashboard = ({ setUser, user }) => {
                       </div>
                       <ul className="course-list" style={{ padding: 0, margin: 0 }}>
                         {assessments.length > 0 ? (
-                          assessments.filter(a => a && a.name).map((assessment, index) => {
+                          filteredAssessments.filter(a => a && a.name).map((assessment, index) => {
                             const isNewAssessment = !assessment.filters;
                             const subtests = assessmentSubtests[assessment._id] || [];
                             const totalAssigned = Array.isArray(assessment.assignedTo) ? assessment.assignedTo.length : 0;
@@ -1124,6 +1129,7 @@ const TrainerDashboard = ({ setUser, user }) => {
           }}
           branchId={selectedBranch}
           components={blocks}
+          isGlobal={isGlobal} // <-- PASA LA PROP PARA MODO GLOBAL
         />
       )}
       {isAssessmentConfirmModalOpen && (

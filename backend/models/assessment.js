@@ -45,6 +45,12 @@ const AssessmentSchema = new mongoose.Schema({
   }, // Filtros y repeticiones usados para generar subtests
   questions: [QuestionSchema],
   relatedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+  isLevelingTest: { type: Boolean, default: false }, // Indica si es test de nivelación
+  levelingRole: {
+    type: String,
+    enum: ['Recruiter', 'Manager', 'Trainer', 'Supervisor', 'Admin'],
+    required: false
+  }, // Rol al que aplica el test de nivelación
 });
 
 module.exports = mongoose.model('Assessment', AssessmentSchema);

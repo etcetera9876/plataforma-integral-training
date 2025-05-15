@@ -79,7 +79,10 @@ exports.createAssessment = async (req, res) => {
       return res.status(400).json({ message: 'El campo "components" debe ser un array con al menos un elemento.' });
     }
 
- 
+    // Validación: no permitir crear test de nivelación fuera de modo global
+    if (req.body.isLevelingTest && req.body.levelingRole && req.body.branch && req.body.branch !== 'Global') {
+      return res.status(400).json({ message: 'Los tests de nivelación solo pueden crearse en modo global.' });
+    }
 
     // Adaptar components: aceptar array de IDs o array de objetos { block, weight }
     let adaptedComponents = components;
@@ -112,8 +115,29 @@ exports.createAssessment = async (req, res) => {
       assignedTo,
       createdBy: req.body.createdBy,
       relatedCourses: Array.isArray(relatedCourses) ? relatedCourses : [],
+      isLevelingTest: req.body.isLevelingTest || false,
+      levelingRole: req.body.levelingRole || undefined
     });
     await assessment.save();
+
+    // Asignación automática de test de nivelación a usuarios del rol correspondiente
+    if (assessment.isLevelingTest && assessment.levelingRole) {
+      const User = require('../models/user');
+      // Solo usuarios antiguos con el rol indicado
+      const users = await User.find({ role: assessment.levelingRole, isOldUser: true });
+      for (const user of users) {
+        const alreadyAssigned = user.levelingStatus && user.levelingStatus.some(ls => String(ls.assessmentId) === String(assessment._id));
+        if (!alreadyAssigned) {
+          user.levelingStatus.push({
+            role: assessment.levelingRole,
+            status: 'pending',
+            assessmentId: assessment._id,
+            assignedAt: new Date()
+          });
+          await user.save();
+        }
+      }
+    }
     await emitDbChange(); // <--- Notifica a los clientes en tiempo real
     res.status(201).json({ message: 'Evaluación creada correctamente', assessment });
   } catch (error) {

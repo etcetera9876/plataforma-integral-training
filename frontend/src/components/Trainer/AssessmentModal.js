@@ -19,7 +19,8 @@ const AssessmentModal = ({
   onSubmit,
   initialData = {},
   branchId,
-  components = []
+  components = [],
+  isGlobal = false // NUEVO: indica si está en modo global
 }) => {
   const [name, setName] = useState(initialData.name || "");
   const [description, setDescription] = useState(initialData.description || "");
@@ -69,6 +70,17 @@ const AssessmentModal = ({
 
   const [evaluationType, setEvaluationType] = useState(initialData.evaluationType || "multiple-choice");
   const [questions, setQuestions] = useState(initialData.questions || []);
+
+  // Nuevo: estado para test de nivelación y rol
+  const [isLevelingTest, setIsLevelingTest] = useState(false);
+  const [levelingRole, setLevelingRole] = useState("");
+  // Opciones de roles (ajusta según tus roles reales)
+  const levelingRoles = [
+    { value: "recruiter", label: "Recruiter" },
+    { value: "trainer", label: "Trainer" },
+    { value: "admin", label: "Admin" },
+    { value: "supervisor", label: "Supervisor" }
+  ];
 
   const canPublishNow =
     name.trim().length > 0 &&
@@ -126,6 +138,8 @@ const AssessmentModal = ({
           ? new Date(scheduledDate).toISOString()
           : null,
         expirationDate: isSchedule && expirationDate ? new Date(expirationDate).toISOString() : null,
+        // Nuevo: solo incluir si es test de nivelación
+        ...(isLevelingTest ? { isLevelingTest: true, levelingRole } : {})
       };
       await onSubmit(payload);
       setSnackbar({ open: true, message: "Evaluación guardada con éxito", type: "success" });
@@ -136,6 +150,29 @@ const AssessmentModal = ({
       setSaving(false);
     }
   };
+
+  // Hook para cargar usuarios antiguos por rol si es test de nivelación y modo select
+  useEffect(() => {
+    if (isLevelingTest && assignedMode === "select" && levelingRole) {
+      const fetchOldUsers = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await axios.get(`/api/users/old-users-by-role?role=${levelingRole}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setBranchUsers(res.data);
+        } catch {
+          setBranchUsers([]);
+        }
+      };
+      fetchOldUsers();
+    } else if (assignedMode === "select" && branchName && !isLevelingTest) {
+      axios
+        .get(`/api/users/branch/${branchName}/users`)
+        .then((response) => setBranchUsers(response.data))
+        .catch(() => setBranchUsers([]));
+    }
+  }, [isLevelingTest, assignedMode, levelingRole, branchName]);
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
@@ -179,33 +216,63 @@ const AssessmentModal = ({
                   ))}
                 </select>
               </div>
-              <div className="modal-field">
-                <label>Cursos relacionados (opcional)</label>
-                <div style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
-                  <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                    {courses.map((c) => (
-                      <li key={c._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
-                        <div style={{ width: 28, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                          <input
-                            type="checkbox"
-                            value={c._id}
-                            checked={relatedCourses.includes(c._id)}
-                            onChange={e => {
-                              const isChecked = e.target.checked;
-                              setRelatedCourses(prev =>
-                                isChecked
-                                  ? [...prev, c._id]
-                                  : prev.filter(id => id !== c._id)
-                              );
-                            }}
-                          />
-                        </div>
-                        <span style={{ fontSize: 15, textAlign: 'left', flex: 1, paddingLeft: 4 }}>{c.name}</span>
-                      </li>
-                    ))}
-                  </ul>
+              {/* Ocultar cursos relacionados si es test de nivelación */}
+              {!isLevelingTest && (
+                <div className="modal-field">
+                  <label>Cursos relacionados (opcional)</label>
+                  <div style={{ maxHeight: 120, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 6 }}>
+                    <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                      {courses.map((c) => (
+                        <li key={c._id} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                          <div style={{ width: 28, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                            <input
+                              type="checkbox"
+                              value={c._id}
+                              checked={relatedCourses.includes(c._id)}
+                              onChange={e => {
+                                const isChecked = e.target.checked;
+                                setRelatedCourses(prev =>
+                                  isChecked
+                                    ? [...prev, c._id]
+                                    : prev.filter(id => id !== c._id)
+                                );
+                              }}
+                            />
+                          </div>
+                          <span style={{ fontSize: 15, textAlign: 'left', flex: 1, paddingLeft: 4 }}>{c.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
+              )}
+              {isGlobal && (
+                <div className="modal-field">
+                  <label style={{ fontWeight: 600, marginBottom: 4 }}>¿Es test de nivelación?</label>
+                  <input
+                    type="checkbox"
+                    checked={isLevelingTest}
+                    onChange={e => setIsLevelingTest(e.target.checked)}
+                    style={{ marginLeft: 8 }}
+                  />
+                </div>
+              )}
+              {isGlobal && isLevelingTest && (
+                <div className="modal-field">
+                  <label style={{ fontWeight: 600, marginBottom: 4 }}>Rol para test de nivelación</label>
+                  <select
+                    value={levelingRole}
+                    onChange={e => setLevelingRole(e.target.value)}
+                    style={{ width: "100%", borderRadius: 8, border: '1.2px solid #d0d0d0', padding: 8, fontSize: 15 }}
+                    required
+                  >
+                    <option value="">Selecciona un rol</option>
+                    {levelingRoles.map(role => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <section className="checklist-section" style={{ marginBottom: 0 }}>
                 <div style={{ marginBottom: 6 }}>
                   <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>Asignado a</div>
@@ -263,28 +330,29 @@ const AssessmentModal = ({
                   )}
                 </div>
               </section>
+              {/* Ocultar Publish Now si es test de nivelación, pero mostrar Schedule publication */}
               <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                {!isSchedule && !isLevelingTest && (
+                  <button
+                    className="schedule-buttons"
+                    type="button"
+                    onClick={handlePublishNow}
+                    disabled={saving}
+                    style={{ background: '#e53935', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '8px 18px', fontSize: 16, border: 'none', boxShadow: '0 1px 4px #e0e0e0', transition: 'background 0.2s' }}
+                  >
+                    Publish now
+                  </button>
+                )}
                 {!isSchedule && (
-                  <>
-                    <button
-                      className="schedule-buttons"
-                      type="button"
-                      onClick={handlePublishNow}
-                      disabled={saving}
-                      style={{ background: '#e53935', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '8px 18px', fontSize: 16, border: 'none', boxShadow: '0 1px 4px #e0e0e0', transition: 'background 0.2s' }}
-                    >
-                      Publish now
-                    </button>
-                    <button
-                      className="schedule-buttons"
-                      type="button"
-                      onClick={() => setIsSchedule(true)}
-                      disabled={isSchedule}
-                      style={{ background: '#e53935', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '8px 18px', fontSize: 16, border: 'none', boxShadow: '0 1px 4px #e0e0e0', transition: 'background 0.2s' }}
-                    >
-                      Schedule publication
-                    </button>
-                  </>
+                  <button
+                    className="schedule-buttons"
+                    type="button"
+                    onClick={() => setIsSchedule(true)}
+                    disabled={isSchedule}
+                    style={{ background: '#e53935', color: '#fff', fontWeight: 600, borderRadius: 8, padding: '8px 18px', fontSize: 16, border: 'none', boxShadow: '0 1px 4px #e0e0e0', transition: 'background 0.2s' }}
+                  >
+                    Schedule publication
+                  </button>
                 )}
               </div>
               {isSchedule && (

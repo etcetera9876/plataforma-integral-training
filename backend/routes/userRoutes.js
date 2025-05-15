@@ -6,6 +6,8 @@ const {
   getUserNames,
   updateUserRole,
   getUsersByBranch, // Importa correctamente la función
+  getLevelingStatus, // Importa la función para obtener el estado de nivelación
+  getOldUsersByRole, // Importa la función para obtener usuarios antiguos por rol
 } = require('../controllers/userController');
 
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -31,5 +33,11 @@ router.put('/users/:id/role', authMiddleware, roleMiddleware(['admin']), updateU
 
 // Ruta para obtener nombres de usuarios
 router.post('/names', getUserNames);
+
+// Consulta el estado de nivelación del usuario para su rol actual
+router.get('/:id/leveling-status', authMiddleware, getLevelingStatus);
+
+// GET /api/users/old-users-by-role?role=ROLE
+router.get('/old-users-by-role', authMiddleware, roleMiddleware(['admin', 'trainer']), getOldUsersByRole);
 
 module.exports = router;
