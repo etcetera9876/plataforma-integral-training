@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import socket from '../../socket';
+import { FaRedo, FaHistory } from 'react-icons/fa';
 
 function ConfirmModal({ open, onConfirm, onCancel, userName }) {
   if (!open) return null;
@@ -17,6 +18,65 @@ function ConfirmModal({ open, onConfirm, onCancel, userName }) {
   );
 }
 
+function ResetModal({ open, onClose, onSubmit, userName, loading }) {
+  const [reason, setReason] = useState('');
+  const [files, setFiles] = useState([]);
+  const [error, setError] = useState('');
+
+  // Limpiar campos al cerrar/cancelar o confirmar
+  useEffect(() => {
+    if (!open) {
+      setReason('');
+      setFiles([]);
+      setError('');
+    }
+  }, [open]);
+
+  const handleFileChange = (e) => {
+    setFiles(Array.from(e.target.files));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!reason.trim()) {
+      setError('Debes ingresar un motivo.');
+      return;
+    }
+    setError('');
+    onSubmit({ reason, files });
+    // Limpiar campos después de submit
+    setReason('');
+    setFiles([]);
+  };
+
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <form onSubmit={handleSubmit} style={{ background: '#fff', borderRadius: 10, padding: 32, minWidth: 340, boxShadow: '0 2px 12px #aaa', textAlign: 'center' }}>
+        <div style={{ fontSize: 18, marginBottom: 18 }}>Resetear test de <b>{userName}</b></div>
+        <textarea
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Motivo del reseteo (requerido)"
+          rows={3}
+          style={{ width: '100%', borderRadius: 6, border: '1px solid #ccc', padding: 8, marginBottom: 12 }}
+        />
+        <input
+          type="file"
+          multiple
+          onChange={handleFileChange}
+          style={{ marginBottom: 12 }}
+        />
+        {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
+          <button type="submit" disabled={loading} style={{ background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 24px', fontWeight: 600, cursor: 'pointer' }}>Resetear</button>
+          <button type="button" onClick={onClose} disabled={loading} style={{ background: '#eee', color: '#222', border: 'none', borderRadius: 6, padding: '8px 24px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 const EvaluationResultsPage = ({ user, branchId }) => {
   const [branches, setBranches] = useState([]);
   const [tests, setTests] = useState([]);
@@ -24,6 +84,7 @@ const EvaluationResultsPage = ({ user, branchId }) => {
   const [subtests, setSubtests] = useState([]);
   const [userNamesMap, setUserNamesMap] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserName, setCurrentUserName] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'info' });
@@ -32,6 +93,10 @@ const EvaluationResultsPage = ({ user, branchId }) => {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [userOptions, setUserOptions] = useState([]);
+  const [showResetHistory, setShowResetHistory] = useState(false);
+  // Estado para historial de reseteos
+  const [resetLogs, setResetLogs] = useState([]);
+  const [loadingResetLogs, setLoadingResetLogs] = useState(false);
 
   // Obtener token
   const token = user?.token || localStorage.getItem('token');
@@ -140,6 +205,16 @@ const EvaluationResultsPage = ({ user, branchId }) => {
       .finally(() => setLoadingSummary(false));
   }, [viewMode, branchId, selectedUserId]);
 
+  // Cargar historial de reseteos al abrir el modal
+  useEffect(() => {
+    if (!showResetHistory || !selectedTest) return;
+    setLoadingResetLogs(true);
+    axios.get(`/api/assessments/${selectedTest._id}/reset-logs`, axiosConfig)
+      .then(res => setResetLogs(res.data))
+      .catch(() => setResetLogs([]))
+      .finally(() => setLoadingResetLogs(false));
+  }, [showResetHistory, selectedTest]);
+
   useEffect(() => {
     if (snackbar.open) {
       const timer = setTimeout(() => {
@@ -197,7 +272,28 @@ const EvaluationResultsPage = ({ user, branchId }) => {
           <div style={{ flex: 1 }}>
             {selectedTest && (
               <>
-                <h3 style={{ marginBottom: 18 }}>Resultados para: {selectedTest.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                  <h3 style={{ marginBottom: 0 }}>Resultados para: {selectedTest.name}</h3>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      marginLeft: 16,
+                      marginRight: 24,
+                      fontSize: 22,
+                      color: '#1976d2',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title="Ver historial de reseteos"
+                    onClick={() => setShowResetHistory(true)}
+                  >
+                    <FaHistory style={{ marginRight: 6 }} />
+                    <span style={{ fontSize: 15, fontWeight: 500 }}>Historial</span>
+                  </button>
+                </div>
                 <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8 }}>
                   <thead>
                     <tr style={{ background: '#e3eafc' }}>
@@ -205,11 +301,12 @@ const EvaluationResultsPage = ({ user, branchId }) => {
                       <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 120 }}>Estado</th>
                       <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 180 }}>Fecha envío</th>
                       <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 100 }}>Puntaje</th>
+                      <th style={{ padding: '10px 0', borderBottom: '1px solid #ddd', textAlign: 'center', minWidth: 100 }}>Reseteo?</th>
                     </tr>
                   </thead>
                   <tbody>
                     {subtests.length === 0 && (
-                      <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888', padding: 18 }}>(No hay resultados aún)</td></tr>
+                      <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888', padding: 18 }}>(No hay resultados aún)</td></tr>
                     )}
                     {subtests.map(st => (
                       <tr key={st._id}>
@@ -247,6 +344,21 @@ const EvaluationResultsPage = ({ user, branchId }) => {
                         </td>
                         <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 180 }}>{st.submittedAt ? new Date(st.submittedAt).toLocaleString() : '-'}</td>
                         <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'left', minWidth: 100 }}>{st.score != null ? `${st.score} / ${st.totalQuestions}` : '-'}</td>
+                        <td style={{ padding: '10px 0', borderBottom: '1px solid #eee', textAlign: 'center', minWidth: 100 }}>
+                          {st.submittedAt && (
+                            <button
+                              style={{ background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 18px', fontWeight: 600, cursor: 'pointer' }}
+                              title="Resetear test"
+                              onClick={() => {
+                                setCurrentUserId(typeof st.userId === 'object' ? st.userId._id : st.userId);
+                                setCurrentUserName(typeof st.userId === 'object' ? st.userId.name || st.userId.email : st.userId);
+                                setResetOpen(true);
+                              }}
+                            >
+                              Resetear
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -327,6 +439,94 @@ const EvaluationResultsPage = ({ user, branchId }) => {
         onCancel={() => setConfirmOpen(false)}
         userName={currentUserName}
       />
+      <ResetModal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onSubmit={async ({ reason, files }) => {
+          setResetOpen(false);
+          try {
+            if (!reason || !reason.trim()) {
+              setSnackbar({ open: true, message: 'Debes ingresar un motivo.', type: 'error' });
+              return;
+            }
+            const formData = new FormData();
+            formData.append('reason', reason);
+            if (files && files.length > 0) {
+              files.forEach((file, index) => {
+                formData.append(`file${index}`, file);
+              });
+            }
+            await axios.post(`/api/assessments/${selectedTest._id}/reset/${currentUserId}`, formData, {
+              ...axiosConfig,
+              headers: {
+                ...axiosConfig.headers,
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+            setSnackbar({ open: true, message: 'Test reseteado exitosamente', type: 'success' });
+          } catch (err) {
+            setSnackbar({ open: true, message: 'Error al resetear el test', type: 'error' });
+          }
+        }}
+        userName={currentUserName}
+        loading={false}
+      />
+      {showResetHistory && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowResetHistory(false)}>
+          <div className="modal" style={{ minWidth: 900, maxWidth: 1200, width: '90vw' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 18, display: 'flex', alignItems: 'center' }}><FaHistory style={{ marginRight: 8 }} />Historial de reseteos</h3>
+            {loadingResetLogs ? (
+              <div style={{ textAlign: 'center', color: '#888', margin: '32px 0' }}>Cargando historial...</div>
+            ) : resetLogs.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', margin: '32px 0' }}>(No hay reseteos registrados para este test)</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8, marginBottom: 12, minWidth: 700, tableLayout: 'fixed' }}>
+                <thead>
+                  <tr style={{ background: '#e3eafc' }}>
+                    <th style={{ padding: '8px 4px', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 90, maxWidth: 120 }}>Fecha</th>
+                    <th style={{ padding: '8px 4px', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 90, maxWidth: 120 }}>Usuario</th>
+                    <th style={{ padding: '8px 4px', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 90, maxWidth: 120 }}>Admin</th>
+                    <th style={{ padding: '8px 4px', borderBottom: '1px solid #ddd', textAlign: 'left', minWidth: 120, maxWidth: 180 }}>Motivo</th>
+                    <th style={{ padding: '8px 4px', borderBottom: '1px solid #ddd', textAlign: 'center', minWidth: 40, maxWidth: 60 }}>
+                      Archivos
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resetLogs.map(log => (
+                    <tr key={log._id}>
+                      <td style={{ padding: '8px 4px', borderBottom: '1px solid #eee' }}>{log.createdAt ? new Date(log.createdAt).toLocaleString() : '-'}</td>
+                      <td style={{ padding: '8px 4px', borderBottom: '1px solid #eee' }}>{log.userId?.name || log.userId?.email || log.userId?._id || '-'}</td>
+                      <td style={{ padding: '8px 4px', borderBottom: '1px solid #eee' }}>{log.adminId?.name || log.adminId?.email || log.adminId?._id || '-'}</td>
+                      <td style={{ padding: '8px 4px', borderBottom: '1px solid #eee', maxWidth: 220, whiteSpace: 'pre-line', overflowWrap: 'break-word' }}>{log.reason}</td>
+                      <td style={{ padding: '8px 4px', borderBottom: '1px solid #eee', textAlign: 'center', minWidth: 40, maxWidth: 60 }}>
+                        {log.attachments && log.attachments.length > 0 ? (
+                          log.attachments.map((file, idx) => {
+                            const url = file.downloadUrl || file.url || `/uploads/${file.filename}`;
+                            const name = file.originalname || file.filename || `Archivo ${idx + 1}`;
+                            return (
+                              <span key={idx} style={{ display: 'inline-block', marginRight: 4 }}>
+                                <a href={url} download style={{ color: '#1976d2' }} title={`Descargar ${name}`}>
+                                  <button style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}>
+                                    <img src={require('../../assets/pdf-icon.png')} alt="Descargar PDF" style={{ width: 22, height: 22, verticalAlign: 'middle' }} />
+                                  </button>
+                                </a>
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span style={{ color: '#888' }}>-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <button className="confirm-button" style={{ marginTop: 18 }} onClick={() => setShowResetHistory(false)}>Cerrar</button>
+          </div>
+        </div>
+      )}
       {snackbar.open && (
         <div style={{
           position: 'fixed',

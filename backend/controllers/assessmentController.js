@@ -8,6 +8,7 @@ const Subtest = require('../models/subtest');
 const nodemailer = require('nodemailer');
 const { emitDbChange } = require('../socket');
 const { isOpenAnswerCorrect } = require('../utils/openai');
+const ResetLog = require('../models/resetLog');
 
 // Configuración nodemailer
 const transporter = nodemailer.createTransport({
@@ -351,7 +352,7 @@ exports.getAssignedAssessments = async (req, res) => {
     const Subtest = require('../models/subtest');
     const CourseSignature = require('../models/courseSignature');
     const Course = require('../models/course');
-    const assessmentsWithStatus = await Promise.all(assessments.map(async (a) => {
+    let assessmentsWithStatus = await Promise.all(assessments.map(async (a) => {
       const subtest = await Subtest.findOne({ assessment: a._id, userId });
       // Lógica de desbloqueo: si no hay cursos relacionados, canTakeTest = true
       let canTakeTest = true;
@@ -367,6 +368,12 @@ exports.getAssignedAssessments = async (req, res) => {
         const courses = await Course.find({ _id: { $in: a.relatedCourses } });
         relatedCourseNames = courses.map(c => c.name);
       }
+      // Si el subtest fue reseteado (submittedAt == null) y no puede tomar el test, no mostrarlo
+      // CORREGIDO: Solo ocultar si NO puede tomar el test (no ha firmado todos los cursos relacionados)
+      if (subtest && subtest.submittedAt == null && !canTakeTest) {
+        return null;
+      }
+      // Si el subtest fue reseteado pero ya firmó todos los cursos relacionados, mostrarlo (permitir reintento)
       return {
         ...a.toObject(),
         submittedAt: subtest?.submittedAt || null,
@@ -375,6 +382,8 @@ exports.getAssignedAssessments = async (req, res) => {
         relatedCourseNames
       };
     }));
+    // Filtrar los assessments nulos (tests reseteados ocultos)
+    assessmentsWithStatus = assessmentsWithStatus.filter(a => a !== null);
     res.json(assessmentsWithStatus);
   } catch (error) {
     console.error("Error en getAssignedAssessments:", error);
@@ -714,6 +723,100 @@ exports.isAssessmentReadyForUser = async (req, res) => {
     res.json({ ready: missingCourses.length === 0, missingCourses });
   } catch (err) {
     res.status(500).json({ message: 'Error al verificar firmas de cursos', error: err.message });
+  }
+};
+
+// Resetear el subtest de un usuario para un assessment y guardar log
+exports.resetUserSubtest = async (req, res) => {
+  try {
+    console.log('resetUserSubtest called');
+    console.log('req.user:', req.user);
+    console.log('req.params:', req.params);
+    const { assessmentId, userId } = req.params;
+    const adminId = req.user && req.user.id ? req.user.id : null;
+    const { reason } = req.body;
+    if (!adminId) {
+      console.log('No autorizado: adminId missing');
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+    if (!reason) {
+      console.log('Motivo requerido: reason missing');
+      return res.status(400).json({ message: 'Motivo requerido' });
+    }
+    // Procesar archivos adjuntos
+    let attachments = [];
+    if (req.files && req.files.length > 0) {
+      attachments = req.files.map(f => ({ filename: f.filename, originalname: f.originalname }));
+    }
+    // Buscar el subtest
+    const subtest = await Subtest.findOne({
+      assessment: new mongoose.Types.ObjectId(assessmentId),
+      userId: new mongoose.Types.ObjectId(userId)
+    });
+    console.log('subtest encontrado:', subtest);
+    if (!subtest) {
+      console.log('Subtest no encontrado');
+      return res.status(404).json({ message: 'Subtest no encontrado' });
+    }
+    // Resetear campos
+    subtest.submittedAt = null;
+    subtest.submittedAnswers = null;
+    subtest.score = null;
+    subtest.correctCount = null;
+    subtest.totalQuestions = null;
+    subtest.correctMap = null;
+    await subtest.save();
+    // Guardar log
+    await ResetLog.create({
+      assessmentId,
+      userId,
+      adminId,
+      reason,
+      attachments
+    });
+    await emitDbChange();
+    // Notificar por correo al usuario que su test fue reseteado
+    try {
+      const User = require('../models/user');
+      const Assessment = require('../models/assessment');
+      const user = await User.findById(userId);
+      const assessment = await Assessment.findById(assessmentId);
+      if (user && user.email && assessment) {
+        const subject = `Tu test "${assessment.name}" ha sido reseteado`;
+        const text = `Hola ${user.name},\n\nTu test "${assessment.name}" ha sido reseteado por un administrador. Ya puedes volver a resolverlo en la plataforma.\n\nMotivo: ${reason}\n\nSi tienes dudas, contacta a soporte.`;
+        await sendNotificationEmail(user.email, subject, text);
+      }
+    } catch (notifyErr) {
+      console.error('Error al notificar al usuario del reseteo:', notifyErr);
+    }
+    res.json({ message: 'Subtest reseteado y log guardado' });
+  } catch (error) {
+    console.error('Error completo al resetear subtest:', error);
+    res.status(500).json({ message: 'Error al resetear subtest', error: error.message, stack: error.stack });
+  }
+};
+
+// Obtener historial de reseteos de un assessment
+exports.getResetLogs = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const logs = await ResetLog.find({ assessmentId })
+      .sort({ createdAt: -1 })
+      .populate('adminId', 'name email')
+      .populate('userId', 'name email');
+    // Agregar downloadUrl a cada attachment
+    const logsWithDownloadUrl = logs.map(log => ({
+      ...log.toObject(),
+      attachments: (log.attachments || []).map(att => ({
+        ...att,
+        downloadUrl: att.filename
+          ? `http://localhost:5000/uploads/download/${encodeURIComponent(att.filename)}`
+          : null
+      }))
+    }));
+    res.json(logsWithDownloadUrl);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener historial de reseteos', error: error.message });
   }
 };
 

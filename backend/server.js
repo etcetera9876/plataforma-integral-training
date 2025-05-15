@@ -44,6 +44,18 @@ app.get('/', (req, res) => {
   res.send('Servidor funcionando');
 });
 
+// Forzar descarga de archivos en /uploads/download/:filename
+app.get('/uploads/download/:filename', (req, res) => {
+  const filePath = path.resolve(__dirname, 'uploads', req.params.filename);
+  console.log('Intentando descargar archivo:', filePath);
+  res.download(filePath, req.params.filename, (err) => {
+    if (err) {
+      console.error('Error al descargar archivo:', err);
+      res.status(404).send('Archivo no encontrado en: ' + filePath);
+    }
+  });
+});
+
 // Configuración de Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {

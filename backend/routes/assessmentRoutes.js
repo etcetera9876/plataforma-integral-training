@@ -3,7 +3,8 @@ const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 const blockController = require('../controllers/blockController');
 const assessmentController = require('../controllers/assessmentController');
-const multer = require("multer");
+const multer = require('multer');
+const upload = multer();
 const path = require("path");
 
 // Configuración de multer para guardar archivos en /uploads
@@ -16,7 +17,7 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix);
   }
 });
-const upload = multer({ storage });
+const uploadDisk = multer({ storage });
 
 // Bloques
 router.post('/blocks', authMiddleware, blockController.createBlock);
@@ -57,12 +58,22 @@ router.post('/generate-multi', authMiddleware, assessmentController.generateMult
 router.post('/convert-pdf-to-image', assessmentController.convertPdfToImage);
 
 // Endpoint para subir archivos PDF a /uploads
-router.post("/upload", upload.single("file"), assessmentController.uploadPdf);
+router.post("/upload", uploadDisk.single("file"), assessmentController.uploadPdf);
 
 // Guardar respuestas de un usuario para un assessment
 router.post('/:id/submit', authMiddleware, assessmentController.submitAssessment);
 
 // Enviar recordatorio por correo a un usuario para un test pendiente
 router.post('/:id/remind', authMiddleware, assessmentController.sendReminderEmail);
+
+// Resetear subtest de un usuario para un assessment (requiere auth)
+router.post(
+  '/:assessmentId/reset/:userId',
+  authMiddleware,
+  uploadDisk.any(), // <-- Permite recibir campos y archivos de FormData
+  assessmentController.resetUserSubtest
+);
+// Obtener historial de reseteos de un assessment
+router.get('/:assessmentId/reset-logs', authMiddleware, assessmentController.getResetLogs);
 
 module.exports = router;
